@@ -2,13 +2,22 @@ const { Pool } = require('pg');
 require('dotenv').config();
 
 // Database connection configuration
-const dbConfig = {
+const dbConfig = process.env.PG_URI ? {
   connectionString: process.env.PG_URI,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+} : {
+  host: process.env.PG_HOST || 'postgres',  // Usa el nombre del servicio de Docker
+  port: parseInt(process.env.PG_PORT, 10) || 5432,
+  database: process.env.PG_DATABASE || 'invernadero_iot',
+  user: process.env.PG_USER || 'postgres',
+  password: process.env.PG_PASSWORD || 'postgres',
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-  max: 20, // Maximum number of clients in the pool
-  idleTimeoutMillis: 30000, // Close clients after 30 seconds of inactivity
-  connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
 };
+
+// Configuración adicional del pool
+dbConfig.max = 20; // Maximum number of clients in the pool
+dbConfig.idleTimeoutMillis = 30000; // Close clients after 30 seconds of inactivity
+dbConfig.connectionTimeoutMillis = 2000; // Return an error after 2 seconds if connection could not be established
 
 // Create PostgreSQL connection pool
 const pool = new Pool(dbConfig);
