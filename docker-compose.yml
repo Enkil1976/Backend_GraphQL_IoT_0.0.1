@@ -89,6 +89,27 @@ services:
       retries: 5
 
   # PGAdmin para gestión de la base de datos (opcional)
+  # Servicio para inicializar la base de datos
+  db-init:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: iot-db-init
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - PG_HOST=postgres
+      - PG_PORT=${PG_PORT:-5432}
+      - PG_DATABASE=${PG_DATABASE:-invernadero_iot}
+      - PG_USER=${PG_USER:-postgres}
+      - PG_PASSWORD=${PG_PASSWORD:-postgres}
+    command: sh -c "sleep 5 && node setup-database.js"
+    networks:
+      - iot-network
+    restart: on-failure
+
   pgadmin:
     image: dpage/pgadmin4
     container_name: pgadmin
