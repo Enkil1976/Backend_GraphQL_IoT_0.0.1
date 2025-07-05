@@ -1,0 +1,136 @@
+# User Management Type Definitions
+
+extend type Query {
+  # User Queries
+  me: User
+  users(role: UserRole): [User!]! # Admin only
+  user(id: ID!): User # Admin only
+  userConfiguration: UserConfiguration
+}
+
+extend type Mutation {
+  # Authentication
+  login(username: String!, password: String!): AuthPayload!
+  register(input: RegisterInput!): AuthPayload!
+  refreshToken(refreshToken: String!): AuthPayload!
+  logout: Boolean!
+  
+  # User Management
+  updateProfile(input: UpdateProfileInput!): User!
+  changePassword(currentPassword: String!, newPassword: String!): Boolean!
+  
+  # User Configuration
+  saveUserConfiguration(config: JSON!, configName: String): UserConfiguration!
+  updateUserConfiguration(id: ID!, config: JSON!, configName: String): UserConfiguration!
+  deleteUserConfiguration(id: ID!): Boolean!
+  activateUserConfiguration(id: ID!): UserConfiguration!
+  
+  # Admin Only
+  updateUserRole(userId: ID!, role: UserRole!): User! # Admin only
+  deleteUser(id: ID!): Boolean! # Admin only
+}
+
+# User Types
+type User {
+  id: ID!
+  username: String!
+  email: String!
+  role: UserRole!
+  
+  # Profile
+  firstName: String
+  lastName: String
+  avatar: String
+  timezone: String
+  language: String
+  
+  # Preferences
+  notifications: NotificationPreferences!
+  dashboardConfig: JSON
+  
+  # Devices owned by user
+  ownedDevices: [Device!]!
+  
+  # Configuration
+  configurations: [UserConfiguration!]!
+  activeConfiguration: UserConfiguration
+  
+  # Activity
+  lastLogin: DateTime
+  isActive: Boolean!
+  
+  # Metadata
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type AuthPayload {
+  token: String!
+  refreshToken: String!
+  user: User!
+  expiresIn: Int!
+}
+
+type UserConfiguration {
+  id: ID!
+  user: User!
+  configName: String!
+  config: JSON!
+  isActive: Boolean!
+  
+  # Metadata
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type NotificationPreferences {
+  email: Boolean!
+  sms: Boolean!
+  push: Boolean!
+  webhook: Boolean!
+  
+  # Notification types
+  deviceAlerts: Boolean!
+  systemAlerts: Boolean!
+  maintenanceReminders: Boolean!
+  ruleExecutions: Boolean!
+}
+
+# Input Types
+input RegisterInput {
+  username: String!
+  email: String!
+  password: String!
+  firstName: String
+  lastName: String
+  timezone: String = "America/Santiago"
+  language: String = "es"
+}
+
+input UpdateProfileInput {
+  firstName: String
+  lastName: String
+  email: String
+  timezone: String
+  language: String
+  notifications: NotificationPreferencesInput
+}
+
+input NotificationPreferencesInput {
+  email: Boolean
+  sms: Boolean
+  push: Boolean
+  webhook: Boolean
+  deviceAlerts: Boolean
+  systemAlerts: Boolean
+  maintenanceReminders: Boolean
+  ruleExecutions: Boolean
+}
+
+# Enums
+enum UserRole {
+  ADMIN
+  EDITOR
+  OPERATOR
+  VIEWER
+}

@@ -1,0 +1,399 @@
+# Rules Engine Type Definitions
+
+extend type Query {
+  # Rules Management
+  rules(
+    enabled: Boolean
+    priority: Int
+    userId: ID
+    orderBy: RuleOrderBy = PRIORITY_DESC
+  ): [Rule!]!
+  rule(id: ID!): Rule
+  
+  # Rule Executions
+  ruleExecutions(
+    ruleId: ID
+    success: Boolean
+    limit: Int = 50
+    offset: Int = 0
+  ): [RuleExecution!]!
+  
+  # Rule Statistics
+  ruleStats(ruleId: ID!, timeRange: TimeRange!): RuleStatistics!
+  
+  # Validation and Testing
+  validateRuleConditions(conditions: RuleConditionInput!): ValidationResult!
+  testRule(id: ID!): RuleTestResult!
+  
+  # Rule Templates
+  ruleTemplates: [RuleTemplate!]!
+}
+
+extend type Mutation {
+  # Rule CRUD
+  createRule(input: CreateRuleInput!): Rule!
+  updateRule(id: ID!, input: UpdateRuleInput!): Rule!
+  deleteRule(id: ID!): Boolean!
+  
+  # Rule Control
+  enableRule(id: ID!): Rule!
+  disableRule(id: ID!): Rule!
+  triggerRule(id: ID!, mockData: JSON): RuleExecution!
+  
+  # Bulk Operations
+  enableRules(ids: [ID!]!): [Rule!]!
+  disableRules(ids: [ID!]!): [Rule!]!
+  deleteRules(ids: [ID!]!): Boolean!
+  
+  # Rule Templates
+  createRuleFromTemplate(templateId: ID!, variables: JSON!): Rule!
+}
+
+extend type Subscription {
+  # Rule Events
+  ruleTriggered(ruleId: ID): RuleExecution!
+  ruleUpdated(ruleId: ID): Rule!
+  
+  # Rule Engine Status
+  ruleEngineStatus: RuleEngineStatus!
+  
+  # Real-time Rule Monitoring
+  ruleExecutionStream: RuleExecution!
+}
+
+# Rule Types
+type Rule {
+  id: ID!
+  name: String!
+  description: String
+  enabled: Boolean!
+  priority: Int!
+  cooldownMinutes: Int!
+  conditions: RuleCondition!
+  actions: [RuleAction!]!
+  
+  # Metadata
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  createdBy: User!
+  
+  # Execution Info
+  lastTriggered: DateTime
+  triggerCount: Int!
+  lastExecution: RuleExecution
+  executions(limit: Int = 10): [RuleExecution!]!
+  
+  # Status
+  isActive: Boolean!
+  nextEvaluation: DateTime
+}
+
+type RuleCondition {
+  operator: LogicalOperator!
+  rules: [ConditionRule!]!
+}
+
+type ConditionRule {
+  type: ConditionType!
+  
+  # Sensor Conditions
+  sensorType: SensorType
+  field: String
+  operator: ComparisonOperator
+  value: Float
+  dataAgeMinutes: Int
+  
+  # Device Conditions  
+  deviceId: ID
+  deviceStatus: DeviceStatus
+  
+  # Time Conditions
+  timeStart: String  # "HH:MM"
+  timeEnd: String    # "HH:MM" 
+  daysOfWeek: [DayOfWeek!]
+  
+  # History Conditions
+  aggregation: AggregationType
+  timeRangeMinutes: Int
+  threshold: Float
+}
+
+type RuleAction {
+  type: ActionType!
+  
+  # Notification Actions
+  channels: [NotificationChannel!]
+  template: String
+  variables: JSON
+  
+  # Device Control Actions
+  deviceId: ID
+  action: DeviceActionType
+  durationMinutes: Int
+  value: Float
+  
+  # Webhook Actions
+  url: String
+  method: HttpMethod
+  headers: JSON
+  payload: JSON
+  
+  # Queue Actions
+  queueName: String
+  priority: Int
+}
+
+type RuleExecution {
+  id: ID!
+  rule: Rule!
+  triggeredAt: DateTime!
+  success: Boolean!
+  executionTimeMs: Int!
+  
+  # Context
+  triggerData: JSON!
+  evaluationResult: EvaluationResult!
+  actionsExecuted: [ActionExecution!]!
+  
+  # Error info
+  error: String
+  stackTrace: String
+}
+
+type EvaluationResult {
+  conditionsMet: Boolean!
+  conditionDetails: [ConditionEvaluation!]!
+  sensorData: JSON
+  deviceStates: JSON
+  contextData: JSON
+}
+
+type ConditionEvaluation {
+  conditionIndex: Int!
+  result: Boolean!
+  actualValue: Float
+  expectedValue: Float
+  operator: ComparisonOperator!
+  details: String
+}
+
+type ActionExecution {
+  actionIndex: Int!
+  success: Boolean!
+  executionTimeMs: Int!
+  result: JSON
+  error: String
+}
+
+type RuleStatistics {
+  totalExecutions: Int!
+  successfulExecutions: Int!
+  failedExecutions: Int!
+  averageExecutionTime: Float!
+  lastExecutionTime: DateTime
+  executionHistory: [ExecutionHistoryPoint!]!
+}
+
+type ExecutionHistoryPoint {
+  timestamp: DateTime!
+  executionCount: Int!
+  successCount: Int!
+  averageTime: Float!
+}
+
+type RuleTestResult {
+  conditionsMet: Boolean!
+  evaluationTime: Int!
+  mockData: JSON!
+  details: EvaluationResult!
+}
+
+type RuleEngineStatus {
+  isRunning: Boolean!
+  activeRules: Int!
+  totalExecutions: Int!
+  averageExecutionTime: Float!
+  lastEvaluationCycle: DateTime!
+  nextEvaluationCycle: DateTime!
+  queueSize: Int!
+}
+
+type RuleTemplate {
+  id: ID!
+  name: String!
+  description: String!
+  category: String!
+  conditions: RuleCondition!
+  actions: [RuleAction!]!
+  variables: [TemplateVariable!]!
+}
+
+type TemplateVariable {
+  name: String!
+  type: String!
+  description: String!
+  defaultValue: JSON
+  required: Boolean!
+}
+
+# Input Types
+input CreateRuleInput {
+  name: String!
+  description: String
+  enabled: Boolean = true
+  priority: Int = 5
+  cooldownMinutes: Int = 15
+  conditions: RuleConditionInput!
+  actions: [RuleActionInput!]!
+}
+
+input UpdateRuleInput {
+  name: String
+  description: String
+  enabled: Boolean
+  priority: Int
+  cooldownMinutes: Int
+  conditions: RuleConditionInput
+  actions: [RuleActionInput!]
+}
+
+input RuleConditionInput {
+  operator: LogicalOperator!
+  rules: [ConditionRuleInput!]!
+}
+
+input ConditionRuleInput {
+  type: ConditionType!
+  
+  # Sensor fields
+  sensorType: SensorType
+  field: String
+  operator: ComparisonOperator
+  value: Float
+  dataAgeMinutes: Int
+  
+  # Device fields
+  deviceId: ID
+  deviceStatus: DeviceStatus
+  
+  # Time fields
+  timeStart: String
+  timeEnd: String
+  daysOfWeek: [DayOfWeek!]
+  
+  # History fields
+  aggregation: AggregationType
+  timeRangeMinutes: Int
+  threshold: Float
+}
+
+input RuleActionInput {
+  type: ActionType!
+  
+  # Notification fields
+  channels: [NotificationChannel!]
+  template: String
+  variables: JSON
+  
+  # Device control fields
+  deviceId: ID
+  action: DeviceActionType
+  durationMinutes: Int
+  value: Float
+  
+  # Webhook fields
+  url: String
+  method: HttpMethod
+  headers: JSON
+  payload: JSON
+  
+  # Queue fields
+  queueName: String
+  priority: Int
+}
+
+# Enums
+enum RuleOrderBy {
+  NAME_ASC
+  NAME_DESC
+  PRIORITY_ASC
+  PRIORITY_DESC
+  CREATED_ASC
+  CREATED_DESC
+  LAST_TRIGGERED_ASC
+  LAST_TRIGGERED_DESC
+}
+
+enum LogicalOperator {
+  AND
+  OR
+  NOT
+}
+
+enum ConditionType {
+  SENSOR
+  DEVICE
+  TIME
+  HISTORY
+}
+
+enum ComparisonOperator {
+  GT    # Greater than
+  GTE   # Greater than or equal
+  LT    # Less than
+  LTE   # Less than or equal
+  EQ    # Equal
+  NEQ   # Not equal
+}
+
+enum AggregationType {
+  AVG
+  MIN
+  MAX
+  COUNT
+  SUM
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum ActionType {
+  NOTIFICATION
+  DEVICE_CONTROL
+  WEBHOOK
+  QUEUE_ACTION
+  EMAIL
+  SMS
+}
+
+enum DeviceActionType {
+  TURN_ON
+  TURN_OFF
+  TOGGLE
+  SET_VALUE
+  RESET
+}
+
+enum HttpMethod {
+  GET
+  POST
+  PUT
+  PATCH
+  DELETE
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  WEBHOOK
+  PUSH
+  SLACK
+  DISCORD
+}

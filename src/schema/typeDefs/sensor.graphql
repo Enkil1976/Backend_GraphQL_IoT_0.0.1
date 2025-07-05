@@ -1,0 +1,157 @@
+# Sensor Type Definitions
+
+extend type Query {
+  # Sensor Queries
+  sensors(types: [SensorType!], online: Boolean): [Sensor!]!
+  sensor(id: ID!): Sensor
+  sensorReadings(
+    sensorId: ID!
+    limit: Int = 100
+    offset: Int = 0
+    from: DateTime
+    to: DateTime
+  ): SensorReadingConnection!
+  latestSensorData(types: [SensorType!]): [SensorReading!]!
+  sensorStats(sensorId: ID!, timeRange: TimeRange!): SensorStatistics!
+}
+
+extend type Subscription {
+  # Real-time sensor data
+  sensorDataUpdated(sensorTypes: [SensorType!]): SensorReading!
+  sensorStatusChanged: Sensor!
+}
+
+# Sensor Types
+type Sensor {
+  id: ID!
+  name: String!
+  type: SensorType!
+  location: String
+  description: String
+  isOnline: Boolean!
+  lastSeen: DateTime
+  
+  # Latest reading
+  latestReading: SensorReading
+  
+  # Historical data
+  readings(limit: Int = 100, from: DateTime, to: DateTime): [SensorReading!]!
+  
+  # Statistics
+  stats(timeRange: TimeRange): SensorStatistics
+  
+  # Metadata
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type SensorReading {
+  id: ID!
+  sensor: Sensor!
+  timestamp: DateTime!
+  
+  # Environmental Data
+  temperatura: Float
+  humedad: Float
+  heatIndex: Float
+  dewPoint: Float
+  
+  # Water Quality Data  
+  ph: Float
+  ec: Float # Electrical Conductivity
+  ppm: Float # Parts Per Million
+  temperaturaAgua: Float
+  
+  # Light Data
+  light: Float
+  whiteLight: Float
+  rawLight: Float
+  
+  # Power Data
+  watts: Float
+  voltage: Float
+  current: Float
+  frequency: Float
+  powerFactor: Float
+  
+  # Signal Quality
+  rssi: Int
+  signalQuality: Float
+  
+  # System Data
+  batteryLevel: Float
+  memoryUsage: Int
+  bootCount: Int
+  errorCount: Int
+  
+  # Raw data for extensibility
+  rawData: JSON
+}
+
+type SensorReadingConnection {
+  edges: [SensorReadingEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type SensorReadingEdge {
+  cursor: String!
+  node: SensorReading!
+}
+
+type SensorStatistics {
+  sensor: Sensor!
+  timeRange: TimeRangeOutput!
+  
+  # Temperature stats
+  temperaturaStats: FieldStats
+  humedadStats: FieldStats
+  phStats: FieldStats
+  ecStats: FieldStats
+  ppmStats: FieldStats
+  
+  # Light stats
+  lightStats: FieldStats
+  whiteLightStats: FieldStats
+  rawLightStats: FieldStats
+  
+  # Data quality
+  totalReadings: Int!
+  validReadings: Int!
+  errorReadings: Int!
+  dataQualityPercent: Float!
+  
+  # Uptime
+  uptimePercent: Float!
+  lastOnlineTime: DateTime
+  averageInterval: Float # seconds between readings
+}
+
+type FieldStats {
+  min: Float!
+  max: Float!
+  avg: Float!
+  median: Float
+  stdDev: Float
+  count: Int!
+  trend: TrendDirection
+}
+
+enum SensorType {
+  TEMHUM1
+  TEMHUM2
+  CALIDAD_AGUA
+  LUXOMETRO
+  POWER_MONITOR
+  WEATHER_STATION
+  SOIL_MOISTURE
+  LIGHT_SENSOR
+  CO2_SENSOR
+}
+
+enum TrendDirection {
+  UP
+  DOWN
+  STABLE
+  VOLATILE
+}

@@ -1,0 +1,172 @@
+# Device Management Type Definitions
+
+extend type Query {
+  # Device Queries
+  devices(status: DeviceStatus, type: DeviceType): [Device!]!
+  device(id: ID!): Device
+  deviceHistory(deviceId: ID!, limit: Int = 50): [DeviceEvent!]!
+}
+
+extend type Mutation {
+  # Device Control
+  toggleDevice(id: ID!): Device!
+  updateDevice(id: ID!, input: UpdateDeviceInput!): Device!
+  createDevice(input: CreateDeviceInput!): Device!
+  deleteDevice(id: ID!): Boolean!
+  
+  # Device Actions
+  setDeviceValue(id: ID!, value: Float!): Device!
+  resetDevice(id: ID!): Device!
+  
+  # Bulk Operations
+  toggleMultipleDevices(ids: [ID!]!): [Device!]!
+}
+
+extend type Subscription {
+  # Real-time device updates
+  deviceStatusChanged(deviceId: ID): Device!
+  deviceValueChanged(deviceId: ID): Device!
+}
+
+# Device Types
+type Device {
+  id: ID!
+  name: String!
+  type: DeviceType!
+  description: String
+  location: String
+  
+  # Status and Control
+  status: DeviceStatus!
+  isOnline: Boolean!
+  value: Float
+  unit: String
+  lastSeen: DateTime
+  
+  # Configuration
+  config: JSON
+  capabilities: [DeviceCapability!]!
+  
+  # Ownership and Access
+  owner: User
+  isPublic: Boolean!
+  
+  # History and Events
+  lastEvent: DeviceEvent
+  events(limit: Int = 10): [DeviceEvent!]!
+  
+  # Power and Performance
+  powerConsumption: Float # Watts
+  operatingHours: Float
+  maintenanceStatus: MaintenanceStatus!
+  
+  # Metadata
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  createdBy: User!
+}
+
+type DeviceEvent {
+  id: ID!
+  device: Device!
+  eventType: DeviceEventType!
+  timestamp: DateTime!
+  
+  # Event Data
+  previousValue: Float
+  newValue: Float
+  message: String
+  success: Boolean!
+  
+  # Context
+  triggeredBy: User
+  source: EventSource!
+  metadata: JSON
+}
+
+type DeviceCapability {
+  name: String!
+  type: CapabilityType!
+  readable: Boolean!
+  writable: Boolean!
+  unit: String
+  minValue: Float
+  maxValue: Float
+  allowedValues: [String!]
+}
+
+# Input Types
+input CreateDeviceInput {
+  name: String!
+  type: DeviceType!
+  description: String
+  location: String
+  config: JSON
+  isPublic: Boolean = false
+}
+
+input UpdateDeviceInput {
+  name: String
+  description: String
+  location: String
+  config: JSON
+  isPublic: Boolean
+}
+
+# Enums
+enum DeviceType {
+  VENTILATOR
+  HEATER
+  COOLER
+  WATER_PUMP
+  LIGHTS
+  VALVE
+  SENSOR_ACTUATOR
+  MOTOR
+  RELAY
+  DIMMER
+}
+
+enum DeviceStatus {
+  ON
+  OFF
+  ERROR
+  MAINTENANCE
+  OFFLINE
+}
+
+enum DeviceEventType {
+  TURNED_ON
+  TURNED_OFF
+  VALUE_CHANGED
+  CONFIG_UPDATED
+  ERROR_OCCURRED
+  MAINTENANCE_STARTED
+  MAINTENANCE_COMPLETED
+  STATUS_CHANGED
+}
+
+enum EventSource {
+  USER_ACTION
+  AUTOMATION_RULE
+  SCHEDULE
+  API_CALL
+  SYSTEM
+  MANUAL_OVERRIDE
+}
+
+enum CapabilityType {
+  BOOLEAN
+  NUMERIC
+  STRING
+  ENUM
+  JSON
+}
+
+enum MaintenanceStatus {
+  GOOD
+  WARNING
+  MAINTENANCE_DUE
+  MAINTENANCE_OVERDUE
+  ERROR
+}

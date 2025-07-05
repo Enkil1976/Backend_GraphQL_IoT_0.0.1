@@ -1,0 +1,230 @@
+# Notification System Type Definitions
+
+extend type Query {
+  # Notifications
+  notifications(
+    unread: Boolean
+    channel: NotificationChannel
+    limit: Int = 50
+    offset: Int = 0
+  ): NotificationConnection!
+  notification(id: ID!): Notification
+  
+  # Notification Templates
+  notificationTemplates: [NotificationTemplate!]!
+  notificationTemplate(id: ID!): NotificationTemplate
+}
+
+extend type Mutation {
+  # Notification Actions
+  markNotificationRead(id: ID!): Notification!
+  markAllNotificationsRead: Boolean!
+  deleteNotification(id: ID!): Boolean!
+  
+  # Send Custom Notification
+  sendNotification(input: SendNotificationInput!): Notification!
+  
+  # Templates Management
+  createNotificationTemplate(input: CreateTemplateInput!): NotificationTemplate!
+  updateNotificationTemplate(id: ID!, input: UpdateTemplateInput!): NotificationTemplate!
+  deleteNotificationTemplate(id: ID!): Boolean!
+}
+
+extend type Subscription {
+  # Real-time notifications
+  newNotification: Notification!
+  notificationUpdated: Notification!
+}
+
+# Notification Types
+type Notification {
+  id: ID!
+  title: String!
+  message: String!
+  type: NotificationType!
+  severity: NotificationSeverity!
+  channel: NotificationChannel!
+  
+  # Status
+  isRead: Boolean!
+  readAt: DateTime
+  
+  # Target
+  user: User!
+  
+  # Context
+  source: NotificationSource!
+  sourceId: String # ID of the triggering entity (rule, device, etc.)
+  metadata: JSON
+  
+  # Actions
+  actions: [NotificationAction!]!
+  
+  # Template used
+  template: NotificationTemplate
+  
+  # Delivery
+  deliveryStatus: DeliveryStatus!
+  deliveredAt: DateTime
+  failureReason: String
+  
+  # Metadata
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type NotificationConnection {
+  edges: [NotificationEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+  unreadCount: Int!
+}
+
+type NotificationEdge {
+  cursor: String!
+  node: Notification!
+}
+
+type NotificationTemplate {
+  id: ID!
+  name: String!
+  description: String
+  type: NotificationType!
+  
+  # Template Content
+  titleTemplate: String!
+  messageTemplate: String!
+  
+  # Channels this template supports
+  supportedChannels: [NotificationChannel!]!
+  
+  # Variables used in template
+  variables: [TemplateVariable!]!
+  
+  # Configuration per channel
+  channelConfigs: [ChannelConfig!]!
+  
+  # Metadata
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  createdBy: User!
+}
+
+type ChannelConfig {
+  channel: NotificationChannel!
+  config: JSON!
+  enabled: Boolean!
+}
+
+type NotificationAction {
+  id: String!
+  label: String!
+  action: String!
+  url: String
+  style: ActionStyle!
+}
+
+# Input Types
+input SendNotificationInput {
+  title: String!
+  message: String!
+  type: NotificationType!
+  severity: NotificationSeverity = INFO
+  channel: NotificationChannel!
+  userId: ID
+  templateId: ID
+  variables: JSON
+  actions: [NotificationActionInput!]
+  metadata: JSON
+}
+
+input NotificationActionInput {
+  label: String!
+  action: String!
+  url: String
+  style: ActionStyle = PRIMARY
+}
+
+input CreateTemplateInput {
+  name: String!
+  description: String
+  type: NotificationType!
+  titleTemplate: String!
+  messageTemplate: String!
+  supportedChannels: [NotificationChannel!]!
+  variables: [TemplateVariableInput!]!
+  channelConfigs: [ChannelConfigInput!]
+}
+
+input UpdateTemplateInput {
+  name: String
+  description: String
+  titleTemplate: String
+  messageTemplate: String
+  supportedChannels: [NotificationChannel!]
+  variables: [TemplateVariableInput!]
+  channelConfigs: [ChannelConfigInput!]
+}
+
+input TemplateVariableInput {
+  name: String!
+  type: String!
+  description: String!
+  defaultValue: JSON
+  required: Boolean!
+}
+
+input ChannelConfigInput {
+  channel: NotificationChannel!
+  config: JSON!
+  enabled: Boolean!
+}
+
+# Enums
+enum NotificationType {
+  SYSTEM_ALERT
+  DEVICE_ALERT
+  SENSOR_ALERT
+  RULE_EXECUTION
+  MAINTENANCE_REMINDER
+  SECURITY_ALERT
+  INFO_MESSAGE
+  WARNING
+  ERROR
+  SUCCESS
+}
+
+enum NotificationSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum NotificationSource {
+  SYSTEM
+  RULE_ENGINE
+  DEVICE
+  SENSOR
+  USER_ACTION
+  SCHEDULED_TASK
+  API
+  WEBHOOK
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+  CANCELLED
+}
+
+enum ActionStyle {
+  PRIMARY
+  SECONDARY
+  SUCCESS
+  WARNING
+  DANGER
+  INFO
+}

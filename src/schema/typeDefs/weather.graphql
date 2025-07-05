@@ -1,0 +1,234 @@
+# Weather Type Definitions
+
+extend type Query {
+  # Weather Queries
+  getCurrentWeather(location: String): WeatherData!
+  getLatestWeather(limit: Int = 1): [WeatherData!]!
+  getWeatherHistory(
+    hours: Int = 24
+    limit: Int = 100
+    page: Int = 1
+  ): WeatherHistoryConnection!
+  getWeatherChartData(hours: Int = 24): [WeatherChartData!]!
+  getWeatherStats(days: Int = 7): WeatherStatistics!
+  getWeatherConfig: WeatherConfig!
+}
+
+extend type Mutation {
+  # Weather Mutations
+  collectWeatherData(location: String): WeatherCollectionResult!
+  updateWeatherConfig(input: WeatherConfigInput!): WeatherConfigResult!
+  testWeatherLocation(location: String!): WeatherLocationTest!
+}
+
+extend type Subscription {
+  # Real-time weather updates
+  weatherDataUpdated: WeatherData!
+  weatherConfigChanged: WeatherConfig!
+}
+
+# Weather Data Types
+type WeatherData {
+  id: ID!
+  
+  # Location Information
+  location: WeatherLocation!
+  
+  # Current Weather Data
+  temperatura: Float!
+  humedad: Float!
+  sensacionTermica: Float!
+  puntoRocio: Float!
+  presion: Float!
+  velocidadViento: Float!
+  direccionViento: String
+  rafagasViento: Float
+  visibilidad: Float!
+  uvIndex: Float!
+  
+  # Air Quality (if available)
+  pm25: Float
+  pm10: Float
+  
+  # Weather Condition
+  condicion: String!
+  iconCode: String!
+  
+  # Timestamps
+  receivedAt: DateTime!
+  localTime: DateTime!
+  
+  # Data Source
+  source: String!
+  
+  # Raw API response for extensibility
+  rawData: JSON
+}
+
+type WeatherLocation {
+  name: String!
+  region: String!
+  country: String!
+  latitude: Float!
+  longitude: Float!
+  timezone: String!
+  localTime: DateTime!
+}
+
+type WeatherChartData {
+  id: ID!
+  temperatura: Float!
+  humedad: Float!
+  sensacionTermica: Float!
+  puntoRocio: Float!
+  presion: Float!
+  velocidadViento: Float!
+  uvIndex: Float!
+  condicion: String!
+  receivedAt: DateTime!
+  time: DateTime! # Chart compatibility
+  chileTime: DateTime! # Chart compatibility
+}
+
+type WeatherHistoryConnection {
+  edges: [WeatherHistoryEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+  pagination: PaginationInfo!
+}
+
+type WeatherHistoryEdge {
+  cursor: String!
+  node: WeatherData!
+}
+
+type PaginationInfo {
+  page: Int!
+  limit: Int!
+  hours: Int!
+}
+
+# Weather Statistics
+type WeatherStatistics {
+  period: String!
+  totalReadings: Int!
+  dailyStats: [DailyWeatherStats!]!
+  
+  # Overall statistics
+  overallStats: WeatherOverallStats!
+}
+
+type DailyWeatherStats {
+  fecha: Date!
+  total: Int!
+  
+  # Temperature statistics
+  temperatura: WeatherFieldStats!
+  
+  # Humidity statistics
+  humedad: WeatherFieldStats!
+  
+  # Feels like temperature
+  sensacionTermica: WeatherFieldStats!
+  
+  # Pressure statistics
+  presion: WeatherFieldStats!
+  
+  # Wind statistics
+  viento: WindStats!
+  
+  # UV Index statistics
+  uvIndex: WeatherFieldStats!
+}
+
+type WeatherFieldStats {
+  promedio: Float!
+  minimo: Float!
+  maximo: Float!
+}
+
+type WindStats {
+  velocidadPromedio: Float!
+  velocidadMaxima: Float!
+  direccionPredominante: String
+}
+
+type WeatherOverallStats {
+  temperatura: WeatherFieldStats!
+  humedad: WeatherFieldStats!
+  presion: WeatherFieldStats!
+  viento: WindStats!
+  uvIndex: WeatherFieldStats!
+  condicionMasFrequente: String!
+  diasConDatos: Int!
+}
+
+# Weather Configuration
+type WeatherConfig {
+  isConfigured: Boolean!
+  hasApiKey: Boolean!
+  currentLocation: String
+  defaultLocation: String!
+  apiProvider: String!
+  collectionInterval: Int! # minutes
+  lastUpdated: DateTime
+  status: WeatherServiceStatus!
+}
+
+type WeatherServiceStatus {
+  isActive: Boolean!
+  lastCheck: DateTime
+  lastError: String
+  apiCallsToday: Int
+  apiLimitReached: Boolean
+}
+
+# Weather Collection Result
+type WeatherCollectionResult {
+  success: Boolean!
+  message: String!
+  data: WeatherData
+  errors: [String!]
+}
+
+# Weather Config Result
+type WeatherConfigResult {
+  success: Boolean!
+  message: String!
+  config: WeatherConfig!
+  errors: [String!]
+}
+
+# Weather Location Test
+type WeatherLocationTest {
+  success: Boolean!
+  message: String!
+  locationInfo: WeatherLocation
+  currentWeather: WeatherTestData
+  errors: [String!]
+}
+
+type WeatherTestData {
+  temperatura: Float!
+  condicion: String!
+  humedad: Float!
+  presion: Float!
+}
+
+# Input Types
+input WeatherConfigInput {
+  location: String!
+}
+
+# Custom Scalars
+scalar Date
+scalar DateTime
+scalar JSON
+
+# Common Types (if not already defined)
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
