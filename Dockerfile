@@ -18,6 +18,9 @@ COPY package*.json ./
 # Install production dependencies with exact versions
 RUN npm ci --only=production
 
+# Install missing WebSocket transport dependency
+RUN npm install subscriptions-transport-ws@0.11.0
+
 # Copy application source
 COPY . .
 
