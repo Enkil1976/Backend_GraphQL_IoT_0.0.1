@@ -1,0 +1,200 @@
+# Docker Compose for Backend GraphQL IoT - Single Service Deploy
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: graphql_postgres
+    environment:
+      POSTGRES_DB: invernadero_iot
+      POSTGRES_USER: iot_user
+      POSTGRES_PASSWORD: secure_password_change_me
+      PGTZ: America/Santiago
+      TZ: America/Santiago
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - graphql_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iot_user -d invernadero_iot"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: graphql_redis
+    command: redis-server --requirepass redis_password --appendonly yes
+    environment:
+      TZ: America/Santiago
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - graphql_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  # MQTT Broker (Mosquitto)
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: graphql_mosquitto
+    environment:
+      TZ: America/Santiago
+    volumes:
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_logs:/mosquitto/log
+      - ./mosquitto/config:/mosquitto/config:ro
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    restart: unless-stopped
+    networks:
+      - graphql_network
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 5s mosquitto_pub -h localhost -t test -m test || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Backend GraphQL Service
+  backend-graphql:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: graphql_backend
+    environment:
+      NODE_ENV: production
+      PORT: 4001
+      
+      # Database Configuration
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_DATABASE: invernadero_iot
+      PG_USER: iot_user
+      PG_PASSWORD: secure_password_change_me
+      
+      # Redis Configuration
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: redis_password
+      
+      # MQTT Configuration
+      MQTT_HOST: mosquitto
+      MQTT_PORT: 1883
+      MQTT_USERNAME: iot_user
+      MQTT_PASSWORD: iot_password
+      
+      # Security (CHANGE IN PRODUCTION!)
+      JWT_SECRET: your_jwt_secret_super_secure_minimum_32_characters
+      ACCESS_TOKEN_SECRET: your_access_token_secret_different_from_jwt
+      REFRESH_TOKEN_SECRET: your_refresh_token_secret_unique_value
+      
+      # GraphQL Configuration
+      GRAPHQL_INTROSPECTION: true
+      GRAPHQL_PLAYGROUND: true
+      
+      # External APIs
+      WEATHER_API_KEY: your_weather_api_key
+      
+      # CORS Configuration
+      CORS_ORIGINS: http://localhost:3000,http://localhost:5173
+      
+      # Timezone
+      TZ: America/Santiago
+    
+    volumes:
+      - ./logs:/app/logs
+      - ./src:/app/src:ro
+    
+    ports:
+      - "4001:4001"
+    
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mosquitto:
+        condition: service_healthy
+    
+    restart: unless-stopped
+    networks:
+      - graphql_network
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # pgAdmin (Optional - for database administration)
+  pgadmin:
+    image: dpage/pgadmin4:7
+    container_name: graphql_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@iot-system.com
+      PGADMIN_DEFAULT_PASSWORD: pgadmin_password
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      TZ: America/Santiago
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks:
+      - graphql_network
+    profiles: ["admin"]
+
+  # RedisInsight (Optional - for Redis administration)
+  redis-insight:
+    image: redislabs/redisinsight:latest
+    container_name: graphql_redis_insight
+    environment:
+      TZ: America/Santiago
+    volumes:
+      - redisinsight_data:/db
+    ports:
+      - "8001:8001"
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - graphql_network
+    profiles: ["admin"]
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  mosquitto_data:
+    driver: local
+  mosquitto_logs:
+    driver: local
+  pgadmin_data:
+    driver: local
+  redisinsight_data:
+    driver: local
+
+networks:
+  graphql_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
