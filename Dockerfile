@@ -15,8 +15,11 @@ RUN apk add --no-cache \
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies with exact versions
+# Install production dependencies with exact versions
 RUN npm ci --only=production
+
+# Install additional required dependencies
+RUN npm install subscriptions-transport-ws
 
 # Copy application source
 COPY . .
