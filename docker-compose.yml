@@ -1,0 +1,157 @@
+version: '3.8'
+
+services:
+  # Aplicación principal
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: iot-graphql-app
+    ports:
+      - "${PORT:-4001}:${PORT:-4001}"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - PORT=${PORT:-4001}
+      # Configuración de PostgreSQL
+      - PG_HOST=postgres
+      - PG_PORT=${PG_PORT:-5432}
+      - PG_DATABASE=${PG_DATABASE:-invernadero_iot}
+      - PG_USER=${PG_USER:-postgres}
+      - PG_PASSWORD=${PG_PASSWORD:-postgres}
+      # Configuración de Redis
+      - REDIS_HOST=redis
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-redis_password}
+      # Configuración de MQTT (usando broker externo por defecto)
+      - MQTT_BROKER_URL=${MQTT_BROKER_URL:-mqtt://broker.emqx.io}
+      - MQTT_USERNAME=${MQTT_USERNAME:-}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-}
+      # Seguridad
+      - JWT_SECRET=${JWT_SECRET:-your_jwt_secret_super_secure_minimum_32_characters_long}
+      - ACCESS_TOKEN_SECRET=${ACCESS_TOKEN_SECRET:-your_access_token_secret_different_from_jwt}
+      - REFRESH_TOKEN_SECRET=${REFRESH_TOKEN_SECRET:-your_refresh_token_secret_unique_value}
+      - BCRYPT_ROUNDS=${BCRYPT_ROUNDS:-12}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    networks:
+      - iot-network
+    restart: always
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+
+  # Base de datos PostgreSQL
+  postgres:
+    image: postgres:14-alpine
+    container_name: iot-postgres
+    environment:
+      - POSTGRES_DB=${PG_DATABASE:-invernadero_iot}
+      - POSTGRES_USER=${PG_USER:-postgres}
+      - POSTGRES_PASSWORD=${PG_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${PG_PORT:-5432}:5432"
+    networks:
+      - iot-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-postgres} -d ${PG_DATABASE:-invernadero_iot}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis para Pub/Sub
+  redis:
+    image: redis:7-alpine
+    container_name: iot-redis
+    command: ["sh", "-c", "redis-server --requirepass ${REDIS_PASSWORD:-redis_password} --appendonly yes"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - iot-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_password}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # PGAdmin para gestión de la base de datos (opcional)
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - iot-network
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+  # Servicio de actualización automática mejorado
+  updater:
+    image: docker:24.0-cli
+    container_name: iot-updater
+    volumes:
+      - .:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    env_file:
+      - .env
+    environment:
+      - GIT_BRANCH=${GIT_BRANCH:-main}
+      - UPDATE_INTERVAL=${UPDATE_INTERVAL:-3600}
+    entrypoint: |
+      sh -c '
+      apk add --no-cache git bash && \
+      cd /app && \
+      while true; do
+        echo "🔍 Buscando actualizaciones en rama $GIT_BRANCH..." && \
+        git fetch origin && \
+        LOCAL=$(git rev-parse HEAD) && \
+        REMOTE=$(git rev-parse origin/$GIT_BRANCH 2>/dev/null) && \
+        
+        if [ -z "$REMOTE" ]; then
+          echo "⚠️  La rama $GIT_BRANCH no existe en el remoto. Usando rama actual." && \
+          REMOTE=$LOCAL
+        fi
+        
+        if [ "$LOCAL" != "$REMOTE" ]; then
+          echo "🔄 Actualizando código..." && \
+          git reset --hard && \
+          git clean -fd && \
+          git pull origin $GIT_BRANCH && \
+          echo "🔨 Reconstruyendo contenedores..." && \
+          docker compose -f /app/docker-compose.yml up -d --build && \
+          echo "✅ Actualización completada";
+        else
+          echo "✅ Todo está actualizado";
+        fi && \
+        echo "⏳ Próxima verificación en $UPDATE_INTERVAL segundos..." && \
+        sleep $UPDATE_INTERVAL;
+      done
+      '
+volumes:
+  postgres_data:
+  redis_data:
+  pgadmin_data:
+  node_modules:
+
+networks:
+  iot-network:
+    driver: bridge

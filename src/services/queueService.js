@@ -1,4 +1,4 @@
-const { cache } = require('../config/redis');
+const { redis, cache } = require('../config/redis');
 const { pubsub, QUEUE_EVENTS } = require('../utils/pubsub');
 
 /**
@@ -24,7 +24,7 @@ class QueueService {
   async initialize() {
     try {
       // Create consumer group (will fail if already exists, which is fine)
-      await cache.xgroup('CREATE', this.streamName, this.consumerGroup, '0', 'MKSTREAM');
+      await redis.xgroup('CREATE', this.streamName, this.consumerGroup, '0', 'MKSTREAM');
       console.log('✅ Action queue consumer group created');
     } catch (error) {
       if (error.message.includes('BUSYGROUP')) {
@@ -36,7 +36,7 @@ class QueueService {
 
     try {
       // Create DLQ consumer group
-      await cache.xgroup('CREATE', this.dlqStreamName, this.consumerGroup, '0', 'MKSTREAM');
+      await redis.xgroup('CREATE', this.dlqStreamName, this.consumerGroup, '0', 'MKSTREAM');
       console.log('✅ DLQ consumer group created');
     } catch (error) {
       if (error.message.includes('BUSYGROUP')) {
@@ -114,7 +114,7 @@ class QueueService {
     };
 
     try {
-      const streamId = await cache.xadd(this.streamName, '*', ...Object.entries(actionData).flat());
+      const streamId = await redis.xadd(this.streamName, '*', ...Object.entries(actionData).flat());
       
       console.log(`📤 Action published to queue: ${action.type} (${streamId})`);
       
@@ -138,11 +138,15 @@ class QueueService {
    */
   async processActions() {
     try {
-      // Read from the stream
-      const results = await cache.xreadgroup(
+      // Temporarily disabled to isolate Redis issue
+      console.log('🔄 Queue processing (temporarily disabled for debugging)');
+      return;
+      
+      // Read from the stream using ioredis object format
+      const results = await redis.call('XREADGROUP', 
         'GROUP', this.consumerGroup, this.consumerName,
-        'COUNT', 10,
         'BLOCK', 1000,
+        'COUNT', 10,
         'STREAMS', this.streamName, '>'
       );
 
@@ -165,8 +169,12 @@ class QueueService {
    */
   async processPendingActions() {
     try {
+      // Temporarily disabled to isolate Redis issue
+      console.log('🔄 Pending processing (temporarily disabled for debugging)');
+      return;
+      
       // Get pending messages
-      const pendingMessages = await cache.xpending(
+      const pendingMessages = await redis.xpending(
         this.streamName, this.consumerGroup, 
         '-', '+', 10, this.consumerName
       );
@@ -179,7 +187,7 @@ class QueueService {
         // Process messages that have been idle for too long
         if (idleTime > this.processingTimeout) {
           // Claim the message
-          const claimedMessages = await redisClient.xclaim(
+          const claimedMessages = await redis.xclaim(
             this.streamName, this.consumerGroup, this.consumerName,
             1000, messageId
           );
@@ -212,7 +220,7 @@ class QueueService {
       
       if (success) {
         // Acknowledge the message
-        await cache.xack(this.streamName, this.consumerGroup, messageId);
+        await redis.xack(this.streamName, this.consumerGroup, messageId);
         
         console.log(`✅ Action completed successfully: ${action.type} (${messageId})`);
         
@@ -329,7 +337,7 @@ class QueueService {
       await this.moveToDeadLetterQueue(messageId, action, error);
       
       // Acknowledge the original message
-      await cache.xack(this.streamName, this.consumerGroup, messageId);
+      await redis.xack(this.streamName, this.consumerGroup, messageId);
       
       console.log(`💀 Action moved to DLQ: ${action.type} (${messageId})`);
       
@@ -353,7 +361,7 @@ class QueueService {
       await this.publishAction(updatedAction);
       
       // Acknowledge the original message
-      await cache.xack(this.streamName, this.consumerGroup, messageId);
+      await redis.xack(this.streamName, this.consumerGroup, messageId);
       
       console.log(`🔄 Action retried: ${action.type} (retry ${retryCount + 1}/${this.maxRetries})`);
     }
@@ -382,7 +390,7 @@ class QueueService {
       created_at: action.created_at || new Date().toISOString()
     };
 
-    await cache.xadd(this.dlqStreamName, '*', ...Object.entries(dlqData).flat());
+    await redis.xadd(this.dlqStreamName, '*', ...Object.entries(dlqData).flat());
   }
 
   /**
@@ -391,10 +399,10 @@ class QueueService {
    */
   async getQueueStats() {
     try {
-      const streamInfo = await redisClient.xinfo('STREAM', this.streamName);
-      const dlqInfo = await redisClient.xinfo('STREAM', this.dlqStreamName);
+      const streamInfo = await redis.xinfo('STREAM', this.streamName);
+      const dlqInfo = await redis.xinfo('STREAM', this.dlqStreamName);
       
-      const pending = await cache.xpending(this.streamName, this.consumerGroup);
+      const pending = await redis.xpending(this.streamName, this.consumerGroup);
       
       return {
         streamLength: streamInfo[1],
@@ -422,7 +430,7 @@ class QueueService {
    */
   async getDeadLetterActions(limit = 100) {
     try {
-      const messages = await redisClient.xrange(this.dlqStreamName, '-', '+', 'COUNT', limit);
+      const messages = await redis.xrange(this.dlqStreamName, '-', '+', 'COUNT', limit);
       
       return messages.map(([messageId, fields]) => ({
         id: messageId,
@@ -442,7 +450,7 @@ class QueueService {
   async retryFromDLQ(messageId) {
     try {
       // Get the message from DLQ
-      const messages = await redisClient.xrange(this.dlqStreamName, messageId, messageId);
+      const messages = await redis.xrange(this.dlqStreamName, messageId, messageId);
       
       if (!messages || messages.length === 0) {
         throw new Error('Message not found in DLQ');
@@ -460,7 +468,7 @@ class QueueService {
       await this.publishAction(action);
       
       // Remove from DLQ
-      await redisClient.xdel(this.dlqStreamName, messageId);
+      await redis.xdel(this.dlqStreamName, messageId);
       
       console.log(`🔄 Action retried from DLQ: ${action.type} (${messageId})`);
       
@@ -476,8 +484,8 @@ class QueueService {
    */
   async clearStreams() {
     try {
-      await redisClient.del(this.streamName);
-      await redisClient.del(this.dlqStreamName);
+      await redis.del(this.streamName);
+      await redis.del(this.dlqStreamName);
       console.log('🧹 Streams cleared');
     } catch (error) {
       console.error('❌ Error clearing streams:', error);

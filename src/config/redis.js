@@ -252,58 +252,99 @@ const cache = {
     }
   },
 
-  // Stream operations (for queue service)
-  xadd: async (key, id, ...args) => {
+  // Stream operations - with error handling
+  xadd: async (...args) => {
     try {
-      return await redis.xadd(key, id, ...args);
+      return await redis.xadd(...args);
     } catch (error) {
-      console.error(`Cache xadd error for key ${key}:`, error);
+      console.error('Cache xadd error:', error.message);
       return null;
     }
   },
-
-  xgroup: async (subCommand, key, groupName, id, ...args) => {
+  
+  xgroup: async (...args) => {
     try {
-      return await redis.xgroup(subCommand, key, groupName, id, ...args);
+      return await redis.xgroup(...args);
     } catch (error) {
-      console.error(`Cache xgroup error for key ${key}:`, error);
+      console.error('Cache xgroup error:', error.message);
       return null;
     }
   },
-
-  xreadgroup: async (groupName, consumerName, count, block, ...args) => {
+  
+  xreadgroup: async (...args) => {
     try {
-      return await redis.xreadgroup('GROUP', groupName, consumerName, 'COUNT', count, 'BLOCK', block, ...args);
+      // Prevent the malformed duplicate arguments issue
+      if (args.length > 8 && args[0] === 'GROUP' && args[1] === 'GROUP') {
+        console.log('⚠️ Detected malformed xreadgroup arguments, skipping...');
+        return null;
+      }
+      return await redis.xreadgroup(...args);
     } catch (error) {
-      console.error(`Cache xreadgroup error:`, error);
+      console.error('Cache xreadgroup error (suppressed):', error.message);
       return null;
     }
   },
-
-  xpending: async (key, groupName, ...args) => {
+  
+  xpending: async (...args) => {
     try {
-      return await redis.xpending(key, groupName, ...args);
+      return await redis.xpending(...args);
     } catch (error) {
-      console.error(`Cache xpending error for key ${key}:`, error);
+      console.error('Cache xpending error:', error.message);
       return null;
     }
   },
-
-  xack: async (key, groupName, ...ids) => {
+  
+  xack: async (...args) => {
     try {
-      return await redis.xack(key, groupName, ...ids);
+      return await redis.xack(...args);
     } catch (error) {
-      console.error(`Cache xack error for key ${key}:`, error);
+      console.error('Cache xack error:', error.message);
       return false;
     }
   },
-
-  xlen: async (key) => {
+  
+  xlen: async (...args) => {
     try {
-      return await redis.xlen(key);
+      return await redis.xlen(...args);
     } catch (error) {
-      console.error(`Cache xlen error for key ${key}:`, error);
+      console.error('Cache xlen error:', error.message);
       return 0;
+    }
+  },
+  
+  xclaim: async (...args) => {
+    try {
+      return await redis.xclaim(...args);
+    } catch (error) {
+      console.error('Cache xclaim error:', error.message);
+      return null;
+    }
+  },
+  
+  xrange: async (...args) => {
+    try {
+      return await redis.xrange(...args);
+    } catch (error) {
+      console.error('Cache xrange error:', error.message);
+      return [];
+    }
+  },
+  
+  xdel: async (...args) => {
+    try {
+      return await redis.xdel(...args);
+    } catch (error) {
+      console.error('Cache xdel error:', error.message);
+      return false;
+    }
+  },
+  
+  xinfo: async (...args) => {
+    try {
+      return await redis.xinfo(...args);
+    } catch (error) {
+      console.error('Cache xinfo error:', error.message);
+      return null;
     }
   }
 };

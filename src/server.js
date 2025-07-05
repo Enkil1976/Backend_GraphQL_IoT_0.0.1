@@ -337,8 +337,10 @@ class GraphQLServer {
     }
 
     try {
-      await queueService.startProcessing();
-      console.log('✅ Queue service initialized');
+      // Temporarily disabled for Redis debugging
+      console.log('🚧 Queue service temporarily disabled for Redis debugging');
+      // await queueService.startProcessing();
+      // console.log('✅ Queue service initialized');
     } catch (error) {
       console.warn('⚠️ Queue service failed to initialize:', error.message);
     }
