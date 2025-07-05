@@ -4,14 +4,18 @@ require('dotenv').config();
 // Database connection configuration
 const dbConfig = process.env.PG_URI ? {
   connectionString: process.env.PG_URI,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  // Solo usar SSL en producción
+  ssl: process.env.NODE_ENV === 'production' 
+    ? { rejectUnauthorized: false } 
+    : false
 } : {
   host: process.env.PG_HOST || 'postgres',  // Usa el nombre del servicio de Docker
   port: parseInt(process.env.PG_PORT, 10) || 5432,
   database: process.env.PG_DATABASE || 'invernadero_iot',
   user: process.env.PG_USER || 'postgres',
   password: process.env.PG_PASSWORD || 'postgres',
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  // Deshabilitar SSL para desarrollo
+  ssl: false,
 };
 
 // Configuración adicional del pool
