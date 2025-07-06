@@ -24,11 +24,15 @@ const deviceMutations = {
         throw new ForbiddenError('Insufficient permissions to create devices');
       }
 
-      // Add creator info to device
+      // Add creator info to device and map deviceId to device_id
       const deviceData = {
         ...input,
+        device_id: input.deviceId, // Map GraphQL field to database field
         created_by: context.user.id
       };
+      
+      // Remove deviceId to avoid conflicts
+      delete deviceData.deviceId;
 
       const device = await deviceService.createDevice(deviceData);
       

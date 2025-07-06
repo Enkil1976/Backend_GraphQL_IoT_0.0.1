@@ -98,6 +98,7 @@ type DeviceCapability {
 # Input Types
 input CreateDeviceInput {
   name: String!
+  deviceId: String!
   type: DeviceType!
   description: String
   location: String
