@@ -167,7 +167,7 @@ class MqttService extends EventEmitter {
         // First try with stats_ prefix (new schema)
         queryStr = `
           INSERT INTO ${tableName} (temperatura, humedad, heatindex, dewpoint, rssi, boot, mem, 
-                     stats_tmin, stats_tmax, stats_tavg, stats_hmin, stats_hmax, stats_havg, stats_total, stats_errors, received_at)
+                     tmin, tmax, tavg, hmin, hmax, havg, total, errors, received_at)
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
         `;
         values = [
@@ -175,14 +175,6 @@ class MqttService extends EventEmitter {
           data.stats.tmin, data.stats.tmax, data.stats.tavg, data.stats.hmin, data.stats.hmax, data.stats.havg,
           data.stats.total, data.stats.errors, receivedAt
         ];
-        
-        // Fallback query without stats_ prefix (old schema)
-        this.fallbackQueryStr = `
-          INSERT INTO ${tableName} (temperatura, humedad, heatindex, dewpoint, rssi, boot, mem, 
-                     tmin, tmax, tavg, hmin, hmax, havg, total, errors, received_at)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-        `;
-        this.fallbackValues = values; // Same values work for both formats
 
         // Cache latest data in Redis
         const sensorKey = `sensor_latest:${tableName}`;
@@ -500,17 +492,6 @@ class MqttService extends EventEmitter {
         console.log(`✅ Database insert successful - Table: ${tableName}`);
       } catch (dbError) {
         console.error(`❌ Database insert failed - Table: ${tableName}:`, dbError.message);
-        
-        // Try fallback query for TemHum tables (without stats_ prefix)
-        if (this.fallbackQueryStr && this.fallbackValues && (tableName === 'temhum1' || tableName === 'temhum2')) {
-          try {
-            console.log(`🔄 Trying fallback query without stats_ prefix for table: ${tableName}`);
-            await query(this.fallbackQueryStr, this.fallbackValues);
-            console.log(`✅ Database insert successful with fallback - Table: ${tableName}`);
-          } catch (fallbackError) {
-            console.error(`❌ Fallback insert also failed - Table: ${tableName}:`, fallbackError.message);
-          }
-        }
       }
     }
 

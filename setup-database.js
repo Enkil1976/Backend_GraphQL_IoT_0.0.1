@@ -61,7 +61,7 @@ async function setupDatabase() {
         CREATE TABLE IF NOT EXISTS temhum1 (
           id SERIAL PRIMARY KEY,
           temperatura DECIMAL(5,2) NOT NULL,
-          humedad INTEGER NOT NULL CHECK (humedad >= 0 AND humedad <= 100),
+          humedad DECIMAL(5,2) NOT NULL CHECK (humedad >= 0 AND humedad <= 100),
           heatindex DECIMAL(5,2),
           dewpoint DECIMAL(5,2),
           rssi INTEGER,
@@ -74,9 +74,9 @@ async function setupDatabase() {
           tmin DECIMAL(5,2),
           tmax DECIMAL(5,2),
           tavg DECIMAL(5,2),
-          hmin INTEGER,
-          hmax INTEGER,
-          havg INTEGER,
+          hmin DECIMAL(5,2),
+          hmax DECIMAL(5,2),
+          havg DECIMAL(5,2),
           total INTEGER DEFAULT 0,
           errors INTEGER DEFAULT 0
         );
@@ -93,7 +93,7 @@ async function setupDatabase() {
         CREATE TABLE IF NOT EXISTS temhum2 (
           id SERIAL PRIMARY KEY,
           temperatura DECIMAL(5,2) NOT NULL,
-          humedad INTEGER NOT NULL CHECK (humedad >= 0 AND humedad <= 100),
+          humedad DECIMAL(5,2) NOT NULL CHECK (humedad >= 0 AND humedad <= 100),
           heatindex DECIMAL(5,2),
           dewpoint DECIMAL(5,2),
           rssi INTEGER,
@@ -106,9 +106,9 @@ async function setupDatabase() {
           tmin DECIMAL(5,2),
           tmax DECIMAL(5,2),
           tavg DECIMAL(5,2),
-          hmin INTEGER,
-          hmax INTEGER,
-          havg INTEGER,
+          hmin DECIMAL(5,2),
+          hmax DECIMAL(5,2),
+          havg DECIMAL(5,2),
           total INTEGER DEFAULT 0,
           errors INTEGER DEFAULT 0
         );
