@@ -2313,3 +2313,688 @@ Database query error: error: invalid input syntax for type integer: "38.2"
   }
 }
 ✅ Redis cache updated for sensor_latest:temhum2
+Database query error: error: column "stats_tmin" of relation "temhum2" does not exist
+    at /Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async query (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/config/database.js:79:20)
+    at async MqttService.handleIncomingMessage (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/services/mqttService.js:499:9) {
+  length: 131,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '115',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_target.c',
+  line: '1065',
+  routine: 'checkInsertTargets'
+}
+❌ Database insert failed - Table: temhum2: column "stats_tmin" of relation "temhum2" does not exist
+🔄 Trying fallback query without stats_ prefix for table: temhum2
+🐌 Slow query detected (1038ms): SELECT * FROM rules WHERE enabled = true ORDER BY priority ASC
+🔍 Evaluating 0 active rules...
+Database query error: error: invalid input syntax for type integer: "77.3"
+    at /Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async query (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/config/database.js:79:20)
+    at async MqttService.handleIncomingMessage (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/services/mqttService.js:508:13) {
+  length: 147,
+  severity: 'ERROR',
+  code: '22P02',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: "unnamed portal parameter $2 = '...'",
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'numutils.c',
+  line: '616',
+  routine: 'pg_strtoint32_safe'
+}
+❌ Fallback insert also failed - Table: temhum2: invalid input syntax for type integer: "77.3"
+🚀 MQTT MESSAGE PROCESSING STARTED
+   🕰️ Timestamp: 2025-07-06T03:21:13.685Z
+   📡 Topic: Invernadero/TemHum1/data
+   📄 Payload: {"temperatura":12.3,"humedad":76.1,"heatindex":11.6,"dewpoint":8.2,"rssi":-80,"boot":41,"mem":19304,"stats":{"tmin":6.4,"tmax":29.7,"tavg":12.3,"hmin":38.2,"hmax":76.1,"havg":76.0,"total":3564,"errors...
+🎯 TOPIC STRUCTURE VALID: TemHum1/data
+🌡️ Processing TemHum data for table: temhum1
+✅ JSON parsing successful: {
+  temperatura: 12.3,
+  humedad: 76.1,
+  heatindex: 11.6,
+  dewpoint: 8.2,
+  rssi: -80,
+  boot: 41,
+  mem: 19304,
+  stats: {
+    tmin: 6.4,
+    tmax: 29.7,
+    tavg: 12.3,
+    hmin: 38.2,
+    hmax: 76.1,
+    havg: 76,
+    total: 3564,
+    errors: 0
+  }
+}
+✅ Redis cache updated for sensor_latest:temhum1
+Database query error: error: column "stats_tmin" of relation "temhum1" does not exist
+    at /Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async query (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/config/database.js:79:20)
+    at async MqttService.handleIncomingMessage (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/services/mqttService.js:499:9) {
+  length: 131,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '115',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_target.c',
+  line: '1065',
+  routine: 'checkInsertTargets'
+}
+❌ Database insert failed - Table: temhum1: column "stats_tmin" of relation "temhum1" does not exist
+🔄 Trying fallback query without stats_ prefix for table: temhum1
+Database query error: error: invalid input syntax for type integer: "76.1"
+    at /Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async query (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/config/database.js:79:20)
+    at async MqttService.handleIncomingMessage (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/services/mqttService.js:508:13) {
+  length: 147,
+  severity: 'ERROR',
+  code: '22P02',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: "unnamed portal parameter $2 = '...'",
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'numutils.c',
+  line: '616',
+  routine: 'pg_strtoint32_safe'
+}
+❌ Fallback insert also failed - Table: temhum1: invalid input syntax for type integer: "76.1"
+🚀 MQTT MESSAGE PROCESSING STARTED
+   🕰️ Timestamp: 2025-07-06T03:21:20.976Z
+   📡 Topic: Invernadero/TemHum2/data
+   📄 Payload: {"temperatura":11.3,"humedad":77.3,"heatindex":10.5,"dewpoint":7.5,"rssi":-78,"boot":33,"mem":19240,"stats":{"tmin":5.5,"tmax":29.4,"tavg":11.4,"hmin":38.9,"hmax":77.4,"havg":77.3,"total":3558,"errors...
+🎯 TOPIC STRUCTURE VALID: TemHum2/data
+🌡️ Processing TemHum data for table: temhum2
+✅ JSON parsing successful: {
+  temperatura: 11.3,
+  humedad: 77.3,
+  heatindex: 10.5,
+  dewpoint: 7.5,
+  rssi: -78,
+  boot: 33,
+  mem: 19240,
+  stats: {
+    tmin: 5.5,
+    tmax: 29.4,
+    tavg: 11.4,
+    hmin: 38.9,
+    hmax: 77.4,
+    havg: 77.3,
+    total: 3558,
+    errors: 0
+  }
+}
+✅ Redis cache updated for sensor_latest:temhum2
+🐌 Slow query detected (1041ms): SELECT * FROM rules WHERE enabled = true ORDER BY priority ASC
+🔍 Evaluating 0 active rules...
+Database query error: error: column "stats_tmin" of relation "temhum2" does not exist
+    at /Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async query (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/config/database.js:79:20)
+    at async MqttService.handleIncomingMessage (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/services/mqttService.js:499:9) {
+  length: 131,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '115',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_target.c',
+  line: '1065',
+  routine: 'checkInsertTargets'
+}
+❌ Database insert failed - Table: temhum2: column "stats_tmin" of relation "temhum2" does not exist
+🔄 Trying fallback query without stats_ prefix for table: temhum2
+Database query error: error: invalid input syntax for type integer: "77.3"
+    at /Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async query (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/config/database.js:79:20)
+    at async MqttService.handleIncomingMessage (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/services/mqttService.js:508:13) {
+  length: 147,
+  severity: 'ERROR',
+  code: '22P02',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: "unnamed portal parameter $2 = '...'",
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'numutils.c',
+  line: '616',
+  routine: 'pg_strtoint32_safe'
+}
+❌ Fallback insert also failed - Table: temhum2: invalid input syntax for type integer: "77.3"
+🚀 MQTT MESSAGE PROCESSING STARTED
+   🕰️ Timestamp: 2025-07-06T03:21:43.994Z
+   📡 Topic: Invernadero/TemHum1/data
+   📄 Payload: {"temperatura":12.3,"humedad":76.1,"heatindex":11.6,"dewpoint":8.2,"rssi":-77,"boot":41,"mem":19304,"stats":{"tmin":6.4,"tmax":29.7,"tavg":12.3,"hmin":38.2,"hmax":76.1,"havg":76.0,"total":3565,"errors...
+🎯 TOPIC STRUCTURE VALID: TemHum1/data
+🌡️ Processing TemHum data for table: temhum1
+✅ JSON parsing successful: {
+  temperatura: 12.3,
+  humedad: 76.1,
+  heatindex: 11.6,
+  dewpoint: 8.2,
+  rssi: -77,
+  boot: 41,
+  mem: 19304,
+  stats: {
+    tmin: 6.4,
+    tmax: 29.7,
+    tavg: 12.3,
+    hmin: 38.2,
+    hmax: 76.1,
+    havg: 76,
+    total: 3565,
+    errors: 0
+  }
+}
+✅ Redis cache updated for sensor_latest:temhum1
+Database query error: error: column "stats_tmin" of relation "temhum1" does not exist
+    at /Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async query (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/config/database.js:79:20)
+    at async MqttService.handleIncomingMessage (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/services/mqttService.js:499:9) {
+  length: 131,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '115',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_target.c',
+  line: '1065',
+  routine: 'checkInsertTargets'
+}
+❌ Database insert failed - Table: temhum1: column "stats_tmin" of relation "temhum1" does not exist
+🔄 Trying fallback query without stats_ prefix for table: temhum1
+Database query error: error: invalid input syntax for type integer: "76.1"
+    at /Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async query (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/config/database.js:79:20)
+    at async MqttService.handleIncomingMessage (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/services/mqttService.js:508:13) {
+  length: 147,
+  severity: 'ERROR',
+  code: '22P02',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: "unnamed portal parameter $2 = '...'",
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'numutils.c',
+  line: '616',
+  routine: 'pg_strtoint32_safe'
+}
+❌ Fallback insert also failed - Table: temhum1: invalid input syntax for type integer: "76.1"
+🚀 MQTT MESSAGE PROCESSING STARTED
+   🕰️ Timestamp: 2025-07-06T03:21:51.519Z
+   📡 Topic: Invernadero/TemHum2/data
+   📄 Payload: {"temperatura":11.3,"humedad":77.4,"heatindex":10.5,"dewpoint":7.5,"rssi":-76,"boot":33,"mem":19240,"stats":{"tmin":5.5,"tmax":29.4,"tavg":11.3,"hmin":38.9,"hmax":77.4,"havg":77.3,"total":3559,"errors...
+🎯 TOPIC STRUCTURE VALID: TemHum2/data
+🌡️ Processing TemHum data for table: temhum2
+✅ JSON parsing successful: {
+  temperatura: 11.3,
+  humedad: 77.4,
+  heatindex: 10.5,
+  dewpoint: 7.5,
+  rssi: -76,
+  boot: 33,
+  mem: 19240,
+  stats: {
+    tmin: 5.5,
+    tmax: 29.4,
+    tavg: 11.3,
+    hmin: 38.9,
+    hmax: 77.4,
+    havg: 77.3,
+    total: 3559,
+    errors: 0
+  }
+}
+✅ Redis cache updated for sensor_latest:temhum2
+🐌 Slow query detected (1041ms): SELECT * FROM rules WHERE enabled = true ORDER BY priority ASC
+🔍 Evaluating 0 active rules...
+Database query error: error: column "stats_tmin" of relation "temhum2" does not exist
+    at /Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async query (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/config/database.js:79:20)
+    at async MqttService.handleIncomingMessage (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/services/mqttService.js:499:9) {
+  length: 131,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '115',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_target.c',
+  line: '1065',
+  routine: 'checkInsertTargets'
+}
+❌ Database insert failed - Table: temhum2: column "stats_tmin" of relation "temhum2" does not exist
+🔄 Trying fallback query without stats_ prefix for table: temhum2
+Database query error: error: invalid input syntax for type integer: "77.4"
+    at /Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async query (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/config/database.js:79:20)
+    at async MqttService.handleIncomingMessage (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/services/mqttService.js:508:13) {
+  length: 147,
+  severity: 'ERROR',
+  code: '22P02',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: "unnamed portal parameter $2 = '...'",
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'numutils.c',
+  line: '616',
+  routine: 'pg_strtoint32_safe'
+}
+❌ Fallback insert also failed - Table: temhum2: invalid input syntax for type integer: "77.4"
+🚀 MQTT MESSAGE PROCESSING STARTED
+   🕰️ Timestamp: 2025-07-06T03:22:14.474Z
+   📡 Topic: Invernadero/TemHum1/data
+   📄 Payload: {"temperatura":12.3,"humedad":76.1,"heatindex":11.6,"dewpoint":8.2,"rssi":-76,"boot":41,"mem":19304,"stats":{"tmin":6.4,"tmax":29.7,"tavg":12.3,"hmin":38.2,"hmax":76.1,"havg":76.0,"total":3566,"errors...
+🎯 TOPIC STRUCTURE VALID: TemHum1/data
+🌡️ Processing TemHum data for table: temhum1
+✅ JSON parsing successful: {
+  temperatura: 12.3,
+  humedad: 76.1,
+  heatindex: 11.6,
+  dewpoint: 8.2,
+  rssi: -76,
+  boot: 41,
+  mem: 19304,
+  stats: {
+    tmin: 6.4,
+    tmax: 29.7,
+    tavg: 12.3,
+    hmin: 38.2,
+    hmax: 76.1,
+    havg: 76,
+    total: 3566,
+    errors: 0
+  }
+}
+✅ Redis cache updated for sensor_latest:temhum1
+Database query error: error: column "stats_tmin" of relation "temhum1" does not exist
+    at /Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async query (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/config/database.js:79:20)
+    at async MqttService.handleIncomingMessage (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/services/mqttService.js:499:9) {
+  length: 131,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '115',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_target.c',
+  line: '1065',
+  routine: 'checkInsertTargets'
+}
+❌ Database insert failed - Table: temhum1: column "stats_tmin" of relation "temhum1" does not exist
+🔄 Trying fallback query without stats_ prefix for table: temhum1
+Database query error: error: invalid input syntax for type integer: "76.1"
+    at /Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async query (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/config/database.js:79:20)
+    at async MqttService.handleIncomingMessage (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/services/mqttService.js:508:13) {
+  length: 147,
+  severity: 'ERROR',
+  code: '22P02',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: "unnamed portal parameter $2 = '...'",
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'numutils.c',
+  line: '616',
+  routine: 'pg_strtoint32_safe'
+}
+❌ Fallback insert also failed - Table: temhum1: invalid input syntax for type integer: "76.1"
+🚀 MQTT MESSAGE PROCESSING STARTED
+   🕰️ Timestamp: 2025-07-06T03:22:21.934Z
+   📡 Topic: Invernadero/TemHum2/data
+   📄 Payload: {"temperatura":11.3,"humedad":77.5,"heatindex":10.5,"dewpoint":7.5,"rssi":-78,"boot":33,"mem":19240,"stats":{"tmin":5.5,"tmax":29.4,"tavg":11.3,"hmin":38.9,"hmax":77.5,"havg":77.4,"total":3560,"errors...
+🎯 TOPIC STRUCTURE VALID: TemHum2/data
+🌡️ Processing TemHum data for table: temhum2
+✅ JSON parsing successful: {
+  temperatura: 11.3,
+  humedad: 77.5,
+  heatindex: 10.5,
+  dewpoint: 7.5,
+  rssi: -78,
+  boot: 33,
+  mem: 19240,
+  stats: {
+    tmin: 5.5,
+    tmax: 29.4,
+    tavg: 11.3,
+    hmin: 38.9,
+    hmax: 77.5,
+    havg: 77.4,
+    total: 3560,
+    errors: 0
+  }
+}
+✅ Redis cache updated for sensor_latest:temhum2
+🐌 Slow query detected (1105ms): SELECT * FROM rules WHERE enabled = true ORDER BY priority ASC
+🔍 Evaluating 0 active rules...
+Database query error: error: column "stats_tmin" of relation "temhum2" does not exist
+    at /Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async query (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/config/database.js:79:20)
+    at async MqttService.handleIncomingMessage (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/services/mqttService.js:499:9) {
+  length: 131,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '115',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_target.c',
+  line: '1065',
+  routine: 'checkInsertTargets'
+}
+❌ Database insert failed - Table: temhum2: column "stats_tmin" of relation "temhum2" does not exist
+🔄 Trying fallback query without stats_ prefix for table: temhum2
+Database query error: error: invalid input syntax for type integer: "77.5"
+    at /Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async query (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/config/database.js:79:20)
+    at async MqttService.handleIncomingMessage (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/services/mqttService.js:508:13) {
+  length: 147,
+  severity: 'ERROR',
+  code: '22P02',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: "unnamed portal parameter $2 = '...'",
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'numutils.c',
+  line: '616',
+  routine: 'pg_strtoint32_safe'
+}
+❌ Fallback insert also failed - Table: temhum2: invalid input syntax for type integer: "77.5"
+🚀 MQTT MESSAGE PROCESSING STARTED
+   🕰️ Timestamp: 2025-07-06T03:22:44.831Z
+   📡 Topic: Invernadero/TemHum1/data
+   📄 Payload: {"temperatura":12.3,"humedad":76.1,"heatindex":11.6,"dewpoint":8.2,"rssi":-76,"boot":41,"mem":19304,"stats":{"tmin":6.4,"tmax":29.7,"tavg":12.3,"hmin":38.2,"hmax":76.1,"havg":76.1,"total":3567,"errors...
+🎯 TOPIC STRUCTURE VALID: TemHum1/data
+🌡️ Processing TemHum data for table: temhum1
+✅ JSON parsing successful: {
+  temperatura: 12.3,
+  humedad: 76.1,
+  heatindex: 11.6,
+  dewpoint: 8.2,
+  rssi: -76,
+  boot: 41,
+  mem: 19304,
+  stats: {
+    tmin: 6.4,
+    tmax: 29.7,
+    tavg: 12.3,
+    hmin: 38.2,
+    hmax: 76.1,
+    havg: 76.1,
+    total: 3567,
+    errors: 0
+  }
+}
+✅ Redis cache updated for sensor_latest:temhum1
+Database query error: error: column "stats_tmin" of relation "temhum1" does not exist
+    at /Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async query (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/config/database.js:79:20)
+    at async MqttService.handleIncomingMessage (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/services/mqttService.js:499:9) {
+  length: 131,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '115',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_target.c',
+  line: '1065',
+  routine: 'checkInsertTargets'
+}
+❌ Database insert failed - Table: temhum1: column "stats_tmin" of relation "temhum1" does not exist
+🔄 Trying fallback query without stats_ prefix for table: temhum1
+Database query error: error: invalid input syntax for type integer: "76.1"
+    at /Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async query (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/config/database.js:79:20)
+    at async MqttService.handleIncomingMessage (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/services/mqttService.js:508:13) {
+  length: 147,
+  severity: 'ERROR',
+  code: '22P02',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: "unnamed portal parameter $2 = '...'",
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'numutils.c',
+  line: '616',
+  routine: 'pg_strtoint32_safe'
+}
+❌ Fallback insert also failed - Table: temhum1: invalid input syntax for type integer: "76.1"
+🚀 MQTT MESSAGE PROCESSING STARTED
+   🕰️ Timestamp: 2025-07-06T03:22:52.257Z
+   📡 Topic: Invernadero/TemHum2/data
+   📄 Payload: {"temperatura":11.3,"humedad":77.7,"heatindex":10.5,"dewpoint":7.6,"rssi":-75,"boot":33,"mem":19240,"stats":{"tmin":5.5,"tmax":29.4,"tavg":11.3,"hmin":38.9,"hmax":77.7,"havg":77.5,"total":3561,"errors...
+🎯 TOPIC STRUCTURE VALID: TemHum2/data
+🌡️ Processing TemHum data for table: temhum2
+✅ JSON parsing successful: {
+  temperatura: 11.3,
+  humedad: 77.7,
+  heatindex: 10.5,
+  dewpoint: 7.6,
+  rssi: -75,
+  boot: 33,
+  mem: 19240,
+  stats: {
+    tmin: 5.5,
+    tmax: 29.4,
+    tavg: 11.3,
+    hmin: 38.9,
+    hmax: 77.7,
+    havg: 77.5,
+    total: 3561,
+    errors: 0
+  }
+}
+✅ Redis cache updated for sensor_latest:temhum2
+🐌 Slow query detected (1031ms): SELECT * FROM rules WHERE enabled = true ORDER BY priority ASC
+🔍 Evaluating 0 active rules...
+Database query error: error: column "stats_tmin" of relation "temhum2" does not exist
+    at /Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async query (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/config/database.js:79:20)
+    at async MqttService.handleIncomingMessage (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/services/mqttService.js:499:9) {
+  length: 131,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '115',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_target.c',
+  line: '1065',
+  routine: 'checkInsertTargets'
+}
+❌ Database insert failed - Table: temhum2: column "stats_tmin" of relation "temhum2" does not exist
+🔄 Trying fallback query without stats_ prefix for table: temhum2
+Database query error: error: invalid input syntax for type integer: "77.7"
+    at /Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async query (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/config/database.js:79:20)
+    at async MqttService.handleIncomingMessage (/Users/marcelosalcedo/Proyectos IoT/SistemaIoT/Backend_GraphQL_IoT/src/services/mqttService.js:508:13) {
+  length: 147,
+  severity: 'ERROR',
+  code: '22P02',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: "unnamed portal parameter $2 = '...'",
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'numutils.c',
+  line: '616',
+  routine: 'pg_strtoint32_safe'
+}
+❌ Fallback insert also failed - Table: temhum2: invalid input syntax for type integer: "77.7"
+🚀 MQTT MESSAGE PROCESSING STARTED
+   🕰️ Timestamp: 2025-07-06T03:23:15.285Z
+   📡 Topic: Invernadero/TemHum1/data
+   📄 Payload: {"temperatura":12.3,"humedad":76.1,"heatindex":11.6,"dewpoint":8.2,"rssi":-76,"boot":41,"mem":19304,"stats":{"tmin":6.4,"tmax":29.7,"tavg":12.3,"hmin":38.2,"hmax":76.1,"havg":76.1,"total":3568,"errors...
+🎯 TOPIC STRUCTURE VALID: TemHum1/data
+🌡️ Processing TemHum data for table: temhum1
+✅ JSON parsing successful: {
+  temperatura: 12.3,
+  humedad: 76.1,
+  heatindex: 11.6,
+  dewpoint: 8.2,
+  rssi: -76,
+  boot: 41,
+  mem: 19304,
+  stats: {
+    tmin: 6.4,
+    tmax: 29.7,
+    tavg: 12.3,
+    hmin: 38.2,
+    hmax: 76.1,
+    havg: 76.1,
+    total: 3568,
+    errors: 0
+  }
+}
+✅ Redis cache updated for sensor_latest:temhum1
