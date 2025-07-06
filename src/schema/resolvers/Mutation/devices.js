@@ -256,6 +256,72 @@ const deviceMutations = {
       console.error('[DeviceMutation] Error toggling multiple devices:', error);
       throw error;
     }
+  },
+
+  /**
+   * Turn ON a device (explicit control)
+   */
+  turnOnDevice: async (parent, { id }, context) => {
+    try {
+      console.log(`[DeviceMutation] Turning ON device ${id}`, { user: context.user?.username });
+      
+      // Authentication required
+      if (!context.user) {
+        throw new AuthenticationError('You must be logged in to control devices');
+      }
+
+      // Operator permission or above required
+      if (!context.user.role || !['admin', 'editor', 'operator'].includes(context.user.role)) {
+        throw new ForbiddenError('Insufficient permissions to control devices');
+      }
+
+      const device = await deviceService.updateDeviceStatus(id, 'on');
+      
+      console.log(`[DeviceMutation] Turned ON device ${id}: ${device.name}`);
+      
+      // Publish status change event
+      await pubsub.publish(SENSOR_EVENTS.DEVICE_STATUS_CHANGED, {
+        deviceStatusChanged: device
+      });
+
+      return device;
+    } catch (error) {
+      console.error(`[DeviceMutation] Error turning ON device ${id}:`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * Turn OFF a device (explicit control)
+   */
+  turnOffDevice: async (parent, { id }, context) => {
+    try {
+      console.log(`[DeviceMutation] Turning OFF device ${id}`, { user: context.user?.username });
+      
+      // Authentication required
+      if (!context.user) {
+        throw new AuthenticationError('You must be logged in to control devices');
+      }
+
+      // Operator permission or above required
+      if (!context.user.role || !['admin', 'editor', 'operator'].includes(context.user.role)) {
+        throw new ForbiddenError('Insufficient permissions to control devices');
+      }
+
+      const device = await deviceService.updateDeviceStatus(id, 'off');
+      
+      console.log(`[DeviceMutation] Turned OFF device ${id}: ${device.name}`);
+      
+      // Publish status change event
+      await pubsub.publish(SENSOR_EVENTS.DEVICE_STATUS_CHANGED, {
+        deviceStatusChanged: device
+      });
+
+      return device;
+    } catch (error) {
+      console.error(`[DeviceMutation] Error turning OFF device ${id}:`, error);
+      throw error;
+    }
   }
 };
 

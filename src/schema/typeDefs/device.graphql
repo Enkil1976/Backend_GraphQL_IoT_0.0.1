@@ -10,6 +10,8 @@ extend type Query {
 extend type Mutation {
   # Device Control
   toggleDevice(id: ID!): Device!
+  turnOnDevice(id: ID!): Device!
+  turnOffDevice(id: ID!): Device!
   updateDevice(id: ID!, input: UpdateDeviceInput!): Device!
   createDevice(input: CreateDeviceInput!): Device!
   deleteDevice(id: ID!): Boolean!

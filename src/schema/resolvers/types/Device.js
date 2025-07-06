@@ -154,6 +154,27 @@ const Device = {
   },
 
   /**
+   * Map database status to GraphQL enum
+   */
+  status: (device) => {
+    // Map database status (lowercase) to GraphQL enum (uppercase)
+    if (!device.status) return 'OFFLINE';
+    
+    const statusMap = {
+      'on': 'ON',
+      'off': 'OFF',
+      'online': 'ON',
+      'offline': 'OFFLINE',
+      'active': 'ON',
+      'inactive': 'OFF',
+      'error': 'ERROR',
+      'maintenance': 'MAINTENANCE'
+    };
+    
+    return statusMap[device.status.toLowerCase()] || 'OFFLINE';
+  },
+
+  /**
    * Calculate operating hours
    */
   operatingHours: async (device, args, context) => {
