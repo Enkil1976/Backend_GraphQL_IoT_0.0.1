@@ -444,6 +444,14 @@ async function setupDatabase() {
       console.log(`   ${row.table_name.padEnd(25)} | ${row.column_count}`);
     });
 
+    // Verify column types for temhum1 and temhum2
+    console.log('\n🔍 Verifying temhum1 and temhum2 column types...');
+    const temhum1Columns = await pool.query("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'temhum1' AND column_name IN ('humedad', 'hmin', 'hmax', 'havg');");
+    console.log('   Temhum1 Column Types:', temhum1Columns.rows);
+
+    const temhum2Columns = await pool.query("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'temhum2' AND column_name IN ('humedad', 'hmin', 'hmax', 'havg');");
+    console.log('   Temhum2 Column Types:', temhum2Columns.rows);
+
     console.log('\n🎉 Database setup completed successfully!');
     console.log('\n📋 Summary:');
     console.log(`   - ${result.rows.length} tables created`);
