@@ -58,6 +58,7 @@ async function setupDatabase() {
     {
       name: 'temhum1',
       sql: `
+        DROP TABLE IF EXISTS temhum1 CASCADE;
         CREATE TABLE IF NOT EXISTS temhum1 (
           id SERIAL PRIMARY KEY,
           temperatura DECIMAL(5,2) NOT NULL,
@@ -90,6 +91,7 @@ async function setupDatabase() {
     {
       name: 'temhum2',
       sql: `
+        DROP TABLE IF EXISTS temhum2 CASCADE;
         CREATE TABLE IF NOT EXISTS temhum2 (
           id SERIAL PRIMARY KEY,
           temperatura DECIMAL(5,2) NOT NULL,
