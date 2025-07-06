@@ -1,6 +1,7 @@
 const { query } = require('../config/database');
 const { cache } = require('../config/redis');
 const { pubsub, SENSOR_EVENTS } = require('../utils/pubsub');
+const mqttService = require('./mqttService');
 
 /**
  * Device Service for GraphQL Backend
@@ -328,6 +329,9 @@ class DeviceService {
       const updatedDeviceWithStatus = result.rows[0];
       console.log(`Device status updated: ${updatedDeviceWithStatus.name} (ID: ${id}) to ${newStatus}`);
 
+      // Send MQTT command to physical device
+      await this.sendMqttCommand(updatedDeviceWithStatus, newStatus);
+
       // Update cache
       await cache.set(`device:${deviceIdInt}`, updatedDeviceWithStatus, 3600);
       await cache.set(`device:${deviceIdInt}:status`, newStatus, 3600);
@@ -618,6 +622,9 @@ class DeviceService {
         newStatus = 'on';
       }
 
+      // Send MQTT command with toggle action
+      await this.sendMqttCommand(device, 'toggle');
+
       return await this.updateDeviceStatus(id, newStatus);
     } catch (err) {
       console.error(`Error in toggleDevice for device ${id}:`, err);
@@ -700,6 +707,78 @@ class DeviceService {
     } catch (err) {
       console.error(`Error in resetDevice for device ${id}:`, err);
       throw err;
+    }
+  }
+
+  /**
+   * Send MQTT command to device based on device type and action
+   * @param {Object} device - Device object
+   * @param {string} action - Action to perform (on/off/toggle)
+   * @param {number} value - Optional value for dimmers, etc.
+   */
+  async sendMqttCommand(device, action, value = null) {
+    try {
+      if (!device) {
+        console.warn('Cannot send MQTT command: device is missing');
+        return;
+      }
+
+      // Use device_id if available, otherwise use device name or ID as fallback
+      const deviceIdentifier = device.device_id || device.name || device.id;
+
+      let topic, payload;
+
+      // Map device types to MQTT topics and payloads
+      switch (device.type?.toLowerCase()) {
+        case 'fan':
+        case 'ventilator':
+          topic = 'Invernadero/Ventilador/sw';
+          payload = { ventiladorSw: action === 'on' || action === 'toggle' };
+          break;
+          
+        case 'water_pump':
+        case 'pump':
+          topic = 'Invernadero/Bomba/sw';
+          payload = { bombaSw: action === 'on' || action === 'toggle' };
+          break;
+          
+        case 'heater':
+          topic = 'Invernadero/Calefactor/sw';
+          payload = { calefactorSw: action === 'on' || action === 'toggle' };
+          break;
+          
+        case 'water_heater':
+          topic = 'Invernadero/CalefactorAgua/sw';
+          payload = { calefactorAguaSw: action === 'on' || action === 'toggle' };
+          break;
+          
+        case 'lights':
+        case 'led':
+          topic = `Invernadero/${deviceIdentifier}/sw`;
+          if (value !== null) {
+            payload = { brightness: value, power: action === 'on' };
+          } else {
+            payload = { power: action === 'on' || action === 'toggle' };
+          }
+          break;
+          
+        default:
+          // Generic device control
+          topic = `Invernadero/${deviceIdentifier}/sw`;
+          payload = { state: action === 'on' || action === 'toggle' };
+          break;
+      }
+
+      if (topic && payload) {
+        console.log(`📡 Sending MQTT command to ${topic}:`, payload);
+        await mqttService.publish(topic, payload);
+        console.log(`✅ MQTT command sent successfully for device ${device.name}`);
+      } else {
+        console.warn(`⚠️ No MQTT mapping found for device type: ${device.type}`);
+      }
+    } catch (error) {
+      console.error(`❌ Error sending MQTT command for device ${device.name}:`, error);
+      // Don't throw error to prevent breaking the device status update
     }
   }
 }

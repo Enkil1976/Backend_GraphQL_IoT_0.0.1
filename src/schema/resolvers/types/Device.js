@@ -175,6 +175,39 @@ const Device = {
   },
 
   /**
+   * Map database type to GraphQL enum
+   */
+  type: (device) => {
+    // Map database type (lowercase) to GraphQL enum (uppercase)
+    if (!device.type) return 'RELAY';
+    
+    const typeMap = {
+      'fan': 'VENTILATOR',
+      'ventilator': 'VENTILATOR',
+      'water_pump': 'WATER_PUMP',
+      'pump': 'WATER_PUMP',
+      'heater': 'HEATER',
+      'cooler': 'COOLER',
+      'lights': 'LIGHTS',
+      'light': 'LIGHTS',
+      'valve': 'VALVE',
+      'sensor_actuator': 'SENSOR_ACTUATOR',
+      'motor': 'MOTOR',
+      'relay': 'RELAY',
+      'dimmer': 'DIMMER'
+    };
+    
+    return typeMap[device.type.toLowerCase()] || 'RELAY';
+  },
+
+  /**
+   * Map database device_id to GraphQL deviceId
+   */
+  deviceId: (device) => {
+    return device.device_id;
+  },
+
+  /**
    * Calculate operating hours
    */
   operatingHours: async (device, args, context) => {

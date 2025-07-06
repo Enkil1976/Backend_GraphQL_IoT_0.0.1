@@ -33,6 +33,7 @@ extend type Subscription {
 # Device Types
 type Device {
   id: ID!
+  deviceId: String
   name: String!
   type: DeviceType!
   description: String
