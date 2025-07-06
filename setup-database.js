@@ -35,6 +35,7 @@ async function setupDatabase() {
         CREATE TABLE IF NOT EXISTS devices (
           id SERIAL PRIMARY KEY,
           name VARCHAR(100) NOT NULL,
+          device_id VARCHAR(50) UNIQUE,
           type VARCHAR(50) NOT NULL,
           status VARCHAR(20) DEFAULT 'off' CHECK (status IN ('on', 'off', 'error', 'maintenance')),
           room VARCHAR(50),
@@ -49,6 +50,7 @@ async function setupDatabase() {
         CREATE INDEX IF NOT EXISTS idx_devices_status ON devices(status);
         CREATE INDEX IF NOT EXISTS idx_devices_room ON devices(room);
         CREATE INDEX IF NOT EXISTS idx_devices_owner ON devices(owner_user_id);
+        CREATE INDEX IF NOT EXISTS idx_devices_device_id ON devices(device_id);
         
         COMMENT ON TABLE devices IS 'IoT devices and actuators in the greenhouse system';
       `
@@ -319,6 +321,38 @@ async function setupDatabase() {
       `
     },
     {
+      name: 'rule_executions',
+      sql: `
+        CREATE TABLE IF NOT EXISTS rule_executions (
+          id SERIAL PRIMARY KEY,
+          rule_id INTEGER NOT NULL REFERENCES rules(id) ON DELETE CASCADE,
+          triggered_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          success BOOLEAN NOT NULL DEFAULT false,
+          execution_time_ms INTEGER DEFAULT 0,
+          
+          -- Context and evaluation data
+          trigger_data JSONB,
+          evaluation_result JSONB,
+          actions_executed JSONB,
+          
+          -- Error information
+          error_message TEXT,
+          stack_trace TEXT,
+          
+          -- Metadata
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+        
+        CREATE INDEX IF NOT EXISTS idx_rule_executions_rule_id ON rule_executions(rule_id);
+        CREATE INDEX IF NOT EXISTS idx_rule_executions_triggered_at ON rule_executions(triggered_at);
+        CREATE INDEX IF NOT EXISTS idx_rule_executions_success ON rule_executions(success);
+        CREATE INDEX IF NOT EXISTS idx_rule_executions_rule_triggered ON rule_executions(rule_id, triggered_at DESC);
+        
+        COMMENT ON TABLE rule_executions IS 'Stores the execution history and results of automation rules';
+      `
+    },
+    {
       name: 'operations_log',
       sql: `
         CREATE TABLE IF NOT EXISTS operations_log (
@@ -370,19 +404,19 @@ async function setupDatabase() {
     // Insert some example devices
     console.log('\n🔌 Creating example devices...');
     const exampleDevices = [
-      { name: 'Bomba de Agua Principal', type: 'water_pump', room: 'invernadero_1' },
-      { name: 'Ventilador de Circulación', type: 'fan', room: 'invernadero_1' },
-      { name: 'Lámpara LED Crecimiento', type: 'grow_light', room: 'invernadero_1' },
-      { name: 'Calefactor Nocturno', type: 'heater', room: 'invernadero_1' },
-      { name: 'Sistema de Nebulización', type: 'misting_system', room: 'invernadero_1' }
+      { name: 'Bomba de Agua Principal', device_id: 'bomba_agua_01', type: 'water_pump', room: 'invernadero_1' },
+      { name: 'Ventilador de Circulación', device_id: 'ventilador_01', type: 'fan', room: 'invernadero_1' },
+      { name: 'Lámpara LED Crecimiento', device_id: 'led_grow_01', type: 'lights', room: 'invernadero_1' },
+      { name: 'Calefactor Nocturno', device_id: 'calefactor_01', type: 'heater', room: 'invernadero_1' },
+      { name: 'Calefactor de Agua', device_id: 'calefactor_agua_01', type: 'water_heater', room: 'invernadero_1' }
     ];
 
     for (const device of exampleDevices) {
       await pool.query(`
-        INSERT INTO devices (name, type, room, configuration) 
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO devices (name, device_id, type, room, configuration) 
+        VALUES ($1, $2, $3, $4, $5)
         ON CONFLICT DO NOTHING
-      `, [device.name, device.type, device.room, '{"auto_mode": false, "schedule": null}']);
+      `, [device.name, device.device_id, device.type, device.room, '{"auto_mode": false, "schedule": null}']);
     }
     
     console.log('   ✅ Example devices created');
