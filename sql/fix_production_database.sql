@@ -59,26 +59,4 @@ ORDER BY ordinal_position;
 SELECT id, name, device_id, type FROM devices ORDER BY id;
 
 -- Fix temhum tables column types
-ALTER TABLE temhum1
-    ALTER COLUMN temperatura TYPE REAL,
-    ALTER COLUMN humedad TYPE REAL,
-    ALTER COLUMN heatindex TYPE REAL,
-    ALTER COLUMN dewpoint TYPE REAL,
-    ALTER COLUMN tmin TYPE REAL,
-    ALTER COLUMN tmax TYPE REAL,
-    ALTER COLUMN tavg TYPE REAL,
-    ALTER COLUMN hmin TYPE REAL,
-    ALTER COLUMN hmax TYPE REAL,
-    ALTER COLUMN havg REAL;
 
-ALTER TABLE temhum2
-    ALTER COLUMN temperatura TYPE REAL,
-    ALTER COLUMN humedad TYPE REAL,
-    ALTER COLUMN heatindex TYPE REAL,
-    ALTER COLUMN dewpoint TYPE REAL,
-    ALTER COLUMN tmin TYPE REAL,
-    ALTER COLUMN tmax TYPE REAL,
-    ALTER COLUMN tavg TYPE REAL,
-    ALTER COLUMN hmin TYPE REAL,
-    ALTER COLUMN hmax TYPE REAL,
-    ALTER COLUMN havg REAL;
