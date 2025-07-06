@@ -63,10 +63,15 @@ class SensorService {
         }
       ];
 
-      // Get power monitor sensors from database
-      const powerSensors = await query(
-        "SELECT id, name, device_id, configuration FROM devices WHERE type = 'power_sensor'"
-      );
+      // Get power monitor sensors from database (if table exists)
+      let powerSensors = { rows: [] };
+      try {
+        powerSensors = await query(
+          "SELECT id, name, device_id, config FROM devices WHERE type = 'power_sensor'"
+        );
+      } catch (error) {
+        console.warn('[SensorService] Could not query devices table (might not exist yet):', error.message);
+      }
 
       // Add power sensors to the list
       for (const powerSensor of powerSensors.rows) {
@@ -75,7 +80,7 @@ class SensorService {
           name: powerSensor.name || `Power Monitor ${powerSensor.device_id}`,
           type: 'POWER_MONITOR',
           location: 'Dispositivos Monitoreados',
-          description: `Monitor de consumo eléctrico para ${powerSensor.configuration?.monitors_device_id || 'dispositivo'}`,
+          description: `Monitor de consumo eléctrico para ${powerSensor.config?.monitors_device_id || 'dispositivo'}`,
           deviceId: powerSensor.device_id,
           dbId: powerSensor.id
         });
@@ -472,25 +477,29 @@ class SensorService {
             break;
 
           case 'POWER_MONITOR':
-            // Get all power sensors
-            const powerSensors = await query(
-              "SELECT device_id FROM devices WHERE type = 'power_sensor'"
-            );
-            
-            for (const sensor of powerSensors.rows) {
-              data = await mqttService.getLatestData('power', sensor.device_id);
-              if (data) {
-                latestReadings.push({
-                  id: `power_${sensor.device_id}_latest`,
-                  sensorId: `power_${sensor.device_id}`,
-                  timestamp: data.last_updated,
-                  watts: data.watts ? parseFloat(data.watts) : null,
-                  voltage: data.voltage ? parseFloat(data.voltage) : null,
-                  current: data.current ? parseFloat(data.current) : null,
-                  frequency: data.frequency ? parseFloat(data.frequency) : null,
-                  powerFactor: data.power_factor ? parseFloat(data.power_factor) : null
-                });
+            // Get all power sensors (if table exists)
+            try {
+              const powerSensors = await query(
+                "SELECT device_id FROM devices WHERE type = 'power_sensor'"
+              );
+              
+              for (const sensor of powerSensors.rows) {
+                data = await mqttService.getLatestData('power', sensor.device_id);
+                if (data) {
+                  latestReadings.push({
+                    id: `power_${sensor.device_id}_latest`,
+                    sensorId: `power_${sensor.device_id}`,
+                    timestamp: data.last_updated,
+                    watts: data.watts ? parseFloat(data.watts) : null,
+                    voltage: data.voltage ? parseFloat(data.voltage) : null,
+                    current: data.current ? parseFloat(data.current) : null,
+                    frequency: data.frequency ? parseFloat(data.frequency) : null,
+                    powerFactor: data.power_factor ? parseFloat(data.power_factor) : null
+                  });
+                }
               }
+            } catch (error) {
+              console.warn('[SensorService] Could not query devices table for power sensors:', error.message);
             }
             break;
         }

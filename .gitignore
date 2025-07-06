@@ -8,4 +8,5 @@ node_modules/
 # Markdown files
 *.md
 test*.js
-.gitignoresecrets/
+.gitignore
+secrets/
