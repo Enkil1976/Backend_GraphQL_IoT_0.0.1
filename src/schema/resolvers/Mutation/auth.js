@@ -6,9 +6,8 @@ const authMutations = {
   /**
    * User login
    */
-  login: async (parent, { input }, context) => {
+  login: async (parent, { username, password }, context) => {
     try {
-      const { username, password } = input;
       
       console.log('[AuthMutation] Login attempt:', { username });
       
