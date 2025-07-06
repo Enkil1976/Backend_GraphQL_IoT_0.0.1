@@ -89,7 +89,9 @@ services:
   # PGAdmin para gestión de la base de datos (opcional)
   # Servicio para inicializar la base de datos
   de-init:
-    image: postgres:14-alpine
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: iot-de-init
     depends_on:
       postgres:
