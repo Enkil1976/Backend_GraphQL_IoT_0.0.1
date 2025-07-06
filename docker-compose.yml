@@ -103,7 +103,7 @@ services:
     volumes:
       - .:/usr/src/app
       - ./wait-for-db.sh:/usr/src/app/wait-for-db.sh
-    command: sh -c "/usr/src/app/wait-for-db.sh postgres ${PG_PORT:-5432} node setup-database.js"
+    command: /usr/src/app/wait-for-db.sh postgres node setup-database.js
     networks:
       - iot-network
     restart: on-failure

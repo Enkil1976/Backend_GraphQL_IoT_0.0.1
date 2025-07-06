@@ -7,7 +7,7 @@ host="$1"
 shift
 cmd="$@"
 
-until PGPASSWORD=$PG_PASSWORD psql -h "$host" -U "$PG_USER" -d "$PG_DATABASE" -c '\q'; do
+until PGPASSWORD=$PG_PASSWORD psql -h "$host" -p "$PG_PORT" -U "$PG_USER" -d "$PG_DATABASE" -c '\q'; do
   >&2 echo "Postgres is unavailable - sleeping"
   sleep 1
 done
