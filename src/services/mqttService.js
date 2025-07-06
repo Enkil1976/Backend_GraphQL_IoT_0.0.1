@@ -166,7 +166,7 @@ class MqttService extends EventEmitter {
         // Store in PostgreSQL (using actual table structure)
         queryStr = `
           INSERT INTO ${tableName} (temperatura, humedad, heatindex, dewpoint, rssi, boot, mem, 
-                     tmin, tmax, tavg, hmin, hmax, havg, total, errors, received_at)
+                     stats_tmin, stats_tmax, stats_tavg, stats_hmin, stats_hmax, stats_havg, stats_total, stats_errors, received_at)
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
         `;
         values = [
