@@ -1,5 +1,5 @@
 const { query } = require('../config/database');
-const redisClient = require('../config/redis');
+const { redis: redisClient } = require('../config/redis');
 const { pubsub, RULE_EVENTS } = require('../utils/pubsub');
 const deviceService = require('./deviceService');
 const notificationService = require('./notificationService');
