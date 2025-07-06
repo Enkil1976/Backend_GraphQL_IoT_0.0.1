@@ -5,12 +5,7 @@ FROM node:18-alpine
 WORKDIR /usr/src/app
 
 # Install system dependencies for native modules
-RUN apk add --no-cache \
-    python3 \
-    make \
-    g++ \
-    git \
-    curl
+RUN apk add --no-cache     python3     make     g++     git     curl     postgresql-client
 
 # Copy package files
 COPY package*.json ./
