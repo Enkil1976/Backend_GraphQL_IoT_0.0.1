@@ -1,4 +1,5 @@
 require('dotenv').config();
+console.log('Executing setup-database.js');
 const { pool } = require('./src/config/database');
 const fs = require('fs');
 const path = require('path');

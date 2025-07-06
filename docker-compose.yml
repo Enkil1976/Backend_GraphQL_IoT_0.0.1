@@ -101,7 +101,7 @@ services:
       - PG_USER=${PG_USER:-postgres}
       - PG_PASSWORD=${PG_PASSWORD:-postgres}
     volumes:
-      - ./sql:/docker-entrypoint-initdb.d
+      - .:/usr/src/app
     command: sh -c "sleep 5 && node setup-database.js"
     networks:
       - iot-network
