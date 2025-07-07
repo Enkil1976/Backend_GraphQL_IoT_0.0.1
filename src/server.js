@@ -185,6 +185,9 @@ class GraphQLServer {
    * Setup Express middleware with enhanced security
    */
   setupMiddleware() {
+    // Configure Express to trust proxy headers
+    this.app.set('trust proxy', 1);
+
     // Security: Enhanced helmet configuration
     this.app.use(helmet(securityHeaders));
 
