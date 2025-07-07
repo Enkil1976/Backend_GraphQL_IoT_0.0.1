@@ -113,60 +113,243 @@ class NotificationService {
   }
 
   /**
-   * Send email notification
+   * Send email notification via webhook
    * @param {string} title - Email subject
    * @param {string} message - Email body
-   * @param {Object} metadata - Email metadata
+   * @param {Object} metadata - Email metadata including 'usuario' and 'destinatario'
    * @returns {Object} Send result
    */
   async sendEmail(title, message, metadata = {}) {
-    // Email implementation would go here
-    // For now, we'll simulate success
-    console.log('📧 Email notification:', { title, message, metadata });
-    
-    return {
-      success: true,
-      provider: 'email',
-      timestamp: new Date().toISOString()
+    if (!this.webhookUrl) {
+      throw new Error('Webhook URL not configured');
+    }
+
+    if (!this.webhookSecret) {
+      throw new Error('Webhook secret not configured for JWT');
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { 
+        sub: 'iot-backend',
+        iat: Math.floor(Date.now() / 1000)
+      }, 
+      this.webhookSecret,
+      { expiresIn: this.jwtExpiresIn }
+    );
+
+    // Prepare payload in the format expected by n8n
+    const payload = {
+      usuario: metadata.usuario || 'sistema',
+      canal: 'email',
+      asunto: title,
+      mensaje: message,
+      destinatario: metadata.destinatario || metadata.usuario || 'admin@ejemplo.com'
     };
+
+    try {
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'User-Agent': 'IoT-Greenhouse-System'
+      };
+
+      console.log('📧 Sending email notification:', { title, to: payload.destinatario });
+      
+      const response = await axios.post(this.webhookUrl, payload, {
+        headers,
+        timeout: 10000 // 10 seconds timeout
+      });
+      
+      console.log('✅ Email notification sent successfully');
+      
+      return {
+        success: true,
+        provider: 'email',
+        timestamp: new Date().toISOString(),
+        response: {
+          status: response.status,
+          data: response.data
+        }
+      };
+    } catch (error) {
+      console.error('❌ Failed to send email notification:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
+      return {
+        success: false,
+        provider: 'email',
+        timestamp: new Date().toISOString(),
+        error: {
+          message: error.message,
+          status: error.response?.status,
+          data: error.response?.data
+        }
+      };
+    }
   }
 
   /**
-   * Send Telegram notification
-   * @param {string} title - Message title
+   * Send Telegram notification via webhook
+   * @param {string} title - Message title (prepended to message)
    * @param {string} message - Message content
-   * @param {Object} metadata - Telegram metadata
+   * @param {Object} metadata - Telegram metadata including 'usuario' and 'chatId'
    * @returns {Object} Send result
    */
   async sendTelegram(title, message, metadata = {}) {
-    // Telegram implementation would go here
-    // For now, we'll simulate success
-    console.log('📱 Telegram notification:', { title, message, metadata });
-    
-    return {
-      success: true,
-      provider: 'telegram',
-      timestamp: new Date().toISOString()
+    if (!this.webhookUrl) {
+      throw new Error('Webhook URL not configured');
+    }
+
+    if (!this.webhookSecret) {
+      throw new Error('Webhook secret not configured for JWT');
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { 
+        sub: 'iot-backend',
+        iat: Math.floor(Date.now() / 1000)
+      }, 
+      this.webhookSecret,
+      { expiresIn: this.jwtExpiresIn }
+    );
+
+    // Combine title and message for Telegram
+    const fullMessage = title ? `*${title}*\n\n${message}` : message;
+
+    // Prepare payload in the format expected by n8n
+    const payload = {
+      usuario: metadata.usuario || 'sistema',
+      canal: 'telegram',
+      mensaje: fullMessage,
+      chatId: metadata.chatId || null // Optional: specific chat ID for Telegram
     };
+
+    try {
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'User-Agent': 'IoT-Greenhouse-System'
+      };
+
+      console.log('📱 Sending Telegram notification to chat:', payload.chatId || 'default');
+      
+      const response = await axios.post(this.webhookUrl, payload, {
+        headers,
+        timeout: 10000 // 10 seconds timeout
+      });
+      
+      console.log('✅ Telegram notification sent successfully');
+      
+      return {
+        success: true,
+        provider: 'telegram',
+        timestamp: new Date().toISOString(),
+        response: {
+          status: response.status,
+          data: response.data
+        }
+      };
+    } catch (error) {
+      console.error('❌ Failed to send Telegram notification:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
+      return {
+        success: false,
+        provider: 'telegram',
+        timestamp: new Date().toISOString(),
+        error: {
+          message: error.message,
+          status: error.response?.status,
+          data: error.response?.data
+        }
+      };
+    }
   }
 
   /**
-   * Send WhatsApp notification
-   * @param {string} title - Message title
+   * Send WhatsApp notification via webhook
+   * @param {string} title - Message title (not used in the payload but kept for compatibility)
    * @param {string} message - Message content
-   * @param {Object} metadata - WhatsApp metadata
+   * @param {Object} metadata - Additional metadata including 'usuario'
    * @returns {Object} Send result
    */
   async sendWhatsApp(title, message, metadata = {}) {
-    // WhatsApp implementation would go here
-    // For now, we'll simulate success
-    console.log('📱 WhatsApp notification:', { title, message, metadata });
-    
-    return {
-      success: true,
-      provider: 'whatsapp',
-      timestamp: new Date().toISOString()
+    if (!this.webhookUrl) {
+      throw new Error('Webhook URL not configured');
+    }
+
+    if (!this.webhookSecret) {
+      throw new Error('Webhook secret not configured for JWT');
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { 
+        sub: 'iot-backend',
+        iat: Math.floor(Date.now() / 1000)
+      }, 
+      this.webhookSecret,
+      { expiresIn: this.jwtExpiresIn }
+    );
+
+    // Prepare payload in the format expected by n8n
+    const payload = {
+      usuario: metadata.usuario || 'admin',
+      canal: 'whatsapp',
+      mensaje: message
     };
+
+    try {
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'User-Agent': 'IoT-Greenhouse-System'
+      };
+
+      console.log('📱 Sending WhatsApp notification:', payload);
+      
+      const response = await axios.post(this.webhookUrl, payload, {
+        headers,
+        timeout: 10000 // 10 seconds timeout
+      });
+      
+      console.log('✅ WhatsApp notification sent successfully');
+      
+      return {
+        success: true,
+        provider: 'whatsapp',
+        timestamp: new Date().toISOString(),
+        response: {
+          status: response.status,
+          data: response.data
+        }
+      };
+    } catch (error) {
+      console.error('❌ Failed to send WhatsApp notification:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
+      return {
+        success: false,
+        provider: 'whatsapp',
+        timestamp: new Date().toISOString(),
+        error: {
+          message: error.message,
+          status: error.response?.status,
+          data: error.response?.data
+        }
+      };
+    }
   }
 
   /**
