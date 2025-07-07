@@ -237,11 +237,30 @@ class RulesEngineService {
   async evaluateSensorCondition(sensor, field, operator, value) {
     const sensorData = await this.getLatestSensorData(sensor);
     
-    if (!sensorData || sensorData[field] === undefined) {
+    if (!sensorData) {
+      console.log(`🔍 No sensor data found for sensor: ${sensor}`);
       return false;
     }
 
-    const currentValue = sensorData[field];
+    // Field name mapping for backwards compatibility
+    const fieldMapping = {
+      'temperature': 'temperatura',
+      'humidity': 'humedad',
+      'waterTemperature': 'temperaturaAgua',
+      'heatIndex': 'heatindex',
+      'dewPoint': 'dewpoint'
+    };
+
+    // Use mapped field name if available, otherwise use original field name
+    const actualField = fieldMapping[field] || field;
+    
+    if (sensorData[actualField] === undefined) {
+      console.log(`🔍 Field "${field}" (mapped to "${actualField}") not found in sensor data:`, Object.keys(sensorData));
+      return false;
+    }
+
+    const currentValue = sensorData[actualField];
+    console.log(`🔍 Rule evaluation: ${sensor}.${actualField} = ${currentValue} ${operator} ${value}`);
     
     switch (operator) {
       case 'GT':
