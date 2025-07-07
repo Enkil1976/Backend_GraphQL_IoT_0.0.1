@@ -43,6 +43,16 @@ const EVENTS = {
   HEALTH_CHECK: 'HEALTH_CHECK'
 };
 
+// Queue events for action queue system
+const QUEUE_EVENTS = {
+  ACTION_QUEUED: 'ACTION_QUEUED',
+  ACTION_STARTED: 'ACTION_STARTED',
+  ACTION_COMPLETED: 'ACTION_COMPLETED',
+  ACTION_FAILED: 'ACTION_FAILED',
+  ACTION_RETRIED: 'ACTION_RETRIED',
+  ACTION_MOVED_TO_DLQ: 'ACTION_MOVED_TO_DLQ'
+};
+
 // Specific sensor events for more granular subscriptions
 const SENSOR_EVENTS = {
   // Temperature/Humidity sensors
@@ -200,6 +210,7 @@ module.exports = {
   pubsub,
   EVENTS,
   SENSOR_EVENTS,
+  QUEUE_EVENTS,
   
   // Publisher helpers
   publishSensorData,
