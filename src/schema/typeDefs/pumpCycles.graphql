@@ -20,20 +20,11 @@ extend type Mutation {
   
   # Enable or disable pump cycling
   togglePumpCycles(enabled: Boolean!): PumpCycleResult!
-  
-  # Predefined cycle patterns
-  setStandardCycle15: PumpCycleResult!     # 15min ON, 15min OFF
-  setStandardCycle20: PumpCycleResult!     # 20min ON, 10min OFF  
-  setStandardCycle30: PumpCycleResult!     # 30min ON, 30min OFF
-  setShortBurst: PumpCycleResult!          # 5min ON, 25min OFF
 }
 
 extend type Subscription {
   # Real-time pump cycle events
   pumpCycleUpdated: PumpCycleEvent!
-  
-  # Pump status changes from cycling
-  pumpStatusChanged: Device!
 }
 
 # Main Types
@@ -88,8 +79,9 @@ type PumpCycleResult {
 
 type PumpCycleExecution {
   id: ID!
-  rule: Rule!
-  action: DeviceActionType!
+  ruleId: ID!
+  ruleName: String!
+  action: String!
   success: Boolean!
   executedAt: DateTime!
   executionTime: Int!
@@ -105,8 +97,8 @@ type PumpCycleEvent {
   
   # Event Data
   cyclePattern: CyclePattern
-  device: Device
-  action: DeviceActionType
+  deviceId: ID
+  action: String
   
   # Status
   success: Boolean!

@@ -144,11 +144,8 @@ const pumpCycleQueries = {
         
         return {
           id: row.id,
-          rule: {
-            id: row.rule_id,
-            name: row.rule_name,
-            // Other rule fields would be resolved by Rule type resolver
-          },
+          ruleId: row.rule_id,
+          ruleName: row.rule_name,
           action,
           success: row.success,
           executedAt: row.triggered_at,
