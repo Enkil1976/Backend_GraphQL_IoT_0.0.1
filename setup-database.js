@@ -38,13 +38,16 @@ async function setupDatabase() {
           name VARCHAR(100) NOT NULL,
           device_id VARCHAR(50) UNIQUE,
           type VARCHAR(50) NOT NULL,
-          status VARCHAR(20) DEFAULT 'off' CHECK (status IN ('on', 'off', 'error', 'maintenance')),
+          description TEXT,
+          status VARCHAR(20) DEFAULT 'offline' CHECK (status IN ('on', 'off', 'error', 'maintenance', 'offline')),
           room VARCHAR(50),
           configuration JSONB DEFAULT '{}',
           owner_user_id INTEGER REFERENCES users(id),
+          is_public BOOLEAN DEFAULT false,
           last_seen TIMESTAMP WITH TIME ZONE,
           created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          created_by INTEGER REFERENCES users(id)
         );
         
         CREATE INDEX IF NOT EXISTS idx_devices_type ON devices(type);
@@ -438,19 +441,19 @@ async function setupDatabase() {
     // Insert some example devices
     console.log('\n🔌 Creating example devices...');
     const exampleDevices = [
-      { name: 'Bomba de Agua Principal', device_id: 'bomba_agua_01', type: 'water_pump', room: 'invernadero_1' },
-      { name: 'Ventilador de Circulación', device_id: 'ventilador_01', type: 'fan', room: 'invernadero_1' },
-      { name: 'Lámpara LED Crecimiento', device_id: 'led_grow_01', type: 'lights', room: 'invernadero_1' },
-      { name: 'Calefactor Nocturno', device_id: 'calefactor_01', type: 'heater', room: 'invernadero_1' },
-      { name: 'Calefactor de Agua', device_id: 'calefactor_agua_01', type: 'water_heater', room: 'invernadero_1' }
+      { name: 'Bomba de Agua Principal', device_id: 'bomba_agua_01', type: 'water_pump', room: 'invernadero_1', description: 'Bomba principal para sistema de riego' },
+      { name: 'Ventilador de Circulación', device_id: 'ventilador_01', type: 'fan', room: 'invernadero_1', description: 'Ventilador para circulación de aire' },
+      { name: 'Lámpara LED Crecimiento', device_id: 'led_grow_01', type: 'lights', room: 'invernadero_1', description: 'Iluminación LED para crecimiento de plantas' },
+      { name: 'Calefactor Nocturno', device_id: 'calefactor_01', type: 'heater', room: 'invernadero_1', description: 'Calefactor para temperatura nocturna' },
+      { name: 'Calefactor de Agua', device_id: 'calefactor_agua_01', type: 'water_heater', room: 'invernadero_1', description: 'Calefactor para mantener temperatura del agua' }
     ];
 
     for (const device of exampleDevices) {
       await pool.query(`
-        INSERT INTO devices (name, device_id, type, room, configuration) 
-        VALUES ($1, $2, $3, $4, $5)
-        ON CONFLICT DO NOTHING
-      `, [device.name, device.device_id, device.type, device.room, '{"auto_mode": false, "schedule": null}']);
+        INSERT INTO devices (name, device_id, type, room, description, configuration, created_by) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT (device_id) DO NOTHING
+      `, [device.name, device.device_id, device.type, device.room, device.description, '{"auto_mode": false, "schedule": null}', 1]);
     }
     
     console.log('   ✅ Example devices created');

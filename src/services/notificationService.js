@@ -52,7 +52,7 @@ class NotificationService {
       title: processedTitle,
       message: processedMessage,
       priority,
-      channels: channels.join(','),
+      channels: JSON.stringify(channels),
       metadata,
       status: 'pending'
     });
@@ -64,21 +64,24 @@ class NotificationService {
       try {
         let result;
         
-        switch (channel) {
+        // Add target channel to metadata for webhook payload
+        const enrichedMetadata = { ...metadata, targetChannel: channel.toLowerCase() };
+        
+        switch (channel.toLowerCase()) {
           case 'email':
-            result = await this.sendEmail(processedTitle, processedMessage, metadata);
+            result = await this.sendEmail(processedTitle, processedMessage, enrichedMetadata);
             break;
           case 'telegram':
-            result = await this.sendTelegram(processedTitle, processedMessage, metadata);
+            result = await this.sendTelegram(processedTitle, processedMessage, enrichedMetadata);
             break;
           case 'whatsapp':
-            result = await this.sendWhatsApp(processedTitle, processedMessage, metadata);
+            result = await this.sendWhatsApp(processedTitle, processedMessage, enrichedMetadata);
             break;
           case 'webhook':
-            result = await this.sendWebhook(processedTitle, processedMessage, metadata, priority);
+            result = await this.sendWebhook(processedTitle, processedMessage, enrichedMetadata, priority);
             break;
           case 'push':
-            result = await this.sendPushNotification(processedTitle, processedMessage, metadata);
+            result = await this.sendPushNotification(processedTitle, processedMessage, enrichedMetadata);
             break;
           default:
             result = { success: false, error: `Unknown channel: ${channel}` };
@@ -94,16 +97,16 @@ class NotificationService {
     const success = Object.values(sendResults).some(result => result.success);
     await this.updateNotificationStatus(notificationRecord.id, success ? 'sent' : 'failed', sendResults);
 
-    // Publish notification sent event
-    await pubsub.publish(NOTIFICATION_EVENTS.NOTIFICATION_SENT, {
-      notificationSent: {
-        id: notificationRecord.id,
-        title: processedTitle,
-        message: processedMessage,
-        channels,
-        results: sendResults
-      }
-    });
+    // Publish notification sent event (temporarily disabled due to pubsub issue)
+    // await pubsub.publish(NOTIFICATION_EVENTS.NOTIFICATION_SENT, {
+    //   notificationSent: {
+    //     id: notificationRecord.id,
+    //     title: processedTitle,
+    //     message: processedMessage,
+    //     channels,
+    //     results: sendResults
+    //   }
+    // });
 
     return {
       id: notificationRecord.id,
@@ -379,11 +382,13 @@ class NotificationService {
       { expiresIn: this.jwtExpiresIn }
     );
 
+    // Format payload for n8n webhook (expected format)
     const payload = {
-      title,
-      message,
-      priority,
+      usuario: metadata.usuario || 'sistema',
+      canal: metadata.targetChannel || 'webhook', // Use target channel or default to webhook
+      mensaje: title ? `${title}\n\n${message}` : message,
       timestamp: new Date().toISOString(),
+      priority,
       source: 'iot-greenhouse',
       metadata
     };
@@ -395,12 +400,14 @@ class NotificationService {
         'Authorization': `Bearer ${token}`
       };
 
+      console.log('🔗 Sending webhook notification to n8n');
+
       const response = await axios.post(this.webhookUrl, payload, {
         headers,
         timeout: 10000
       });
 
-      console.log('🔗 Webhook notification sent with JWT:', response.status);
+      console.log('✅ Webhook notification sent successfully');
       
       return {
         success: true,
@@ -499,9 +506,9 @@ class NotificationService {
   async updateNotificationStatus(id, status, results = {}) {
     await query(
       `UPDATE notifications 
-       SET status = $1, sent_at = NOW(), results = $2 
-       WHERE id = $3`,
-      [status, JSON.stringify(results), id]
+       SET status = $1, sent_at = NOW() 
+       WHERE id = $2`,
+      [status, id]
     );
   }
 
@@ -658,7 +665,7 @@ class NotificationService {
       `INSERT INTO notification_templates (name, title, content, variables, channels, created_at)
        VALUES ($1, $2, $3, $4, $5, NOW())
        RETURNING *`,
-      [name, title, content, JSON.stringify(variables), channels.join(',')]
+      [name, title, content, JSON.stringify(variables), JSON.stringify(channels)]
     );
 
     return result.rows[0];
@@ -709,7 +716,7 @@ class NotificationService {
 
     if (channels !== undefined) {
       updateFields.push(`channels = $${paramIndex}`);
-      params.push(channels.join(','));
+      params.push(JSON.stringify(channels));
       paramIndex++;
     }
 

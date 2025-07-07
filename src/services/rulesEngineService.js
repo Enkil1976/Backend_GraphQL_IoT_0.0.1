@@ -1,6 +1,6 @@
 const { query } = require('../config/database');
-const { redis: redisClient } = require('../config/redis');
-const { pubsub, RULE_EVENTS } = require('../utils/pubsub');
+const { cache } = require('../config/redis');
+const { pubsub, EVENTS } = require('../utils/pubsub');
 const deviceService = require('./deviceService');
 const notificationService = require('./notificationService');
 const queueService = require('./queueService');
@@ -98,14 +98,13 @@ class RulesEngineService {
     try {
       // Check cooldown
       const cooldownKey = `rule:${rule.id}:cooldown`;
-      const lastTriggered = await redisClient.get(cooldownKey);
+      const lastTriggered = await cache.get(cooldownKey);
       
       if (lastTriggered) {
         const timeSinceLastTrigger = Date.now() - parseInt(lastTriggered);
         const cooldownPeriod = this.priorityCooldowns[rule.priority] || 1800000;
         
         if (timeSinceLastTrigger < cooldownPeriod) {
-          // Still in cooldown
           return;
         }
       }
@@ -120,7 +119,7 @@ class RulesEngineService {
         await this.executeActions(rule.actions, rule);
         
         // Set cooldown
-        await redisClient.set(cooldownKey, Date.now().toString());
+        await cache.set(cooldownKey, Date.now().toString());
         
         // Update last triggered timestamp
         await query(
@@ -132,7 +131,7 @@ class RulesEngineService {
         await this.createRuleExecution(rule.id, true, rule.conditions, rule.actions);
 
         // Publish rule triggered event
-        await pubsub.publish(RULE_EVENTS.RULE_TRIGGERED, {
+        await pubsub.publish(EVENTS.RULE_TRIGGERED, {
           ruleTriggered: {
             rule,
             timestamp: new Date().toISOString()
@@ -147,23 +146,40 @@ class RulesEngineService {
 
   /**
    * Evaluate rule conditions
-   * @param {Array} conditions - Rule conditions
+   * @param {Object|Array} conditions - Rule conditions (can be array or object with rules/operator)
    * @returns {boolean} Whether conditions are met
    */
   async evaluateConditions(conditions) {
-    if (!Array.isArray(conditions) || conditions.length === 0) {
+    // Handle different condition formats
+    let conditionList = [];
+    let logicalOperator = 'AND';
+    
+    if (Array.isArray(conditions)) {
+      conditionList = conditions;
+    } else if (conditions && conditions.rules && Array.isArray(conditions.rules)) {
+      conditionList = conditions.rules;
+      logicalOperator = conditions.operator || 'AND';
+    } else {
+      return false;
+    }
+    
+    if (conditionList.length === 0) {
       return false;
     }
 
     const results = [];
     
-    for (const condition of conditions) {
+    for (const condition of conditionList) {
       const result = await this.evaluateCondition(condition);
       results.push(result);
     }
 
-    // Default to AND logic (all conditions must be true)
-    return results.every(result => result === true);
+    // Apply logical operator
+    if (logicalOperator === 'OR') {
+      return results.some(result => result === true);
+    } else { // Default to AND
+      return results.every(result => result === true);
+    }
   }
 
   /**
@@ -172,20 +188,28 @@ class RulesEngineService {
    * @returns {boolean} Whether condition is met
    */
   async evaluateCondition(condition) {
-    const { type, sensor, field, operator, value, device_id, time_window } = condition;
+    const { type, sensor, sensorType, field, operator, value, device_id, deviceId, time_window } = condition;
+    
+    // Handle both sensor and sensorType field names
+    const sensorName = sensor || sensorType;
+    const deviceIdValue = device_id || deviceId;
 
     switch (type) {
+      case 'SENSOR':
       case 'sensor':
-        return await this.evaluateSensorCondition(sensor, field, operator, value);
+        return await this.evaluateSensorCondition(sensorName, field, operator, value);
       
+      case 'DEVICE':
       case 'device':
-        return await this.evaluateDeviceCondition(device_id, operator, value);
+        return await this.evaluateDeviceCondition(deviceIdValue, operator, value);
       
+      case 'TIME':
       case 'time':
         return await this.evaluateTimeCondition(condition);
       
+      case 'HISTORY':
       case 'sensor_history':
-        return await this.evaluateSensorHistoryCondition(sensor, field, operator, value, time_window);
+        return await this.evaluateSensorHistoryCondition(sensorName, field, operator, value, time_window);
       
       case 'sensor_trend':
         return await this.evaluateSensorTrendCondition(sensor, field, condition.trend_type, time_window);
@@ -220,16 +244,22 @@ class RulesEngineService {
     const currentValue = sensorData[field];
     
     switch (operator) {
+      case 'GT':
       case '>':
         return currentValue > value;
+      case 'LT':
       case '<':
         return currentValue < value;
+      case 'GTE':
       case '>=':
         return currentValue >= value;
+      case 'LTE':
       case '<=':
         return currentValue <= value;
+      case 'EQ':
       case '==':
         return currentValue === value;
+      case 'NEQ':
       case '!=':
         return currentValue !== value;
       default:
@@ -438,16 +468,16 @@ class RulesEngineService {
     
     if (!currentlyMet) {
       // Clear the state if condition is not met
-      await redisClient.del(stateKey);
+      await cache.del(stateKey);
       return false;
     }
 
     // Get the start time of the sustained state
-    const startTime = await redisClient.get(stateKey);
+    const startTime = await cache.get(stateKey);
     
     if (!startTime) {
       // First time condition is met, record the start time
-      await redisClient.set(stateKey, Date.now().toString());
+      await cache.set(stateKey, Date.now().toString());
       return false;
     }
 
@@ -485,9 +515,10 @@ class RulesEngineService {
   async executeAction(action, rule) {
     const { type, device_id, status, configuration, notification, operation } = action;
 
-    switch (type) {
+    switch (type?.toLowerCase()) {
       case 'device_status':
-        await this.executeDeviceStatusAction(device_id, status);
+      case 'device_control':
+        await this.executeDeviceStatusAction(device_id || action.deviceId, status || action.action, action);
         break;
       
       case 'device_configuration':
@@ -495,7 +526,7 @@ class RulesEngineService {
         break;
       
       case 'notification':
-        await this.executeNotificationAction(notification, rule);
+        await this.executeNotificationAction(action, rule);
         break;
       
       case 'operation':
@@ -545,32 +576,41 @@ class RulesEngineService {
 
   /**
    * Execute notification action
-   * @param {Object} notification - Notification data
+   * @param {Object} action - Action data with notification details
    * @param {Object} rule - Rule data
    */
-  async executeNotificationAction(notification, rule) {
+  async executeNotificationAction(action, rule) {
     console.log(`📧 Executing notification action for rule: ${rule.name}`);
     
-    const { title, message, priority, channels, variables } = notification;
+    const { title, message, template, priority = 'medium', channels = ['webhook'], variables = {} } = action;
     
-    // Add rule context to variables
+    // Get current sensor data for template variables
+    const latestSensorData = await this.getLatestSensorData('temhum1');
+    
+    // Add rule context and sensor data to variables
     const enrichedVariables = {
       ...variables,
+      ...latestSensorData,
       rule_name: rule.name,
       rule_id: rule.id,
       timestamp: new Date().toISOString()
     };
 
+    // Use template as message if no explicit message
+    const finalMessage = message || template || 'Rule triggered notification';
+
     await notificationService.sendNotification({
-      title,
-      message,
+      title: title || `Rule: ${rule.name}`,
+      message: finalMessage,
       priority,
       channels,
       variables: enrichedVariables,
+      templateId: null,
       metadata: {
         rule_id: rule.id,
         rule_name: rule.name,
-        triggered_by: 'rules_engine'
+        triggered_by: 'rules_engine',
+        usuario: 'sistema'
       }
     });
   }
@@ -602,9 +642,31 @@ class RulesEngineService {
    * @returns {Object} Latest sensor data
    */
   async getLatestSensorData(sensor) {
-    const key = `sensor:${sensor}:latest`;
-    const data = await redisClient.get(key);
-    return data ? JSON.parse(data) : null;
+    const key = `sensor_latest:${sensor.toLowerCase()}`;
+    const data = await cache.hgetall(key);
+    
+    if (!data || Object.keys(data).length === 0) {
+      return null;
+    }
+    
+    // Convert string values to numbers where appropriate
+    const convertedData = {};
+    for (const [field, value] of Object.entries(data)) {
+      if (field === 'timestamp') {
+        convertedData[field] = new Date(value);
+      } else if (value && !isNaN(value)) {
+        convertedData[field] = parseFloat(value);
+      } else {
+        convertedData[field] = value;
+      }
+    }
+    
+    // Add timestamp if not present (use current time)
+    if (!convertedData.timestamp) {
+      convertedData.timestamp = new Date();
+    }
+    
+    return convertedData;
   }
 
   /**
@@ -614,8 +676,8 @@ class RulesEngineService {
    * @returns {Array} Historical sensor data
    */
   async getSensorHistoryData(sensor, duration) {
-    const key = `sensor:${sensor}:history`;
-    const data = await redisClient.lrange(key, 0, -1);
+    const key = `sensor_history:${sensor.toLowerCase()}`;
+    const data = await cache.lrange(key, 0, -1);
     
     if (!data || data.length === 0) {
       return [];
@@ -625,8 +687,7 @@ class RulesEngineService {
     const cutoffTime = new Date(now.getTime() - duration * 60 * 1000);
     
     return data
-      .map(item => JSON.parse(item))
-      .filter(item => new Date(item.timestamp) >= cutoffTime);
+      .filter(item => item && item.timestamp && new Date(item.timestamp) >= cutoffTime);
   }
 
   /**

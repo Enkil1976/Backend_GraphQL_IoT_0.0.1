@@ -39,7 +39,8 @@ services:
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules
-    command: sh -c "node setup-database.js && npm start"
+# Wait for database to be ready and run setup before starting
+    command: sh -c "sleep 10 && node setup-database.js && npm start"
     networks:
       - iot-network
     restart: always
