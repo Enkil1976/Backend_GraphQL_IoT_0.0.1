@@ -598,7 +598,9 @@ class RulesEngineService {
     switch (type?.toLowerCase()) {
       case 'device_status':
       case 'device_control':
-        await this.executeDeviceStatusAction(device_id || action.deviceId, status || action.action, action);
+        // Translate TURN_ON/TURN_OFF to 'on'/'off'
+        const translatedStatus = action.action === 'TURN_ON' ? 'on' : (action.action === 'TURN_OFF' ? 'off' : status);
+        await this.executeDeviceStatusAction(device_id || action.deviceId, translatedStatus, action);
         break;
       
       case 'device_configuration':
