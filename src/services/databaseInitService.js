@@ -345,9 +345,16 @@ class DatabaseInitService {
       // Save to file
       const backupDir = './backups';
       try {
-        await fs.mkdir(backupDir, { recursive: true });
+        await fs.mkdir(backupDir, { recursive: true, mode: 0o755 });
       } catch (error) {
-        // Directory might already exist
+        if (error.code !== 'EEXIST') {
+          console.warn('Warning: Could not create backups directory:', error.message);
+          // Try to save in current directory as fallback
+          const fallbackFile = `db-backup-${Date.now()}.json`;
+          await fs.writeFile(fallbackFile, JSON.stringify(encryptedBackup, null, 2));
+          console.log(`✅ Database backup created (fallback): ${fallbackFile}`);
+          return fallbackFile;
+        }
       }
       
       const backupFile = path.join(backupDir, `db-backup-${Date.now()}.json`);

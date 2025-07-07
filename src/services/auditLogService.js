@@ -16,15 +16,32 @@ class AuditLogService {
    * Setup Winston logger for structured logging
    */
   setupWinstonLogger() {
-    return winston.createLogger({
-      level: 'info',
-      format: winston.format.combine(
-        winston.format.timestamp(),
-        winston.format.errors({ stack: true }),
-        winston.format.json()
-      ),
-      defaultMeta: { service: 'iot-audit' },
-      transports: [
+    const fs = require('fs');
+    const path = require('path');
+    
+    // Create logs directory if it doesn't exist
+    const logsDir = path.join(process.cwd(), 'logs');
+    try {
+      if (!fs.existsSync(logsDir)) {
+        fs.mkdirSync(logsDir, { recursive: true, mode: 0o755 });
+      }
+    } catch (error) {
+      console.warn('Warning: Could not create logs directory, using console only:', error.message);
+    }
+
+    const transports = [
+      new winston.transports.Console({
+        format: winston.format.combine(
+          winston.format.colorize(),
+          winston.format.simple()
+        )
+      })
+    ];
+
+    // Only add file transports if we can write to logs directory
+    try {
+      fs.accessSync(logsDir, fs.constants.W_OK);
+      transports.push(
         new winston.transports.File({ 
           filename: 'logs/audit-error.log', 
           level: 'error',
@@ -37,14 +54,21 @@ class AuditLogService {
           maxsize: 5242880, // 5MB
           maxFiles: 20,
           tailable: true
-        }),
-        new winston.transports.Console({
-          format: winston.format.combine(
-            winston.format.colorize(),
-            winston.format.simple()
-          )
         })
-      ]
+      );
+    } catch (error) {
+      console.warn('Warning: Cannot write to logs directory, using console logging only:', error.message);
+    }
+
+    return winston.createLogger({
+      level: 'info',
+      format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.errors({ stack: true }),
+        winston.format.json()
+      ),
+      defaultMeta: { service: 'iot-audit' },
+      transports
     });
   }
 

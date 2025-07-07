@@ -16,20 +16,20 @@ RUN npm ci --only=production
 # Install missing WebSocket transport dependency
 RUN npm install subscriptions-transport-ws@0.11.0
 
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodeuser -u 1001
+
 # Copy application source
 COPY . .
 
 # Make entrypoint script executable
 RUN chmod +x docker-entrypoint.sh
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodeuser -u 1001
-
 # Create logs directory and set permissions
-RUN mkdir -p logs && \
-    chown -R nodeuser:nodejs logs && \
-    chown nodeuser:nodejs docker-entrypoint.sh
+RUN mkdir -p logs backups && \
+    chown -R nodeuser:nodejs /usr/src/app && \
+    chmod -R 755 /usr/src/app
 
 # Switch to non-root user
 USER nodeuser
