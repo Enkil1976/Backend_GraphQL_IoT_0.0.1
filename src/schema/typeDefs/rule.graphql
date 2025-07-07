@@ -397,3 +397,19 @@ enum NotificationChannel {
   SLACK
   DISCORD
 }
+
+# Canales principales para notificaciones
+enum Canal {
+  whatsapp
+  email
+  telegram
+}
+
+# Canales de destino específicos
+enum TargetChannel {
+  webhook
+  slack
+  smtp
+  push
+  discord
+}

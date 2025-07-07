@@ -44,6 +44,8 @@ type Notification {
   type: NotificationType!
   severity: NotificationSeverity!
   channel: NotificationChannel!
+  canal: Canal
+  targetChannel: TargetChannel
   
   # Status
   isRead: Boolean!
@@ -131,6 +133,8 @@ input SendNotificationInput {
   type: NotificationType!
   severity: NotificationSeverity = INFO
   channel: NotificationChannel!
+  canal: Canal
+  targetChannel: TargetChannel
   userId: ID
   templateId: ID
   variables: JSON

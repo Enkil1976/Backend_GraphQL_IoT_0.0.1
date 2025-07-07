@@ -175,6 +175,8 @@ const notificationMutations = {
         type,
         severity = 'MEDIUM',
         channel,
+        canal,
+        targetChannel,
         userId,
         templateId,
         variables,
@@ -188,11 +190,15 @@ const notificationMutations = {
         message,
         priority: severity.toLowerCase(),
         channels: [channel],
+        canal: canal,
+        targetChannel: targetChannel,
         metadata: {
           ...metadata,
           sent_by: context.user.id,
           type,
-          custom: true
+          custom: true,
+          canal: canal,
+          targetChannel: targetChannel
         }
       };
 
@@ -219,7 +225,11 @@ const notificationMutations = {
             channel,
             userId,
             'USER_ACTION',
-            JSON.stringify(metadata),
+            JSON.stringify({
+              ...metadata,
+              canal: canal,
+              targetChannel: targetChannel
+            }),
             'sent'
           ]
         );
@@ -236,6 +246,8 @@ const notificationMutations = {
         type,
         severity,
         channel,
+        canal,
+        targetChannel,
         isRead: false,
         user: { id: userId || context.user.id },
         source: 'USER_ACTION',
