@@ -1,0 +1,158 @@
+# Pump Cycling System Type Definitions
+
+extend type Query {
+  # Pump Cycle Status
+  pumpCycleStatus: PumpCycleStatus!
+  
+  # Pump Cycle History
+  pumpCycleHistory(
+    limit: Int = 20
+    offset: Int = 0
+  ): [PumpCycleExecution!]!
+}
+
+extend type Mutation {
+  # Create custom pump cycling pattern
+  createPumpCycle(input: CreatePumpCycleInput!): PumpCycleResult!
+  
+  # Remove all pump cycling rules
+  removePumpCycles: PumpCycleResult!
+  
+  # Enable or disable pump cycling
+  togglePumpCycles(enabled: Boolean!): PumpCycleResult!
+  
+  # Predefined cycle patterns
+  setStandardCycle15: PumpCycleResult!     # 15min ON, 15min OFF
+  setStandardCycle20: PumpCycleResult!     # 20min ON, 10min OFF  
+  setStandardCycle30: PumpCycleResult!     # 30min ON, 30min OFF
+  setShortBurst: PumpCycleResult!          # 5min ON, 25min OFF
+}
+
+extend type Subscription {
+  # Real-time pump cycle events
+  pumpCycleUpdated: PumpCycleEvent!
+  
+  # Pump status changes from cycling
+  pumpStatusChanged: Device!
+}
+
+# Main Types
+type PumpCycleStatus {
+  # Status
+  isActive: Boolean!
+  totalRules: Int!
+  enabledRules: Int!
+  
+  # Current Pattern
+  cyclePattern: CyclePattern
+  
+  # Rules
+  rules: [Rule!]!
+  
+  # Metadata
+  lastUpdated: DateTime
+  nextEvaluation: DateTime
+  
+  # Statistics
+  totalExecutions: Int!
+  successfulExecutions: Int!
+  lastExecution: DateTime
+}
+
+type CyclePattern {
+  onMinutes: Int!
+  offMinutes: Int!
+  totalMinutes: Int!
+  description: String
+  createdAt: DateTime!
+}
+
+type PumpCycleResult {
+  success: Boolean!
+  message: String!
+  
+  # Cycle Details
+  onMinutes: Int
+  offMinutes: Int
+  totalCycleMinutes: Int
+  
+  # Rules
+  rulesCreated: Int
+  rulesRemoved: Int
+  rulesAffected: Int
+  enabled: Boolean
+  
+  # Rule Details
+  rules: [Rule!]
+}
+
+type PumpCycleExecution {
+  id: ID!
+  rule: Rule!
+  action: DeviceActionType!
+  success: Boolean!
+  executedAt: DateTime!
+  executionTime: Int!
+  
+  # Context
+  cyclePhase: CyclePhase!
+  error: String
+}
+
+type PumpCycleEvent {
+  eventType: CycleEventType!
+  timestamp: DateTime!
+  
+  # Event Data
+  cyclePattern: CyclePattern
+  device: Device
+  action: DeviceActionType
+  
+  # Status
+  success: Boolean!
+  message: String!
+}
+
+# Input Types
+input CreatePumpCycleInput {
+  onMinutes: Int!
+  offMinutes: Int!
+  description: String
+  enabled: Boolean = true
+  
+  # Advanced Options
+  priority: Int = 9
+  cooldownMinutes: Int
+  
+  # Validation
+  validateOnly: Boolean = false
+}
+
+# Enums
+enum CyclePhase {
+  ON_PHASE
+  OFF_PHASE
+  TRANSITION
+  UNKNOWN
+}
+
+enum CycleEventType {
+  CYCLE_CREATED
+  CYCLE_UPDATED
+  CYCLE_REMOVED
+  CYCLE_ENABLED
+  CYCLE_DISABLED
+  PUMP_TURNED_ON
+  PUMP_TURNED_OFF
+  CYCLE_ERROR
+}
+
+# Pump Cycle Presets
+enum PumpCyclePreset {
+  STANDARD_15     # 15min ON, 15min OFF
+  STANDARD_20     # 20min ON, 10min OFF  
+  STANDARD_30     # 30min ON, 30min OFF
+  SHORT_BURST     # 5min ON, 25min OFF
+  LONG_CYCLE      # 45min ON, 15min OFF
+  CUSTOM          # User-defined pattern
+}

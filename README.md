@@ -8,6 +8,7 @@ A modern GraphQL API server for the IoT Greenhouse monitoring system, built with
 - **JWT Authentication** with role-based access control
 - **Real-time Data** from MQTT sensors with WebSocket subscriptions
 - **Rules Engine** for automated device control and notifications
+- **Water Pump Cycling** automated 15-minute ON/OFF cycles 24/7
 - **Queue System** with Redis Streams for critical operations
 - **Multi-channel Notifications** (webhook, email, telegram, etc.)
 - **Comprehensive Device Management** with status tracking
@@ -406,10 +407,68 @@ This GraphQL backend maintains compatibility with the existing REST API data str
 - Better developer experience
 - Reduced API calls
 
+## Water Pump Cycling System
+
+This system provides automated 15-minute ON/OFF cycles for the water pump, running 24/7:
+
+### Setup
+
+```bash
+# Setup water pump cycling rules
+node water-pump-cycles-setup.js
+
+# Verify system is working
+node scripts/verify-pump-cycles.js
+
+# Run database migration
+psql -d your_database -f migrations/setup-water-pump-cycles.sql
+```
+
+### Cycling Pattern
+
+- **15 minutes ON**: Minutes 0-15 and 30-45 of every hour
+- **15 minutes OFF**: Minutes 15-30 and 45-60 of every hour
+- **24/7 Operation**: Continuous cycling without interruption
+- **High Priority**: Rules run with priority 9 to ensure execution
+- **Cooldown**: 5-minute cooldown between rule triggers
+
+### Rules Created
+
+1. **CICLO: Bomba ON (minutos 00-15)** - Turns pump ON during 0-15 and 30-45 minutes
+2. **CICLO: Bomba OFF (minutos 15-30)** - Turns pump OFF during 15-30 and 45-60 minutes  
+3. **CICLO: Bomba ON (minutos 30-45)** - Secondary ON rule for redundancy
+4. **CICLO: Bomba OFF (minutos 45-00)** - Secondary OFF rule for wrap-around
+
+### Monitoring
+
+```bash
+# Check pump status
+npm run verify-pump
+
+# View rule executions
+SELECT * FROM rule_executions 
+WHERE rule_id IN (
+  SELECT id FROM rules WHERE name LIKE '%CICLO%'
+) ORDER BY triggered_at DESC LIMIT 10;
+
+# Disable cycling (emergency)
+UPDATE rules SET enabled = false 
+WHERE name LIKE '%CICLO%' AND name LIKE '%Bomba%';
+```
+
+### Technical Details
+
+- Uses time-based rule conditions with smart pattern matching
+- Rules engine evaluates every 30 seconds
+- Improved time window logic handles cycling patterns
+- MQTT device control for reliable pump operation
+- Execution history logged in `rule_executions` table
+
 ## Health Monitoring
 
 - **Health endpoint**: `/health`
 - **Service status**: MQTT, Rules Engine, Queue processor
+- **Pump cycling**: Verification script available
 - **GraphQL introspection**: Available in development
 - **Error tracking**: Comprehensive logging
 

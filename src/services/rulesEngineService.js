@@ -323,7 +323,12 @@ class RulesEngineService {
    */
   async evaluateTimeCondition(condition) {
     const now = new Date();
-    const { time_type, start_time, end_time, days_of_week, datetime } = condition;
+    const { time_type, start_time, end_time, days_of_week, datetime, timeStart, timeEnd } = condition;
+
+    // Handle GraphQL style time conditions (timeStart/timeEnd)
+    if (timeStart && timeEnd) {
+      return this.evaluateTimeWindow(timeStart, timeEnd, now);
+    }
 
     switch (time_type) {
       case 'daily_window':
@@ -341,6 +346,62 @@ class RulesEngineService {
       
       default:
         return false;
+    }
+  }
+
+  /**
+   * Evaluate time window for pump cycling and recurring schedules
+   * @param {string} timeStart - Start time in HH:MM format
+   * @param {string} timeEnd - End time in HH:MM format  
+   * @param {Date} now - Current datetime
+   * @returns {boolean} Whether current time is within window
+   */
+  evaluateTimeWindow(timeStart, timeEnd, now) {
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    
+    // Parse start and end times
+    const [startHour, startMin] = timeStart.split(':').map(Number);
+    const [endHour, endMin] = timeEnd.split(':').map(Number);
+    
+    const startMinutes = startHour * 60 + startMin;
+    const endMinutes = endHour * 60 + endMin;
+    
+    // Handle different time window patterns
+    if (timeStart === '00:00' && timeEnd === '00:15') {
+      // Pattern: 00:00-00:15 (every 30 minutes)
+      // This should trigger at minutes 0-15 and 30-45 of every hour
+      const minuteOfHour = now.getMinutes();
+      return (minuteOfHour >= 0 && minuteOfHour < 15) || (minuteOfHour >= 30 && minuteOfHour < 45);
+    }
+    
+    if (timeStart === '00:15' && timeEnd === '00:30') {
+      // Pattern: 00:15-00:30 (every 30 minutes)  
+      // This should trigger at minutes 15-30 and 45-60 of every hour
+      const minuteOfHour = now.getMinutes();
+      return (minuteOfHour >= 15 && minuteOfHour < 30) || (minuteOfHour >= 45 && minuteOfHour < 60);
+    }
+    
+    if (timeStart === '00:30' && timeEnd === '00:45') {
+      // Pattern: 00:30-00:45 (every 30 minutes)
+      // This should trigger at minutes 30-45 of every hour
+      const minuteOfHour = now.getMinutes();
+      return (minuteOfHour >= 30 && minuteOfHour < 45);
+    }
+    
+    if (timeStart === '00:45' && timeEnd === '23:59') {
+      // Pattern: 00:45-23:59 (special case for wrap-around)
+      // This should trigger at minutes 45-60 of every hour
+      const minuteOfHour = now.getMinutes();
+      return (minuteOfHour >= 45 && minuteOfHour < 60);
+    }
+    
+    // Standard time window evaluation
+    if (endMinutes > startMinutes) {
+      // Normal case: start and end on same day
+      return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+    } else {
+      // Wrap-around case: end time is next day
+      return currentMinutes >= startMinutes || currentMinutes < endMinutes;
     }
   }
 

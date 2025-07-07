@@ -5,6 +5,7 @@ const users = require('./users');
 const rules = require('./rules');
 const notifications = require('./notifications');
 const weather = require('./weather');
+const pumpCycles = require('./pumpCycles');
 
 // Combine all Mutation resolvers
 const Mutation = {
@@ -28,6 +29,9 @@ const Mutation = {
   
   // Weather mutations
   ...weather,
+  
+  // Pump cycle mutations
+  ...pumpCycles,
 };
 
 module.exports = Mutation;
