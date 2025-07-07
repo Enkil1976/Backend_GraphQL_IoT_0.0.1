@@ -26,6 +26,8 @@ class NotificationService {
       message,
       priority = 'medium',
       channels = [this.defaultChannel],
+      canal,
+      targetChannel,
       metadata = {},
       templateId = null,
       variables = {}
@@ -64,10 +66,17 @@ class NotificationService {
       try {
         let result;
         
-        // Add target channel to metadata for webhook payload
-        const enrichedMetadata = { ...metadata, targetChannel: channel.toLowerCase() };
+        // Add canal and target channel to metadata for webhook payload
+        const enrichedMetadata = { 
+          ...metadata, 
+          canal: canal || channel.toLowerCase(),
+          targetChannel: targetChannel || 'webhook'
+        };
         
-        switch (channel.toLowerCase()) {
+        // Use canal if specified, otherwise use channel
+        const effectiveChannel = canal || channel;
+        
+        switch (effectiveChannel.toLowerCase()) {
           case 'email':
             result = await this.sendEmail(processedTitle, processedMessage, enrichedMetadata);
             break;
@@ -144,7 +153,8 @@ class NotificationService {
     // Prepare payload in the format expected by n8n
     const payload = {
       usuario: metadata.usuario || 'sistema',
-      canal: 'email',
+      canal: metadata.canal || 'email',
+      targetChannel: metadata.targetChannel || 'webhook',
       asunto: title,
       mensaje: message,
       destinatario: metadata.destinatario || metadata.usuario || 'admin@ejemplo.com'
@@ -227,7 +237,8 @@ class NotificationService {
     // Prepare payload in the format expected by n8n
     const payload = {
       usuario: metadata.usuario || 'sistema',
-      canal: 'telegram',
+      canal: metadata.canal || 'telegram',
+      targetChannel: metadata.targetChannel || 'webhook',
       mensaje: fullMessage,
       chatId: metadata.chatId || null // Optional: specific chat ID for Telegram
     };
@@ -306,7 +317,8 @@ class NotificationService {
     // Prepare payload in the format expected by n8n
     const payload = {
       usuario: metadata.usuario || 'admin',
-      canal: 'whatsapp',
+      canal: metadata.canal || 'whatsapp',
+      targetChannel: metadata.targetChannel || 'webhook',
       mensaje: message
     };
 
@@ -385,7 +397,8 @@ class NotificationService {
     // Format payload for n8n webhook (expected format)
     const payload = {
       usuario: metadata.usuario || 'sistema',
-      canal: metadata.targetChannel || 'webhook', // Use target channel or default to webhook
+      canal: metadata.canal || 'whatsapp', // Primary channel (whatsapp, email, telegram)
+      targetChannel: metadata.targetChannel || 'webhook', // Target delivery method
       mensaje: title ? `${title}\n\n${message}` : message,
       timestamp: new Date().toISOString(),
       priority,

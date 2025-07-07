@@ -582,7 +582,16 @@ class RulesEngineService {
   async executeNotificationAction(action, rule) {
     console.log(`📧 Executing notification action for rule: ${rule.name}`);
     
-    const { title, message, template, priority = 'medium', channels = ['webhook'], variables = {} } = action;
+    const { 
+      title, 
+      message, 
+      template, 
+      priority = 'medium', 
+      channels = ['webhook'], 
+      canal = 'whatsapp',
+      targetChannel = 'webhook',
+      variables = {} 
+    } = action;
     
     // Get current sensor data for template variables
     const latestSensorData = await this.getLatestSensorData('temhum1');
@@ -599,18 +608,29 @@ class RulesEngineService {
     // Use template as message if no explicit message
     const finalMessage = message || template || 'Rule triggered notification';
 
+    // Map canal to appropriate channel for backwards compatibility
+    let effectiveChannels = channels;
+    if (canal && targetChannel) {
+      // If canal and targetChannel are specified, use canal as the channel type
+      effectiveChannels = [canal];
+    }
+
     await notificationService.sendNotification({
       title: title || `Rule: ${rule.name}`,
       message: finalMessage,
       priority,
-      channels,
+      channels: effectiveChannels,
+      canal: canal,
+      targetChannel: targetChannel,
       variables: enrichedVariables,
       templateId: null,
       metadata: {
         rule_id: rule.id,
         rule_name: rule.name,
         triggered_by: 'rules_engine',
-        usuario: 'sistema'
+        usuario: 'sistema',
+        canal: canal,
+        targetChannel: targetChannel
       }
     });
   }
