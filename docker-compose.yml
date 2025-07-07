@@ -1,5 +1,31 @@
 
 services:
+  # Inicialización de la base de datos
+  db-init:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      # Configuración de PostgreSQL
+      - PG_HOST=postgres
+      - PG_PORT=${PG_PORT:-5432}
+      - PG_DATABASE=${PG_DATABASE:-invernadero_iot}
+      - PG_USER=${PG_USER:-postgres}
+      - PG_PASSWORD=${PG_PASSWORD:-postgres}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    command: ["init-db"]
+    networks:
+      - iot-network
+    restart: "no"
+
   # Aplicación principal
   app:
     build:
@@ -36,11 +62,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules
-# Wait for database to be ready and run setup before starting
-    command: sh -c "sleep 10 && node setup-database.js && npm start"
+    command: ["start"]
     networks:
       - iot-network
     restart: always

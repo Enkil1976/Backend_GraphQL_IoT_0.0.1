@@ -5,7 +5,7 @@ FROM node:18-alpine
 WORKDIR /usr/src/app
 
 # Install system dependencies for native modules
-RUN apk add --no-cache     python3     make     g++     git     curl     postgresql-client
+RUN apk add --no-cache     python3     make     g++     git     curl     postgresql-client     redis
 
 # Copy package files
 COPY package*.json ./
@@ -19,13 +19,17 @@ RUN npm install subscriptions-transport-ws@0.11.0
 # Copy application source
 COPY . .
 
+# Make entrypoint script executable
+RUN chmod +x docker-entrypoint.sh
+
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodeuser -u 1001
 
 # Create logs directory and set permissions
 RUN mkdir -p logs && \
-    chown -R nodeuser:nodejs logs
+    chown -R nodeuser:nodejs logs && \
+    chown nodeuser:nodejs docker-entrypoint.sh
 
 # Switch to non-root user
 USER nodeuser
@@ -34,8 +38,11 @@ USER nodeuser
 EXPOSE 4001
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:4001/health || exit 1
+HEALTHCHECK --interval=30s --timeout=15s --start-period=60s --retries=3 \
+    CMD node healthcheck.js || exit 1
 
-# Start the application
-CMD ["node", "src/server.js"]
+# Set entrypoint
+ENTRYPOINT ["./docker-entrypoint.sh"]
+
+# Default command
+CMD ["start"]

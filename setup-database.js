@@ -499,7 +499,10 @@ async function setupDatabase() {
     console.error('❌ Error setting up database:', error.message);
     throw error;
   } finally {
-    await pool.end();
+    // Only close pool if this is the main module
+    if (require.main === module) {
+      await pool.end();
+    }
   }
 }
 
