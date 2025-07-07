@@ -150,4 +150,4 @@ enum PumpCyclePreset {
 }
 
 # Note: DeviceActionType is defined in rule.graphql
-# Note: Device type is defined in device.graphql
+# Note: Device type is defined in device.graphql# Force redeployment
