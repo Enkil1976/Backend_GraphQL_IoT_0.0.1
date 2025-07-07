@@ -208,6 +208,13 @@ const Device = {
   },
 
   /**
+   * Map database enable_notifications to GraphQL enableNotifications
+   */
+  enableNotifications: (device) => {
+    return device.enable_notifications !== false; // Default to true if not set
+  },
+
+  /**
    * Calculate operating hours
    */
   operatingHours: async (device, args, context) => {

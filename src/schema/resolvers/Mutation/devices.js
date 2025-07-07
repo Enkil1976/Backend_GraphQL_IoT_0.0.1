@@ -1,6 +1,92 @@
 const deviceService = require('../../../services/deviceService');
+const notificationService = require('../../../services/notificationService');
 const { AuthenticationError, ForbiddenError } = require('apollo-server-express');
 const { pubsub, SENSOR_EVENTS } = require('../../../utils/pubsub');
+
+/**
+ * Send device control notification
+ * @param {Object} device - Device object
+ * @param {string} action - Action performed (ON, OFF, TOGGLE, etc.)
+ * @param {Object} user - User who performed the action
+ * @param {string} previousStatus - Previous device status
+ */
+async function sendDeviceNotification(device, action, user, previousStatus = null) {
+  try {
+    // Check if device has notifications enabled (default: true)
+    if (device.enable_notifications === false) {
+      return;
+    }
+
+    // Determine action type and emoji
+    let actionText, emoji, severity;
+    switch (action.toUpperCase()) {
+      case 'ON':
+        actionText = 'encendido';
+        emoji = '🟢';
+        severity = 'MEDIUM';
+        break;
+      case 'OFF':
+        actionText = 'apagado';
+        emoji = '🔴';
+        severity = 'MEDIUM';
+        break;
+      case 'TOGGLE':
+        actionText = device.status === 'ON' ? 'encendido' : 'apagado';
+        emoji = device.status === 'ON' ? '🟢' : '🔴';
+        severity = 'MEDIUM';
+        break;
+      case 'RESET':
+        actionText = 'reiniciado';
+        emoji = '🔄';
+        severity = 'HIGH';
+        break;
+      case 'VALUE_CHANGE':
+        actionText = `ajustado a ${device.value || 'valor personalizado'}`;
+        emoji = '⚙️';
+        severity = 'LOW';
+        break;
+      default:
+        actionText = 'modificado';
+        emoji = '🔧';
+        severity = 'MEDIUM';
+    }
+
+    // Create notification message
+    const title = `${emoji} Dispositivo ${actionText}`;
+    const message = `El dispositivo "${device.name}" ha sido ${actionText} por ${user.username}.
+    
+📍 Ubicación: ${device.location || 'Invernadero'}
+⚡ Estado actual: ${device.status}
+🕐 Hora: {{timestamp}}
+👤 Usuario: ${user.username}`;
+
+    // Send notification via webhook (WhatsApp)
+    await notificationService.sendNotification({
+      title,
+      message,
+      priority: severity.toLowerCase(),
+      channels: ['whatsapp'],
+      canal: 'whatsapp',
+      targetChannel: 'webhook',
+      metadata: {
+        device_id: device.id,
+        device_name: device.name,
+        device_type: device.type,
+        action_performed: action,
+        previous_status: previousStatus,
+        user_id: user.id,
+        username: user.username,
+        timestamp: new Date().toISOString(),
+        source: 'device_control'
+      }
+    });
+
+    console.log(`📱 Sent device notification: ${device.name} ${actionText} by ${user.username}`);
+  } catch (error) {
+    console.error('❌ Error sending device notification:', error);
+    // Don't throw error to avoid breaking device control
+  }
+}
 
 /**
  * Device Mutation Resolvers
@@ -137,6 +223,9 @@ const deviceMutations = {
       
       console.log(`[DeviceMutation] Toggled device ${id} to status: ${device.status}`);
       
+      // Send device control notification
+      await sendDeviceNotification(device, 'TOGGLE', context.user);
+      
       // Publish status change event
       await pubsub.publish(SENSOR_EVENTS.DEVICE_STATUS_CHANGED, {
         deviceStatusChanged: device
@@ -170,6 +259,9 @@ const deviceMutations = {
       
       console.log(`[DeviceMutation] Set device ${id} value to: ${value}`);
       
+      // Send device control notification
+      await sendDeviceNotification(device, 'VALUE_CHANGE', context.user);
+      
       // Publish status change event
       await pubsub.publish(SENSOR_EVENTS.DEVICE_STATUS_CHANGED, {
         deviceStatusChanged: device
@@ -202,6 +294,9 @@ const deviceMutations = {
       const device = await deviceService.resetDevice(id);
       
       console.log(`[DeviceMutation] Reset device ${id}`);
+      
+      // Send device control notification
+      await sendDeviceNotification(device, 'RESET', context.user);
       
       // Publish status change event
       await pubsub.publish(SENSOR_EVENTS.DEVICE_STATUS_CHANGED, {
@@ -239,6 +334,9 @@ const deviceMutations = {
         try {
           const device = await deviceService.toggleDevice(id);
           devices.push(device);
+          
+          // Send device control notification
+          await sendDeviceNotification(device, 'TOGGLE', context.user);
           
           // Publish individual status change events
           await pubsub.publish(SENSOR_EVENTS.DEVICE_STATUS_CHANGED, {
@@ -279,6 +377,9 @@ const deviceMutations = {
       
       console.log(`[DeviceMutation] Turned ON device ${id}: ${device.name}`);
       
+      // Send device control notification
+      await sendDeviceNotification(device, 'ON', context.user);
+      
       // Publish status change event
       await pubsub.publish(SENSOR_EVENTS.DEVICE_STATUS_CHANGED, {
         deviceStatusChanged: device
@@ -311,6 +412,9 @@ const deviceMutations = {
       const device = await deviceService.updateDeviceStatus(id, 'off');
       
       console.log(`[DeviceMutation] Turned OFF device ${id}: ${device.name}`);
+      
+      // Send device control notification
+      await sendDeviceNotification(device, 'OFF', context.user);
       
       // Publish status change event
       await pubsub.publish(SENSOR_EVENTS.DEVICE_STATUS_CHANGED, {

@@ -50,6 +50,9 @@ type Device {
   config: JSON
   capabilities: [DeviceCapability!]!
   
+  # Notifications
+  enableNotifications: Boolean!
+  
   # Ownership and Access
   owner: User
   isPublic: Boolean!
@@ -107,6 +110,7 @@ input CreateDeviceInput {
   location: String
   config: JSON
   isPublic: Boolean = false
+  enableNotifications: Boolean = true
 }
 
 input UpdateDeviceInput {
@@ -115,6 +119,7 @@ input UpdateDeviceInput {
   location: String
   config: JSON
   isPublic: Boolean
+  enableNotifications: Boolean
 }
 
 # Enums
