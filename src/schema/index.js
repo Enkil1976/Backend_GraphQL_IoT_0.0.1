@@ -51,8 +51,8 @@ function loadTypeDefs() {
     'device.graphql',
     'user.graphql',
     'rule.graphql',
-    'notification.graphql',
-    'pumpCycles.graphql'
+    'notification.graphql'
+    // 'pumpCycles.graphql' // Disabled - functionality available via terminal scripts
   ];
 
   schemaFiles.forEach(filename => {
