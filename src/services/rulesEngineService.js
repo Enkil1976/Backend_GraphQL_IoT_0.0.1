@@ -639,7 +639,7 @@ class RulesEngineService {
    */
   async createRuleExecution(ruleId, success, conditions, actions, error = null) {
     await query(
-      `INSERT INTO rule_executions (rule_id, success, conditions, actions, error, executed_at)
+      `INSERT INTO rule_executions (rule_id, success, evaluation_result, actions_executed, error_message, triggered_at)
        VALUES ($1, $2, $3, $4, $5, NOW())`,
       [ruleId, success, JSON.stringify(conditions), JSON.stringify(actions), error]
     );

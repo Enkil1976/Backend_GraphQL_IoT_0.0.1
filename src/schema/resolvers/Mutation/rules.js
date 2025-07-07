@@ -311,7 +311,7 @@ const ruleMutations = {
 
         // Create execution record
         const executionResult = await query(
-          `INSERT INTO rule_executions (rule_id, success, conditions, actions, executed_at, execution_time_ms)
+          `INSERT INTO rule_executions (rule_id, success, evaluation_result, actions_executed, triggered_at, execution_time_ms)
            VALUES ($1, $2, $3, $4, NOW(), $5)
            RETURNING *`,
           [
@@ -346,7 +346,7 @@ const ruleMutations = {
 
         // Create failed execution record
         const executionResult = await query(
-          `INSERT INTO rule_executions (rule_id, success, conditions, actions, error, executed_at, execution_time_ms)
+          `INSERT INTO rule_executions (rule_id, success, evaluation_result, actions_executed, error_message, triggered_at, execution_time_ms)
            VALUES ($1, $2, $3, $4, $5, NOW(), $6)
            RETURNING *`,
           [
