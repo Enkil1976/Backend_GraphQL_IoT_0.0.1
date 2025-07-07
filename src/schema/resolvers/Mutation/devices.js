@@ -51,13 +51,23 @@ async function sendDeviceNotification(device, action, user, previousStatus = nul
         severity = 'MEDIUM';
     }
 
-    // Create notification message
+    // Create notification message with current timestamp
+    const currentTime = new Date().toLocaleString('es-ES', {
+      timeZone: 'America/Mexico_City',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+    
     const title = `${emoji} Dispositivo ${actionText}`;
     const message = `El dispositivo "${device.name}" ha sido ${actionText} por ${user.username}.
     
 📍 Ubicación: ${device.location || 'Invernadero'}
 ⚡ Estado actual: ${device.status}
-🕐 Hora: {{timestamp}}
+🕐 Hora: ${currentTime}
 👤 Usuario: ${user.username}`;
 
     // Send notification via webhook (WhatsApp)
