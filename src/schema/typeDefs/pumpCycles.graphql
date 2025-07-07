@@ -156,3 +156,6 @@ enum PumpCyclePreset {
   LONG_CYCLE      # 45min ON, 15min OFF
   CUSTOM          # User-defined pattern
 }
+
+# Note: DeviceActionType is defined in rule.graphql
+# Note: Device type is defined in device.graphql
