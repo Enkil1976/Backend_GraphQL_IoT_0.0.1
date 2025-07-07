@@ -292,10 +292,134 @@ const jwtConfig = {
   }
 };
 
+/**
+ * IP-based security checks
+ */
+const isPrivateIP = (ip) => {
+  const privateRanges = [
+    /^10\./,
+    /^172\.(1[6-9]|2[0-9]|3[0-1])\./,
+    /^192\.168\./,
+    /^127\./,
+    /^::1$/,
+    /^fc00:/,
+    /^fe80:/
+  ];
+  return privateRanges.some(range => range.test(ip));
+};
+
+/**
+ * Advanced input sanitization with DOMPurify-like functionality
+ */
+const advancedSanitize = (input) => {
+  if (typeof input === 'string') {
+    return input
+      .replace(/<script[^>]*>.*?<\/script>/gi, '') // Remove script tags
+      .replace(/<iframe[^>]*>.*?<\/iframe>/gi, '') // Remove iframe tags
+      .replace(/javascript:/gi, '') // Remove javascript: URLs
+      .replace(/on\w+\s*=/gi, '') // Remove event handlers
+      .replace(/[<>"'`]/g, '') // Remove dangerous characters
+      .trim()
+      .substring(0, 1000);
+  }
+  return input;
+};
+
+/**
+ * Security audit logger
+ */
+const auditLog = {
+  log: (action, details, user = null, ip = null, risk = 'low') => {
+    const logEntry = {
+      timestamp: new Date().toISOString(),
+      action,
+      details,
+      user: user ? { id: user.id, username: user.username } : null,
+      ip,
+      risk,
+      userAgent: details.userAgent || null
+    };
+    
+    // Log to console (in production, this should go to a proper logging service)
+    console.log(`🔒 AUDIT [${risk.toUpperCase()}]: ${action}`, logEntry);
+    
+    // Store in database for security monitoring
+    // TODO: Implement audit log storage in database
+    return logEntry;
+  },
+  
+  loginAttempt: (username, success, ip, userAgent) => {
+    return auditLog.log(
+      success ? 'LOGIN_SUCCESS' : 'LOGIN_FAILED',
+      { username, userAgent },
+      null,
+      ip,
+      success ? 'low' : 'medium'
+    );
+  },
+  
+  deviceControl: (action, deviceId, user, ip) => {
+    return auditLog.log(
+      'DEVICE_CONTROL',
+      { action, deviceId },
+      user,
+      ip,
+      'medium'
+    );
+  },
+  
+  ruleModification: (action, ruleId, user, ip) => {
+    return auditLog.log(
+      'RULE_MODIFICATION',
+      { action, ruleId },
+      user,
+      ip,
+      'high'
+    );
+  },
+  
+  suspiciousActivity: (activity, details, user, ip) => {
+    return auditLog.log(
+      'SUSPICIOUS_ACTIVITY',
+      { activity, ...details },
+      user,
+      ip,
+      'high'
+    );
+  }
+};
+
+/**
+ * Content Security Policy for different environments
+ */
+const getCSPDirectives = () => {
+  const base = {
+    defaultSrc: ["'self'"],
+    scriptSrc: ["'self'"],
+    styleSrc: ["'self'", "'unsafe-inline'"],
+    imgSrc: ["'self'", "data:", "https:"],
+    connectSrc: ["'self'"],
+    fontSrc: ["'self'"],
+    objectSrc: ["'none'"],
+    mediaSrc: ["'self'"],
+    frameSrc: ["'none'"],
+    baseUri: ["'self'"],
+    formAction: ["'self'"]
+  };
+  
+  if (process.env.NODE_ENV === 'development') {
+    base.scriptSrc.push("'unsafe-inline'", "cdn.jsdelivr.net");
+    base.connectSrc.push("wss:", "ws:", "http://localhost:*", "https://studio.apollographql.com");
+  }
+  
+  return base;
+};
+
 module.exports = {
   validateStrongPassword,
   validateInput,
   sanitizeInput,
+  advancedSanitize,
   verifyTokenSecure,
   createRateLimiter,
   expressRateLimit,
@@ -303,5 +427,8 @@ module.exports = {
   formatErrorSecure,
   jwtConfig,
   validationSchemas,
-  STRONG_PASSWORD_REGEX
+  STRONG_PASSWORD_REGEX,
+  isPrivateIP,
+  auditLog,
+  getCSPDirectives
 };

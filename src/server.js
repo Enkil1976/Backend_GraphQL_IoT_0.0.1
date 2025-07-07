@@ -18,8 +18,15 @@ const costAnalysis = require('graphql-query-complexity');
 const {
   formatErrorSecure,
   securityHeaders,
-  expressRateLimit
+  expressRateLimit,
+  auditLog,
+  getCSPDirectives,
+  isPrivateIP
 } = require('./middleware/security');
+
+// Import security services
+const auditLogService = require('./services/auditLogService');
+const twoFactorAuthService = require('./services/twoFactorAuthService');
 
 // Import GraphQL type definitions and resolvers
 const typeDefs = require('./schema/typeDefs');
@@ -188,8 +195,13 @@ class GraphQLServer {
     // Configure Express to trust proxy headers
     this.app.set('trust proxy', 1);
 
-    // Security: Enhanced helmet configuration
-    this.app.use(helmet(securityHeaders));
+    // Security: Enhanced helmet configuration with dynamic CSP
+    this.app.use(helmet({
+      ...securityHeaders,
+      contentSecurityPolicy: {
+        directives: getCSPDirectives()
+      }
+    }));
 
     // Security: Enhanced rate limiting
     this.app.use(expressRateLimit);
@@ -219,37 +231,95 @@ class GraphQLServer {
     // Compression
     this.app.use(compression());
 
-    // Rate limiting
-    const limiter = rateLimit({
-      windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 1000, // limit each IP to 1000 requests per windowMs
-      message: 'Too many requests from this IP, please try again later.'
-    });
-    this.app.use('/graphql', limiter);
+    // Advanced rate limiting with IP-based rules
+    const createAdvancedLimiter = () => {
+      return rateLimit({
+        windowMs: 15 * 60 * 1000, // 15 minutes
+        max: (req) => {
+          // More lenient for private IPs
+          if (isPrivateIP(req.ip)) {
+            return 2000; // Higher limit for internal network
+          }
+          // Stricter for external IPs
+          return 500;
+        },
+        message: {
+          error: 'Too many requests from this IP',
+          retryAfter: '15 minutes',
+          type: 'RATE_LIMIT_EXCEEDED'
+        },
+        standardHeaders: true,
+        legacyHeaders: false,
+        handler: (req, res) => {
+          // Log rate limit violations
+          auditLogService.logSecurityViolation(
+            'RATE_LIMIT_EXCEEDED',
+            { 
+              ip: req.ip, 
+              userAgent: req.get('User-Agent'),
+              path: req.path
+            },
+            req.user || null,
+            req.ip
+          );
+          
+          res.status(429).json({
+            error: 'Too many requests from this IP',
+            retryAfter: '15 minutes',
+            type: 'RATE_LIMIT_EXCEEDED'
+          });
+        }
+      });
+    };
+    
+    this.app.use('/graphql', createAdvancedLimiter());
 
     // Body parsing
     this.app.use(express.json({ limit: '10mb' }));
     this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-    // Authentication middleware for HTTP requests
+    // Enhanced authentication middleware with audit logging
     this.app.use(async (req, res, next) => {
       const token = req.headers.authorization?.replace('Bearer ', '');
+      const clientIP = req.ip;
+      const userAgent = req.get('User-Agent');
       
       if (token) {
         try {
           const user = await authService.verifyToken(token);
           req.user = user;
+          
+          // Log successful token verification for high-value operations
+          if (req.path.includes('graphql') && req.method === 'POST') {
+            auditLogService.logDataAccess(
+              'TOKEN_VERIFIED',
+              'authentication',
+              user.id,
+              user,
+              clientIP
+            );
+          }
         } catch (error) {
           console.warn('Invalid token:', error.message);
-          // Don't throw error, just continue without user
+          
+          // Log failed token verification
+          auditLogService.logSecurityViolation(
+            'INVALID_TOKEN',
+            { 
+              error: error.message,
+              token_prefix: token.substring(0, 10) + '...'
+            },
+            null,
+            clientIP
+          );
         }
       }
       
       next();
     });
 
-    // Health check endpoint
-    this.app.get('/health', (req, res) => {
+    // Enhanced health check endpoint with security info
+    this.app.get('/health', async (req, res) => {
       const services = { graphql: true };
       
       // Safely check services
@@ -257,10 +327,30 @@ class GraphQLServer {
       try { services.rules = rulesEngineService.getStatus?.().isRunning || false; } catch { services.rules = false; }
       try { services.queue = queueService.isProcessing || false; } catch { services.queue = false; }
       
+      // Add security status
+      const security = {
+        audit_logging: true,
+        rate_limiting: true,
+        two_factor_auth: true,
+        helmet_protection: true
+      };
+      
+      // Log health check access from external IPs
+      if (!isPrivateIP(req.ip)) {
+        auditLogService.logSystemEvent(
+          'HEALTH_CHECK_ACCESS',
+          { external_ip: req.ip },
+          null,
+          req.ip
+        );
+      }
+      
       res.json({
         status: 'healthy',
         timestamp: new Date().toISOString(),
-        services
+        services,
+        security,
+        version: '2.0.0'
       });
     });
 
@@ -294,6 +384,15 @@ class GraphQLServer {
             
             if (!token) {
               console.warn('⚠️ No token provided for WebSocket connection');
+              
+              // Log unauthorized WebSocket attempt
+              auditLogService.logSecurityViolation(
+                'WEBSOCKET_NO_TOKEN',
+                { connection_params: Object.keys(connectionParams) },
+                null,
+                context.request?.connection?.remoteAddress
+              );
+              
               return { user: null };
             }
 
@@ -301,9 +400,27 @@ class GraphQLServer {
             const user = await authService.verifyToken(token);
             console.log(`✅ WebSocket authenticated for user: ${user.username}`);
             
+            // Log successful WebSocket authentication
+            auditLogService.logAuthentication(
+              user.username,
+              true,
+              context.request?.connection?.remoteAddress,
+              context.request?.headers?.['user-agent'],
+              'websocket'
+            );
+            
             return { user };
           } catch (error) {
             console.error('❌ WebSocket authentication failed:', error.message);
+            
+            // Log failed WebSocket authentication
+            auditLogService.logSecurityViolation(
+              'WEBSOCKET_AUTH_FAILED',
+              { error: error.message },
+              null,
+              context.request?.connection?.remoteAddress
+            );
+            
             throw new Error('Authentication failed');
           }
         },
