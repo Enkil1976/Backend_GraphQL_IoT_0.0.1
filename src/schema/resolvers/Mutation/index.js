@@ -5,7 +5,7 @@ const users = require('./users');
 const rules = require('./rules');
 const notifications = require('./notifications');
 const weather = require('./weather');
-const pumpCycles = require('./pumpCycles');
+// const pumpCycles = require('./pumpCycles'); // Temporarily disabled
 
 // Combine all Mutation resolvers
 const Mutation = {
@@ -30,8 +30,8 @@ const Mutation = {
   // Weather mutations
   ...weather,
   
-  // Pump cycle mutations
-  ...pumpCycles,
+  // Pump cycle mutations (temporarily disabled until schema is updated)
+  // ...pumpCycles,
 };
 
 module.exports = Mutation;

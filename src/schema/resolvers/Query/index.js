@@ -6,7 +6,7 @@ const users = require('./users');
 const rules = require('./rules');
 const notifications = require('./notifications');
 const weather = require('./weather');
-const pumpCycles = require('./pumpCycles');
+// const pumpCycles = require('./pumpCycles'); // Temporarily disabled
 
 // Combine all Query resolvers
 const Query = {
@@ -31,8 +31,8 @@ const Query = {
   // Weather queries
   ...weather,
   
-  // Pump cycle queries
-  ...pumpCycles,
+  // Pump cycle queries (temporarily disabled until schema is updated)
+  // ...pumpCycles,
 };
 
 module.exports = Query;
