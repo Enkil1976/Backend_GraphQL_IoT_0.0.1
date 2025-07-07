@@ -624,16 +624,15 @@ class RulesEngineService {
    * @param {string} status - New status
    */
   async executeDeviceStatusAction(deviceId, status) {
-    console.log(`🔧 Executing device status action: ${deviceId} -> ${status}`);
+    console.log(`🔧 Executing device status action directly: ${deviceId} -> ${status}`);
     
-    // Queue critical action
-    await queueService.publishAction({
-      type: 'device_status',
-      device_id: deviceId,
-      status,
-      priority: 'high',
-      actor: 'rules_engine'
-    });
+    // Bypassing queue and calling deviceService directly to fix MQTT issue
+    try {
+      await deviceService.updateDeviceStatus(deviceId, status);
+      console.log(`✅ Successfully executed device status action directly: ${deviceId} -> ${status}`);
+    } catch (error) {
+      console.error(`❌ Error executing device status action directly for device ${deviceId}:`, error);
+    }
   }
 
   /**
