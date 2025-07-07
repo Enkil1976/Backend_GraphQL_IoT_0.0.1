@@ -10,11 +10,8 @@ RUN apk add --no-cache     python3     make     g++     git     curl     postgre
 # Copy package files
 COPY package*.json ./
 
-# Install production dependencies with exact versions
-RUN npm ci --only=production
-
-# Install missing WebSocket transport dependency
-RUN npm install subscriptions-transport-ws@0.11.0
+# Install all dependencies (production + security packages)
+RUN npm ci
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \

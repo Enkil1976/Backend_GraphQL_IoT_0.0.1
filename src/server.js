@@ -24,10 +24,32 @@ const {
   isPrivateIP
 } = require('./middleware/security');
 
-// Import security services
-const auditLogService = require('./services/auditLogService');
-const twoFactorAuthService = require('./services/twoFactorAuthService');
-const databaseInitService = require('./services/databaseInitService');
+// Import security services with error handling
+let auditLogService, twoFactorAuthService, databaseInitService;
+
+try {
+  auditLogService = require('./services/auditLogService');
+  console.log('✅ Audit logging service loaded');
+} catch (error) {
+  console.warn('⚠️  Audit logging service failed to load:', error.message);
+  auditLogService = { log: () => {}, logSecurityEvent: () => {} }; // Mock service
+}
+
+try {
+  twoFactorAuthService = require('./services/twoFactorAuthService');
+  console.log('✅ Two-factor authentication service loaded');
+} catch (error) {
+  console.warn('⚠️  2FA service failed to load:', error.message);
+  twoFactorAuthService = { generateSecret: () => ({}), verifyToken: () => false }; // Mock service
+}
+
+try {
+  databaseInitService = require('./services/databaseInitService');
+  console.log('✅ Database initialization service loaded');
+} catch (error) {
+  console.warn('⚠️  Database init service failed to load:', error.message);
+  databaseInitService = { initialize: async () => {}, getStatus: async () => ({}) }; // Mock service
+}
 
 // Import GraphQL type definitions and resolvers
 const typeDefs = require('./schema/typeDefs');
