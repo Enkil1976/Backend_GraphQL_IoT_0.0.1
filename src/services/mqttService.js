@@ -158,8 +158,8 @@ class MqttService extends EventEmitter {
           return;
         }
 
-        if (data.temperatura === undefined || data.humedad === undefined || !data.stats) {
-          console.error(`❌ Missing required fields: temperatura, humedad, stats`);
+        if (data.temperatura === undefined || data.humedad === undefined) {
+          console.error(`❌ Missing required fields: temperatura, humedad`);
           return;
         }
 
@@ -171,9 +171,22 @@ class MqttService extends EventEmitter {
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
         `;
         values = [
-          data.temperatura, data.humedad, data.heatindex, data.dewpoint, data.rssi, data.boot, data.mem,
-          data.stats.tmin, data.stats.tmax, data.stats.tavg, data.stats.hmin, data.stats.hmax, data.stats.havg,
-          data.stats.total, data.stats.errors, receivedAt
+          data.temperatura, 
+          data.humedad, 
+          data.heatindex || null, 
+          data.dewpoint || null, 
+          data.rssi || null, 
+          data.boot || 0, 
+          data.mem || null,
+          data.stats?.tmin || null, 
+          data.stats?.tmax || null, 
+          data.stats?.tavg || null, 
+          data.stats?.hmin || null, 
+          data.stats?.hmax || null, 
+          data.stats?.havg || null,
+          data.stats?.total || 0, 
+          data.stats?.errors || 0, 
+          receivedAt
         ];
 
         // Cache latest data in Redis

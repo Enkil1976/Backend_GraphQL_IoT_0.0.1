@@ -39,6 +39,7 @@ services:
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules
+    command: sh -c "node setup-database.js && npm start"
     networks:
       - iot-network
     restart: always
@@ -87,29 +88,6 @@ services:
       retries: 5
 
   # PGAdmin para gestión de la base de datos (opcional)
-  # Servicio para inicializar la base de datos
-  de-init:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: iot-de-init
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      - PG_HOST=postgres
-      - PG_PORT=${PG_PORT:-5432}
-      - PG_DATABASE=${PG_DATABASE:-invernadero_iot}
-      - PG_USER=${PG_USER:-postgres}
-      - PG_PASSWORD=${PG_PASSWORD:-postgres}
-    volumes:
-      - .:/usr/src/app
-      - ./wait-for-db.sh:/usr/src/app/wait-for-db.sh
-    command: /usr/src/app/wait-for-db.sh postgres node setup-database.js
-    networks:
-      - iot-network
-    restart: on-failure
-
   pgadmin:
     image: dpage/pgadmin4
     container_name: pgadmin

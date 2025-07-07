@@ -379,6 +379,37 @@ async function setupDatabase() {
         
         COMMENT ON TABLE operations_log IS 'Audit log for all system operations and changes';
       `
+    },
+    {
+      name: 'weather_current',
+      sql: `
+        CREATE TABLE IF NOT EXISTS weather_current (
+          id SERIAL PRIMARY KEY,
+          temperatura DECIMAL(5,2) NOT NULL,
+          humedad DECIMAL(5,2) NOT NULL CHECK (humedad >= 0 AND humedad <= 100),
+          sensacion_termica DECIMAL(5,2),
+          punto_rocio DECIMAL(5,2),
+          presion DECIMAL(7,2),
+          velocidad_viento DECIMAL(5,2),
+          direccion_viento VARCHAR(10),
+          visibilidad DECIMAL(5,2),
+          uv_index DECIMAL(3,1),
+          condicion VARCHAR(100),
+          icono VARCHAR(50),
+          calidad_aire_pm2_5 DECIMAL(5,2),
+          calidad_aire_pm10 DECIMAL(5,2),
+          location_name VARCHAR(100),
+          location_lat DECIMAL(10,7),
+          location_lon DECIMAL(10,7),
+          received_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+        
+        CREATE INDEX IF NOT EXISTS idx_weather_current_received_at ON weather_current(received_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_weather_current_location ON weather_current(location_name);
+        CREATE INDEX IF NOT EXISTS idx_weather_current_temp_hum ON weather_current(temperatura, humedad);
+        
+        COMMENT ON TABLE weather_current IS 'Current weather data from external API with air quality information';
+      `
     }
   ];
 
