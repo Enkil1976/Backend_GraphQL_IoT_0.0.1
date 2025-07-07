@@ -1,6 +1,7 @@
 const { query } = require('../config/database');
 const { pubsub, NOTIFICATION_EVENTS } = require('../utils/pubsub');
 const axios = require('axios');
+const jwt = require('jsonwebtoken');
 
 /**
  * Notification Service
@@ -10,6 +11,7 @@ class NotificationService {
   constructor() {
     this.webhookUrl = process.env.WEBHOOK_URL;
     this.webhookSecret = process.env.WEBHOOK_SECRET;
+    this.jwtExpiresIn = process.env.JWT_EXPIRES_IN || '1h';
     this.defaultChannel = 'webhook'; // Default to webhook for n8n integration
   }
 
@@ -180,6 +182,20 @@ class NotificationService {
       throw new Error('Webhook URL not configured');
     }
 
+    if (!this.webhookSecret) {
+      throw new Error('Webhook secret not configured for JWT');
+    }
+
+    // Generar token JWT
+    const token = jwt.sign(
+      { 
+        user: 'iot-greenhouse',
+        timestamp: new Date().toISOString()
+      }, 
+      this.webhookSecret,
+      { expiresIn: this.jwtExpiresIn }
+    );
+
     const payload = {
       title,
       message,
@@ -192,20 +208,16 @@ class NotificationService {
     try {
       const headers = {
         'Content-Type': 'application/json',
-        'User-Agent': 'IoT-Greenhouse-System'
+        'User-Agent': 'IoT-Greenhouse-System',
+        'Authorization': `Bearer ${token}`
       };
-
-      // Add authentication if webhook secret is configured
-      if (this.webhookSecret) {
-        headers['Authorization'] = `Bearer ${this.webhookSecret}`;
-      }
 
       const response = await axios.post(this.webhookUrl, payload, {
         headers,
         timeout: 10000
       });
 
-      console.log('🔗 Webhook notification sent:', response.status);
+      console.log('🔗 Webhook notification sent with JWT:', response.status);
       
       return {
         success: true,
@@ -213,17 +225,26 @@ class NotificationService {
         timestamp: new Date().toISOString(),
         response: {
           status: response.status,
-          statusText: response.statusText
+          statusText: response.statusText,
+          data: response.data
         }
       };
     } catch (error) {
-      console.error('❌ Webhook notification failed:', error.message);
+      console.error('❌ Webhook notification failed:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       
       return {
         success: false,
         provider: 'webhook',
         timestamp: new Date().toISOString(),
-        error: error.message
+        error: {
+          message: error.message,
+          status: error.response?.status,
+          data: error.response?.data
+        }
       };
     }
   }
