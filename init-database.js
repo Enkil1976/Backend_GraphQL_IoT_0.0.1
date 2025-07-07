@@ -2,6 +2,7 @@
 
 require('dotenv').config();
 const { pool } = require('./src/config/database');
+const databaseInitService = require('./src/services/databaseInitService');
 
 /**
  * Robust database initialization script for Docker deployment
@@ -58,71 +59,35 @@ async function checkColumnExists(tableName, columnName) {
 }
 
 async function initializeDatabase() {
-  console.log('🚀 Starting database initialization...');
+  console.log('🚀 Starting secure database initialization...');
 
   try {
-    // Wait for database to be ready
-    await waitForDatabase();
-
-    // Check if setup is needed
-    const usersTableExists = await checkTableExists('users');
-    const devicesTableExists = await checkTableExists('devices');
-    const deviceDescriptionExists = await checkColumnExists('devices', 'description');
-
-    if (!usersTableExists || !devicesTableExists || !deviceDescriptionExists) {
-      console.log('📋 Database setup required. Running setup-database.js...');
+    // Use the new enhanced database initialization service
+    await databaseInitService.initialize();
+    
+    // Get final status
+    const status = await databaseInitService.getStatus();
+    
+    console.log('\n📊 Database initialization status:');
+    console.log(`✅ Connected: ${status.connected}`);
+    console.log(`🔢 Schema Version: ${status.schema_version}`);
+    console.log(`🔒 Security Tables: ${status.security_tables_ready ? 'Ready' : 'Not Ready'}`);
+    
+    if (status.tables) {
+      const existingTables = status.tables.filter(t => t.exists);
+      const missingTables = status.tables.filter(t => !t.exists);
       
-      // Import and run the setup function
-      const { setupDatabase } = require('./setup-database');
-      await setupDatabase();
+      console.log(`📋 Tables: ${existingTables.length}/${status.tables.length} ready`);
       
-      console.log('✅ Database setup completed successfully!');
-    } else {
-      console.log('✅ Database is already initialized!');
-    }
-
-    // Verify critical tables exist
-    const criticalTables = [
-      'users', 'devices', 'rules', 'notifications', 
-      'temhum1', 'temhum2', 'calidad_agua', 'luxometro',
-      'power_monitor_logs', 'rule_executions', 'weather_current'
-    ];
-
-    const missingTables = [];
-    for (const table of criticalTables) {
-      const exists = await checkTableExists(table);
-      if (!exists) {
-        missingTables.push(table);
+      if (missingTables.length > 0) {
+        console.log('⚠️  Missing tables:', missingTables.map(t => t.table).join(', '));
       }
     }
-
-    if (missingTables.length > 0) {
-      console.log(`⚠️  Missing tables detected: ${missingTables.join(', ')}`);
-      console.log('📋 Running full database setup...');
-      
-      const { setupDatabase } = require('./setup-database');
-      await setupDatabase();
-    }
-
-    // Final verification
-    const finalCheck = await pool.query(`
-      SELECT table_name 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public' 
-      AND table_type = 'BASE TABLE'
-      ORDER BY table_name
-    `);
-
-    console.log('\n📊 Database initialization complete!');
-    console.log(`✅ ${finalCheck.rows.length} tables available:`);
-    finalCheck.rows.forEach(row => {
-      console.log(`   - ${row.table_name}`);
-    });
 
     return true;
 
   } catch (error) {
-    console.error('❌ Database initialization failed:', error);
+    console.error('❌ Secure database initialization failed:', error);
     throw error;
   }
 }

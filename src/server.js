@@ -27,6 +27,7 @@ const {
 // Import security services
 const auditLogService = require('./services/auditLogService');
 const twoFactorAuthService = require('./services/twoFactorAuthService');
+const databaseInitService = require('./services/databaseInitService');
 
 // Import GraphQL type definitions and resolvers
 const typeDefs = require('./schema/typeDefs');
@@ -443,12 +444,22 @@ class GraphQLServer {
   }
 
   /**
-   * Initialize all services
+   * Initialize all services with enhanced security
    */
   async initializeServices() {
     console.log('🔧 Initializing services...');
 
-    // Initialize services with individual error handling
+    // Initialize database first (critical for all other services)
+    try {
+      console.log('🔒 Initializing secure database...');
+      await databaseInitService.initialize();
+      console.log('✅ Database service initialized');
+    } catch (error) {
+      console.error('❌ Database initialization failed:', error.message);
+      throw error; // Database is critical - fail startup if it fails
+    }
+
+    // Initialize other services with individual error handling
     try {
       await mqttService.connect();
       console.log('✅ MQTT service initialized');

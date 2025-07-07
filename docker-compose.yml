@@ -115,26 +115,12 @@ services:
       timeout: 3s
       retries: 5
 
-  # PGAdmin para gestión de la base de datos (opcional)
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: pgadmin
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@example.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
-    ports:
-      - "5050:80"
-    depends_on:
-      - postgres
-    networks:
-      - iot-network
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
+  # Database management via secure CLI tools only
+  # pgAdmin removed for security - use psql or db-cli service for admin tasks
 
 volumes:
   postgres_data:
   redis_data:
-  pgadmin_data:
   node_modules:
 
 networks:
