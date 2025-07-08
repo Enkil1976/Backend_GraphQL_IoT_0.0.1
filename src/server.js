@@ -94,6 +94,10 @@ class GraphQLServer {
         // Security: Disable introspection and debug in production
         introspection: process.env.NODE_ENV !== 'production',
         debug: process.env.NODE_ENV !== 'production',
+        // Security: Configure persisted queries to prevent DoS attacks
+        persistedQueries: {
+          cache: 'bounded'
+        },
         // Security: GraphQL query validation rules
         validationRules: [
           depthLimit(10) // Prevent deeply nested queries
