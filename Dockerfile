@@ -15,10 +15,10 @@ RUN apk update && apk add --no-cache \
     redis
 
 # Copy package files
-COPY package*.json ./
+COPY package*.json .npmrc ./
 
 # Install all dependencies (production + security packages)
-RUN npm ci
+RUN npm ci --silent
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
