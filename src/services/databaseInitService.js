@@ -306,6 +306,34 @@ class DatabaseInitService {
       CREATE INDEX IF NOT EXISTS idx_power_monitor_logs_received_at ON power_monitor_logs(received_at DESC);
       CREATE INDEX IF NOT EXISTS idx_power_monitor_logs_watts ON power_monitor_logs(watts);`
     ]);
+
+    // Fix notifications table structure (addresses notification query issues)
+    await this.applyMigration(1005, 'Fix notifications table structure', [`
+      -- Ensure notifications table exists with proper structure
+      CREATE TABLE IF NOT EXISTS notifications (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        message TEXT NOT NULL,
+        type VARCHAR(50) DEFAULT 'INFO_MESSAGE',
+        priority VARCHAR(20) DEFAULT 'medium',
+        channels TEXT DEFAULT 'webhook',
+        status VARCHAR(20) DEFAULT 'pending',
+        user_id INTEGER REFERENCES users(id),
+        source VARCHAR(50) DEFAULT 'SYSTEM',
+        source_id VARCHAR(100),
+        metadata JSONB DEFAULT '{}',
+        read_at TIMESTAMP WITH TIME ZONE,
+        sent_at TIMESTAMP WITH TIME ZONE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );`,
+      `-- Create indexes for notifications
+      CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+      CREATE INDEX IF NOT EXISTS idx_notifications_status ON notifications(status);
+      CREATE INDEX IF NOT EXISTS idx_notifications_priority ON notifications(priority);
+      CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_notifications_read_at ON notifications(read_at);`
+    ]);
   }
 
   /**

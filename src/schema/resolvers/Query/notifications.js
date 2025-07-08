@@ -45,7 +45,9 @@ const notificationQueries = {
           // Map database fields to GraphQL schema
           type: notification.type || 'INFO_MESSAGE',
           severity: notification.priority?.toUpperCase() || 'MEDIUM',
-          channel: notification.channels?.split(',')[0] || 'EMAIL',
+          channel: typeof notification.channels === 'string' 
+            ? notification.channels.split(',')[0] 
+            : (Array.isArray(notification.channels) ? notification.channels[0] : 'WEBHOOK'),
           isRead: notification.read_at !== null,
           readAt: notification.read_at,
           user: { id: context.user.id }, // Will be resolved by type resolver
@@ -118,7 +120,9 @@ const notificationQueries = {
         ...notification,
         type: notification.type || 'INFO_MESSAGE',
         severity: notification.priority?.toUpperCase() || 'MEDIUM',
-        channel: notification.channels?.split(',')[0] || 'EMAIL',
+        channel: typeof notification.channels === 'string' 
+          ? notification.channels.split(',')[0] 
+          : (Array.isArray(notification.channels) ? notification.channels[0] : 'WEBHOOK'),
         isRead: notification.read_at !== null,
         readAt: notification.read_at,
         user: { id: notification.user_id || context.user.id },
