@@ -6,7 +6,7 @@ const users = require('./users');
 const rules = require('./rules');
 const notifications = require('./notifications');
 const weather = require('./weather');
-// const pumpCycles = require('./pumpCycles'); // Disabled - use terminal scripts instead
+// const pumpCycles = require('./pumpCycles'); // Temporarily disabled - schema fix needed
 
 // Combine all Query resolvers
 const Query = {
@@ -31,7 +31,7 @@ const Query = {
   // Weather queries
   ...weather,
   
-  // Pump cycle queries (disabled - use terminal scripts: node scripts/verify-pump-cycles.js)
+  // Pump cycle queries - Temporarily disabled for schema fix
   // ...pumpCycles,
 };
 

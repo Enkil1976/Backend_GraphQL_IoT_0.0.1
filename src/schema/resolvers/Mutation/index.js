@@ -5,7 +5,7 @@ const users = require('./users');
 const rules = require('./rules');
 const notifications = require('./notifications');
 const weather = require('./weather');
-// const pumpCycles = require('./pumpCycles'); // Disabled - use terminal scripts instead
+// const pumpCycles = require('./pumpCycles'); // Temporarily disabled - schema fix needed
 
 // Combine all Mutation resolvers
 const Mutation = {
@@ -30,7 +30,7 @@ const Mutation = {
   // Weather mutations
   ...weather,
   
-  // Pump cycle mutations (disabled - use terminal scripts: node scripts/manage-pump-cycles.js)
+  // Pump cycle mutations - Temporarily disabled for schema fix
   // ...pumpCycles,
 };
 

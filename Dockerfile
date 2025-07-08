@@ -23,10 +23,10 @@ COPY . .
 # Make entrypoint script executable
 RUN chmod +x docker-entrypoint.sh
 
-# Create logs directory and set permissions
+# Create logs directory with simple permissions
 RUN mkdir -p logs backups && \
-    chown -R nodeuser:nodejs /usr/src/app && \
-    chmod -R 755 /usr/src/app
+    chown nodeuser:nodejs logs backups && \
+    chmod 755 logs backups
 
 # Switch to non-root user
 USER nodeuser

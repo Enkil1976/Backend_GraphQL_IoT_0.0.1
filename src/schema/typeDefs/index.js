@@ -99,6 +99,7 @@ const userTypeDefs = loadGraphQLFile('user.graphql');
 const ruleTypeDefs = loadGraphQLFile('rule.graphql');
 const notificationTypeDefs = loadGraphQLFile('notification.graphql');
 const weatherTypeDefs = loadGraphQLFile('weather.graphql');
+const pumpCycleTypeDefs = loadGraphQLFile('pumpCycles.graphql');
 
 // Combine all type definitions
 const typeDefs = [
@@ -110,7 +111,8 @@ const typeDefs = [
   userTypeDefs,
   ruleTypeDefs,
   notificationTypeDefs,
-  weatherTypeDefs
+  weatherTypeDefs,
+  pumpCycleTypeDefs
 ].filter(Boolean); // Remove empty strings
 
 module.exports = typeDefs;
