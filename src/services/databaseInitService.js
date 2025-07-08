@@ -259,6 +259,53 @@ class DatabaseInitService {
       CREATE INDEX IF NOT EXISTS idx_security_events_resolved ON security_events(resolved);
       CREATE INDEX IF NOT EXISTS idx_security_events_created ON security_events(created_at DESC);
     `]);
+
+    // Missing sensor tables (addresses API issues with LUXOMETRO and POWER_MONITOR)
+    await this.applyMigration(1004, 'Create missing sensor tables', [`
+      -- Create luxometro table (light sensor data)
+      CREATE TABLE IF NOT EXISTS luxometro (
+        id SERIAL PRIMARY KEY,
+        light DECIMAL(10,2),
+        white_light DECIMAL(10,2),
+        raw_light DECIMAL(10,2),
+        rssi INTEGER,
+        boot INTEGER DEFAULT 0,
+        mem INTEGER DEFAULT 0,
+        lmin DECIMAL(10,2),
+        lmax DECIMAL(10,2),
+        lavg DECIMAL(10,2),
+        wmin DECIMAL(10,2),
+        wmax DECIMAL(10,2),
+        wavg DECIMAL(10,2),
+        total INTEGER DEFAULT 0,
+        errors INTEGER DEFAULT 0,
+        received_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );`,
+      `-- Create power_monitor_logs table (power consumption data)
+      CREATE TABLE IF NOT EXISTS power_monitor_logs (
+        id SERIAL PRIMARY KEY,
+        device_hardware_id VARCHAR(50) NOT NULL,
+        device_id INTEGER REFERENCES devices(id),
+        watts DECIMAL(8,2),
+        voltage DECIMAL(6,2),
+        current DECIMAL(6,2),
+        frequency DECIMAL(4,1),
+        power_factor DECIMAL(4,3),
+        rssi INTEGER,
+        mem INTEGER DEFAULT 0,
+        boot INTEGER DEFAULT 0,
+        received_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );`,
+      `-- Create indexes for performance
+      CREATE INDEX IF NOT EXISTS idx_luxometro_received_at ON luxometro(received_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_luxometro_light ON luxometro(light);
+      CREATE INDEX IF NOT EXISTS idx_power_monitor_logs_device_hardware_id ON power_monitor_logs(device_hardware_id);
+      CREATE INDEX IF NOT EXISTS idx_power_monitor_logs_device_id ON power_monitor_logs(device_id);
+      CREATE INDEX IF NOT EXISTS idx_power_monitor_logs_received_at ON power_monitor_logs(received_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_power_monitor_logs_watts ON power_monitor_logs(watts);`
+    ]);
   }
 
   /**
