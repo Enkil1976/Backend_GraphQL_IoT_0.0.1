@@ -9,7 +9,11 @@ const { cache } = require('../config/redis');
  */
 class AuthService {
   constructor() {
-    this.jwtSecret = process.env.JWT_SECRET || 'your-secret-key';
+    // Security: No fallback JWT secret - fail fast if not provided
+    this.jwtSecret = process.env.JWT_SECRET;
+    if (!this.jwtSecret) {
+      throw new Error('JWT_SECRET environment variable is required for security');
+    }
     this.jwtExpiresIn = process.env.JWT_EXPIRES_IN || '1h';
     this.refreshTokenExpiresIn = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
     this.saltRounds = 12;
@@ -109,14 +113,16 @@ class AuthService {
       role: user.role
     };
 
-    // Generate JWT token
+    // Generate JWT token with explicit algorithm
     const token = jwt.sign(payload, this.jwtSecret, {
-      expiresIn: this.jwtExpiresIn
+      expiresIn: this.jwtExpiresIn,
+      algorithm: 'HS256'
     });
 
-    // Generate refresh token
+    // Generate refresh token with explicit algorithm
     const refreshToken = jwt.sign(payload, this.jwtSecret, {
-      expiresIn: this.refreshTokenExpiresIn
+      expiresIn: this.refreshTokenExpiresIn,
+      algorithm: 'HS256'
     });
 
     // Store refresh token in Redis
@@ -141,8 +147,10 @@ class AuthService {
    */
   async refreshToken(refreshToken) {
     try {
-      // Verify refresh token
-      const decoded = jwt.verify(refreshToken, this.jwtSecret);
+      // Verify refresh token with explicit algorithm
+      const decoded = jwt.verify(refreshToken, this.jwtSecret, {
+        algorithms: ['HS256']
+      });
       
       // Check if refresh token exists in Redis
       const refreshTokenKey = `refresh_token:${decoded.id}`;
@@ -197,7 +205,9 @@ class AuthService {
    */
   async verifyToken(token) {
     try {
-      const decoded = jwt.verify(token, this.jwtSecret);
+      const decoded = jwt.verify(token, this.jwtSecret, {
+        algorithms: ['HS256']
+      });
       
       // Get user from database to ensure role is up to date
       const result = await query(

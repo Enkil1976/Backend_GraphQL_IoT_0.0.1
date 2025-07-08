@@ -146,7 +146,7 @@ class GraphQLServer {
         cors: {
           origin: [
             process.env.FRONTEND_URL || 'http://localhost:5173',
-            'https://studio.apollographql.com'
+            ...(process.env.APOLLO_STUDIO_ENABLED === 'true' ? ['https://studio.apollographql.com'] : [])
           ],
           credentials: true,
           methods: ['GET', 'POST', 'OPTIONS']
@@ -235,9 +235,14 @@ class GraphQLServer {
     this.app.use(expressRateLimit);
 
     // CORS with validation
-    const allowedOrigins = process.env.CORS_ORIGINS 
+    const baseOrigins = process.env.CORS_ORIGINS 
       ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim())
-      : ['http://localhost:5173', 'http://localhost:3000', 'https://studio.apollographql.com'];
+      : ['http://localhost:5173', 'http://localhost:3000'];
+    
+    const allowedOrigins = [
+      ...baseOrigins,
+      ...(process.env.APOLLO_STUDIO_ENABLED === 'true' ? ['https://studio.apollographql.com'] : [])
+    ];
     
     this.app.use(cors({
       origin: (origin, callback) => {
@@ -302,9 +307,10 @@ class GraphQLServer {
     
     this.app.use('/graphql', createAdvancedLimiter());
 
-    // Body parsing
-    this.app.use(express.json({ limit: '10mb' }));
-    this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+    // Body parsing with secure limits
+    const payloadLimit = process.env.MAX_PAYLOAD_SIZE || '1mb';
+    this.app.use(express.json({ limit: payloadLimit }));
+    this.app.use(express.urlencoded({ extended: true, limit: payloadLimit }));
 
     // Enhanced authentication middleware with audit logging
     this.app.use(async (req, res, next) => {
@@ -346,23 +352,8 @@ class GraphQLServer {
       next();
     });
 
-    // Enhanced health check endpoint with security info
+    // Enhanced health check endpoint with limited public info
     this.app.get('/health', async (req, res) => {
-      const services = { graphql: true };
-      
-      // Safely check services
-      try { services.mqtt = mqttService.getStatus?.().isConnected || false; } catch { services.mqtt = false; }
-      try { services.rules = rulesEngineService.getStatus?.().isRunning || false; } catch { services.rules = false; }
-      try { services.queue = queueService.isProcessing || false; } catch { services.queue = false; }
-      
-      // Add security status
-      const security = {
-        audit_logging: true,
-        rate_limiting: true,
-        two_factor_auth: true,
-        helmet_protection: true
-      };
-      
       // Log health check access from external IPs
       if (!isPrivateIP(req.ip)) {
         auditLogService.logSystemEvent(
@@ -373,13 +364,35 @@ class GraphQLServer {
         );
       }
       
-      res.json({
+      // Basic health response for public access
+      const basicResponse = {
         status: 'healthy',
-        timestamp: new Date().toISOString(),
-        services,
-        security,
-        version: '2.0.0'
-      });
+        timestamp: new Date().toISOString()
+      };
+      
+      // Detailed info only for authenticated users or internal IPs
+      if (req.user || isPrivateIP(req.ip)) {
+        const services = { graphql: true };
+        
+        // Safely check services
+        try { services.mqtt = mqttService.getStatus?.().isConnected || false; } catch { services.mqtt = false; }
+        try { services.rules = rulesEngineService.getStatus?.().isRunning || false; } catch { services.rules = false; }
+        try { services.queue = queueService.isProcessing || false; } catch { services.queue = false; }
+        
+        // Add security status
+        const security = {
+          audit_logging: true,
+          rate_limiting: true,
+          two_factor_auth: true,
+          helmet_protection: true
+        };
+        
+        basicResponse.services = services;
+        basicResponse.security = security;
+        basicResponse.version = '2.0.0';
+      }
+      
+      res.json(basicResponse);
     });
 
     // Basic info endpoint
