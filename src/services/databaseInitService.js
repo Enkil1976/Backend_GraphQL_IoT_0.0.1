@@ -326,8 +326,26 @@ class DatabaseInitService {
         sent_at TIMESTAMP WITH TIME ZONE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-      );`,
-      `-- Create indexes for notifications
+      );`
+    ]);
+
+    // Add missing columns to existing notifications table
+    await this.applyMigration(1006, 'Add missing columns to notifications table', [`
+      -- Add missing columns if they don't exist
+      ALTER TABLE notifications ADD COLUMN IF NOT EXISTS read_at TIMESTAMP WITH TIME ZONE;
+      ALTER TABLE notifications ADD COLUMN IF NOT EXISTS sent_at TIMESTAMP WITH TIME ZONE;
+      ALTER TABLE notifications ADD COLUMN IF NOT EXISTS source VARCHAR(50) DEFAULT 'SYSTEM';
+      ALTER TABLE notifications ADD COLUMN IF NOT EXISTS source_id VARCHAR(100);
+      ALTER TABLE notifications ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}';
+      ALTER TABLE notifications ADD COLUMN IF NOT EXISTS type VARCHAR(50) DEFAULT 'INFO_MESSAGE';
+      ALTER TABLE notifications ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'medium';
+      ALTER TABLE notifications ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pending';
+      ALTER TABLE notifications ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();`
+    ]);
+
+    // Create indexes for notifications (after columns exist)
+    await this.applyMigration(1007, 'Create notifications table indexes', [`
+      -- Create indexes for notifications
       CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
       CREATE INDEX IF NOT EXISTS idx_notifications_status ON notifications(status);
       CREATE INDEX IF NOT EXISTS idx_notifications_priority ON notifications(priority);
