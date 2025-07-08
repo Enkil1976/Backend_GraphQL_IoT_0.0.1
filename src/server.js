@@ -4,7 +4,8 @@ require('dotenv').config();
 const { ApolloServer } = require('apollo-server-express');
 const express = require('express');
 const { createServer } = require('http');
-const { SubscriptionServer } = require('subscriptions-transport-ws');
+const { useServer } = require('graphql-ws/lib/use/ws');
+const { WebSocketServer } = require('ws');
 const { execute, subscribe } = require('graphql');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
@@ -69,7 +70,7 @@ class GraphQLServer {
     this.app = express();
     this.httpServer = null;
     this.apolloServer = null;
-    this.subscriptionServer = null;
+    this.wsServer = null;
     this.port = process.env.PORT || 4000;
     // Security: No fallback JWT secret - fail fast if not provided
     this.jwtSecret = process.env.JWT_SECRET;
@@ -187,7 +188,7 @@ class GraphQLServer {
       this.httpServer = createServer(this.app);
 
       // Setup WebSocket server for subscriptions
-      this.setupSubscriptionServer();
+      this.setupWebSocketServer();
 
       // Start HTTP server
       await new Promise((resolve) => {
@@ -195,7 +196,7 @@ class GraphQLServer {
       });
 
       console.log(`🚀 GraphQL Server ready at http://localhost:${this.port}${this.apolloServer.graphqlPath}`);
-      console.log(`🔗 GraphQL Subscriptions ready at ws://localhost:${this.port}${this.apolloServer.subscriptionsPath}`);
+      console.log(`🔗 GraphQL Subscriptions ready at ws://localhost:${this.port}/graphql`);
 
       // Initialize services (optional - server can start without them)
       try {
@@ -389,21 +390,28 @@ class GraphQLServer {
   }
 
   /**
-   * Setup WebSocket server for GraphQL subscriptions
+   * Setup WebSocket server for GraphQL subscriptions using graphql-ws
    */
-  setupSubscriptionServer() {
-    this.subscriptionServer = SubscriptionServer.create(
+  setupWebSocketServer() {
+    // Create WebSocket server
+    this.wsServer = new WebSocketServer({
+      server: this.httpServer,
+      path: '/graphql'
+    });
+
+    // Use graphql-ws
+    useServer(
       {
         schema: this.apolloServer.schema,
         execute,
         subscribe,
-        onConnect: async (connectionParams, webSocket, context) => {
+        onConnect: async (ctx) => {
           console.log('🔌 GraphQL WebSocket connection attempt');
           
           try {
             // Extract token from connection params
-            const token = connectionParams.authorization?.replace('Bearer ', '') || 
-                         connectionParams.token;
+            const token = ctx.connectionParams?.authorization?.replace('Bearer ', '') || 
+                         ctx.connectionParams?.token;
             
             if (!token) {
               console.warn('⚠️ No token provided for WebSocket connection');
@@ -411,9 +419,9 @@ class GraphQLServer {
               // Log unauthorized WebSocket attempt
               auditLogService.logSecurityViolation(
                 'WEBSOCKET_NO_TOKEN',
-                { connection_params: Object.keys(connectionParams) },
+                { connection_params: Object.keys(ctx.connectionParams || {}) },
                 null,
-                context.request?.connection?.remoteAddress
+                ctx.extra?.request?.connection?.remoteAddress
               );
               
               return { user: null };
@@ -427,8 +435,8 @@ class GraphQLServer {
             auditLogService.logAuthentication(
               user.username,
               true,
-              context.request?.connection?.remoteAddress,
-              context.request?.headers?.['user-agent'],
+              ctx.extra?.request?.connection?.remoteAddress,
+              ctx.extra?.request?.headers?.['user-agent'],
               'websocket'
             );
             
@@ -441,27 +449,23 @@ class GraphQLServer {
               'WEBSOCKET_AUTH_FAILED',
               { error: error.message },
               null,
-              context.request?.connection?.remoteAddress
+              ctx.extra?.request?.connection?.remoteAddress
             );
             
             throw new Error('Authentication failed');
           }
         },
-        onDisconnect: (webSocket, context) => {
+        onDisconnect: (ctx) => {
           console.log('🔌 GraphQL WebSocket disconnected');
         },
-        onOperation: (message, params, webSocket) => {
+        onSubscribe: (ctx, message) => {
           console.log(`🔍 GraphQL Subscription: ${message.payload.operationName}`);
-          return params;
         },
-        onOperationComplete: (webSocket, opId) => {
-          console.log(`✅ GraphQL Subscription completed: ${opId}`);
+        onComplete: (ctx, message) => {
+          console.log(`✅ GraphQL Subscription completed: ${message.id}`);
         }
       },
-      {
-        server: this.httpServer,
-        path: '/graphql'
-      }
+      this.wsServer
     );
   }
 
@@ -515,10 +519,10 @@ class GraphQLServer {
     console.log('🛑 Shutting down GraphQL server...');
 
     try {
-      // Stop subscription server
-      if (this.subscriptionServer) {
-        this.subscriptionServer.close();
-        console.log('✅ Subscription server stopped');
+      // Stop WebSocket server
+      if (this.wsServer) {
+        this.wsServer.close();
+        console.log('✅ WebSocket server stopped');
       }
 
       // Stop Apollo server
