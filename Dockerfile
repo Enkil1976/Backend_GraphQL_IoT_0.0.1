@@ -1,11 +1,18 @@
-# Use Node.js 18 LTS Alpine for smaller image size
-FROM node:18-alpine
+# Use Node.js 20 LTS Alpine for smaller image size
+FROM node:20-alpine
 
 # Set working directory
 WORKDIR /usr/src/app
 
-# Install system dependencies for native modules
-RUN apk add --no-cache     python3     make     g++     git     curl     postgresql-client     redis
+# Update package index and install system dependencies for native modules
+RUN apk update && apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    git \
+    curl \
+    postgresql-client \
+    redis
 
 # Copy package files
 COPY package*.json ./
