@@ -674,6 +674,10 @@ class RulesEngineService {
       variables = {}
     } = action;
 
+    // Si canal es null, usar 'telegram' como default
+    const effectiveCanal = canal || 'telegram';
+    const effectiveTargetChannel = targetChannel || 'webhook';
+
     // Get current sensor data for template variables - dynamically from rule conditions
     const sensorType = this.extractSensorFromRule(rule);
     const latestSensorData = await this.getLatestSensorData(sensorType);
@@ -692,14 +696,16 @@ class RulesEngineService {
 
     // Map canal to appropriate channel for backwards compatibility
     let effectiveChannels = channels;
-    if (canal && targetChannel) {
+    if (effectiveCanal && effectiveTargetChannel) {
       // If canal and targetChannel are specified, use canal as the channel type
-      effectiveChannels = [canal];
+      effectiveChannels = [effectiveCanal];
     }
 
     console.log(`🔔 Sending notification for rule ${rule.name}:`, {
-      canal: canal,
-      targetChannel: targetChannel,
+      originalCanal: canal,
+      originalTargetChannel: targetChannel,
+      effectiveCanal: effectiveCanal,
+      effectiveTargetChannel: effectiveTargetChannel,
       channels: effectiveChannels
     });
 
@@ -708,8 +714,8 @@ class RulesEngineService {
       message: finalMessage,
       priority,
       channels: effectiveChannels,
-      canal: canal,
-      targetChannel: targetChannel,
+      canal: effectiveCanal,
+      targetChannel: effectiveTargetChannel,
       variables: enrichedVariables,
       templateId: null,
       metadata: {
@@ -717,8 +723,8 @@ class RulesEngineService {
         rule_name: rule.name,
         triggered_by: 'rules_engine',
         usuario: 'sistema',
-        canal: canal,
-        targetChannel: targetChannel
+        canal: effectiveCanal,
+        targetChannel: effectiveTargetChannel
       }
     });
   }
