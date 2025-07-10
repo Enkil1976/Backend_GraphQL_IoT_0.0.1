@@ -397,7 +397,7 @@ class NotificationService {
     // Format payload for n8n webhook (expected format)
     const payload = {
       usuario: metadata.usuario || 'sistema',
-      canal: metadata.canal || 'whatsapp', // Primary channel (whatsapp, email, telegram)
+      canal: metadata.canal || 'telegram', // Primary channel (whatsapp, email, telegram)
       targetChannel: metadata.targetChannel || 'webhook', // Target delivery method
       mensaje: title ? `${title}\n\n${message}` : message,
       timestamp: new Date().toISOString(),
