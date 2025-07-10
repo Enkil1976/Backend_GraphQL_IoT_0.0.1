@@ -335,7 +335,7 @@ class DynamicSensorService {
    */
   async processSensorData(mqttTopic, payload) {
     try {
-      // Buscar sensor por tópico MQTT (case-insensitive y con variaciones)
+      // Buscar sensor por tópico MQTT (case-insensitive y con variaciones específicas)
       const sensor = Array.from(this.activeSensors.values()).find(s => {
         const sensorTopic = s.mqtt_topic.toLowerCase();
         const incomingTopic = mqttTopic.toLowerCase();
@@ -345,21 +345,51 @@ class DynamicSensorService {
           return true;
         }
         
-        // Variaciones comunes para compatibilidad
-        const topicVariations = [
-          // Para agua: agua-quality-01 <-> Agua
-          sensorTopic.replace('agua-quality-01', 'agua'),
-          sensorTopic.replace('-quality-01', ''),
-          // Para sensores numerados: temhum1 <-> temhum-01
-          sensorTopic.replace(/(\w+)(\d+)/, '$1-$2'),
-          sensorTopic.replace(/(\w+)-(\d+)/, '$1$2')
-        ];
+        // Extraer partes del tópico para comparación inteligente
+        const sensorParts = sensorTopic.split('/');
+        const incomingParts = incomingTopic.split('/');
         
-        return topicVariations.some(variation => 
-          variation === incomingTopic || 
-          incomingTopic.includes(variation.split('/').pop()) ||
-          variation.includes(incomingTopic.split('/').pop())
-        );
+        // Deben tener la misma estructura básica (Invernadero/sensor/data)
+        if (sensorParts.length !== incomingParts.length) {
+          return false;
+        }
+        
+        // El primer y último segmento deben coincidir
+        if (sensorParts[0] !== incomingParts[0] || sensorParts[sensorParts.length - 1] !== incomingParts[incomingParts.length - 1]) {
+          return false;
+        }
+        
+        // Comparar el segmento del sensor (posición 1) con variaciones específicas
+        const sensorName = sensorParts[1];
+        const incomingName = incomingParts[1];
+        
+        // Normalizar nombres para comparación flexible
+        const normalizeName = (name) => name.toLowerCase().replace(/[-_]/g, '');
+        
+        // Mapeo directo con normalización
+        if (normalizeName(sensorName) === normalizeName(incomingName)) {
+          return true;
+        }
+        
+        // Mapeos específicos conocidos
+        const specificMappings = {
+          'agua': 'aguaquality01',
+          'water': 'aguaquality01',
+          'calidadagua': 'aguaquality01',
+          'th1': 'temhum1',
+          'th2': 'temhum2', 
+          'th3': 'temhum3',
+          'light': 'luxometro',
+          'luz': 'luxometro',
+          'lux': 'luxometro',
+          'pressure1': 'bmp2801',
+          'presion1': 'bmp2801'
+        };
+        
+        const normalizedSensor = normalizeName(sensorName);
+        const normalizedIncoming = normalizeName(incomingName);
+        
+        return specificMappings[normalizedIncoming] === normalizedSensor;
       });
 
       if (!sensor) {
