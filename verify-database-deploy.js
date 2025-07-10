@@ -20,11 +20,9 @@ async function verifyDatabaseDeployment() {
       'rules',
       'notifications',
       
-      // Tablas de sensores legacy
-      'temhum1',
-      'temhum2', 
-      'calidad_agua',
-      'luxometro',
+      // Tablas de sistemas específicos (mantenidas)
+      // Nota: temhum1, temhum2, calidad_agua, luxometro ya no son necesarias
+      // Ahora usan sensor_data_generic (sistema escalable)
       'power_monitor_logs',
       'weather_current',
       
@@ -44,10 +42,8 @@ async function verifyDatabaseDeployment() {
       'sensor_statistics',
       'sensor_alerts',
       'temp_pressure_data',
-      'soil_moisture_data',
-      'co2_data',
-      'motion_data',
-      'custom_sensor_data',
+      // Nota: soil_moisture_data, co2_data, motion_data, custom_sensor_data 
+      // ahora usan sensor_data_generic (sistema escalable)
       
       // Tabla de versión de esquema
       'schema_version'
