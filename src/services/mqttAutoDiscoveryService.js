@@ -197,22 +197,33 @@ class MQTTAutoDiscoveryService {
    */
   async processUnknownMessage(topic, payload) {
     if (!this.detectionConfig.enabled) {
+      console.log('🚫 Auto-discovery disabled');
       return false;
     }
 
     try {
+      console.log(`🔍 Processing unknown message for topic: ${topic}`);
+      
       // Verificar si el tópico ya existe
       if (await this.isKnownTopic(topic)) {
+        console.log(`✅ Topic ${topic} is already known, skipping`);
         return false;
       }
 
+      console.log(`🆕 Topic ${topic} is unknown, adding to analysis queue`);
+      
       // Agregar a cola de análisis
       await this.addToAnalysisQueue(topic, payload);
       
       // Verificar si tenemos suficientes muestras para análisis
       const topicData = this.unknownTopics.get(topic);
+      console.log(`📊 Topic ${topic} has ${topicData.payloads.length}/${this.detectionConfig.minSamples} samples`);
+      
       if (topicData && topicData.payloads.length >= this.detectionConfig.minSamples) {
+        console.log(`🚀 Analyzing topic ${topic} (threshold reached)`);
         await this.analyzeAndCreate(topic, topicData);
+      } else {
+        console.log(`⏳ Topic ${topic} needs ${this.detectionConfig.minSamples - topicData.payloads.length} more samples`);
       }
 
       return true;
