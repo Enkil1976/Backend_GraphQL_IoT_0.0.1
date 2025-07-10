@@ -335,9 +335,9 @@ class DynamicSensorService {
    */
   async processSensorData(mqttTopic, payload) {
     try {
-      // Buscar sensor por tópico MQTT
+      // Buscar sensor por tópico MQTT (case-insensitive)
       const sensor = Array.from(this.activeSensors.values()).find(
-        s => s.mqtt_topic === mqttTopic
+        s => s.mqtt_topic.toLowerCase() === mqttTopic.toLowerCase()
       );
 
       if (!sensor) {
