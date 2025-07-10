@@ -697,8 +697,8 @@ class RulesEngineService {
     // Map canal to appropriate channel for backwards compatibility
     let effectiveChannels = channels;
     if (effectiveCanal && effectiveTargetChannel) {
-      // If canal and targetChannel are specified, use canal as the channel type
-      effectiveChannels = [effectiveCanal];
+      // If canal and targetChannel are specified, route through webhook for delivery
+      effectiveChannels = ['webhook'];
     }
 
     console.log(`🔔 Sending notification for rule ${rule.name}:`, {
