@@ -99,6 +99,54 @@ const sensorMutations = {
   },
 
   /**
+   * Configura MQTT para un sensor
+   */
+  configureSensorMQTT: async(_, { input }, { user }) => {
+    if (!user) {
+      throw new AuthenticationError('Debe estar autenticado para configurar MQTT');
+    }
+
+    if (user.role !== 'admin') {
+      throw new ForbiddenError('Solo los administradores pueden configurar MQTT');
+    }
+
+    try {
+      const { sensorId, mqttTopic, payloadFormat, samplePayload, cacheKey, metricsFields, dataAgeMinutes, updateFrequency } = input;
+
+      // Verificar que el sensor existe
+      const sensor = await dynamicSensorService.getSensorById(sensorId);
+      if (!sensor) {
+        throw new UserInputError(`Sensor no encontrado: ${sensorId}`);
+      }
+
+      // Construir configuración MQTT
+      const mqttConfig = {
+        mqtt_topic: mqttTopic,
+        payload_format: payloadFormat,
+        sample_payload: samplePayload || {},
+        cache_key: cacheKey || `sensor_latest:${sensor.hardware_id?.toLowerCase() || sensorId}`,
+        metrics_fields: metricsFields || Object.keys(payloadFormat || {}),
+        data_age_minutes: dataAgeMinutes || 60,
+        update_frequency: updateFrequency || 30
+      };
+
+      // Actualizar configuración del sensor
+      const updatedSensor = await dynamicSensorService.updateSensorMQTTConfig(sensorId, mqttConfig);
+
+      console.log(`✅ MQTT configured for sensor ${sensorId}:`, {
+        topic: mqttTopic,
+        fields: metricsFields || Object.keys(payloadFormat || {})
+      });
+
+      return dynamicSensorService.formatSensorForGraphQL(updatedSensor);
+
+    } catch (error) {
+      console.error('❌ Error in configureSensorMQTT mutation:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Configura alertas para un sensor
    */
   configureSensorAlerts: async(_, { sensorId, alerts }, { user }) => {

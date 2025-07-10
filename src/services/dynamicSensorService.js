@@ -741,6 +741,55 @@ class DynamicSensorService {
   }
 
   /**
+   * Actualiza configuración MQTT de un sensor
+   * @param {string} sensorId - ID del sensor
+   * @param {Object} mqttConfig - Configuración MQTT
+   * @returns {Object} Sensor actualizado
+   */
+  async updateSensorMQTTConfig(sensorId, mqttConfig) {
+    try {
+      // Actualizar en base de datos
+      const updateQuery = `
+        UPDATE sensors 
+        SET 
+          configuration = COALESCE(configuration, '{}') || $1::jsonb,
+          mqtt_topic = $2,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $3 OR hardware_id = $3
+        RETURNING *
+      `;
+
+      const result = await query(updateQuery, [
+        JSON.stringify(mqttConfig),
+        mqttConfig.mqtt_topic,
+        sensorId
+      ]);
+
+      if (result.rows.length === 0) {
+        throw new Error(`Sensor no encontrado: ${sensorId}`);
+      }
+
+      const updatedSensor = result.rows[0];
+
+      // Actualizar en memoria
+      this.activeSensors.set(updatedSensor.hardware_id, updatedSensor);
+
+      // Publicar evento de actualización
+      pubsub.publish(SENSOR_EVENTS.SENSOR_UPDATED, {
+        sensorUpdated: this.formatSensorForGraphQL(updatedSensor)
+      });
+
+      console.log(`✅ Sensor MQTT config updated: ${updatedSensor.hardware_id} -> ${mqttConfig.mqtt_topic}`);
+
+      return updatedSensor;
+
+    } catch (error) {
+      console.error('❌ Error updating sensor MQTT config:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Obtiene estado del servicio
    */
   getServiceStatus() {

@@ -189,6 +189,7 @@ extend type Mutation {
   deleteSensor(id: ID!): DeletedSensor!
   
   # Sensor configuration
+  configureSensorMQTT(input: ConfigureSensorMQTTInput!): Sensor!
   configureSensorAlerts(sensorId: ID!, alerts: [SensorAlertInput!]!): [SensorAlert!]!
   testSensorPayload(sensorId: ID!, payload: JSON!): ValidationResult!
   
@@ -238,6 +239,19 @@ input UpdateSensorInput {
   
   # Custom fields updates
   customFields: JSON
+}
+
+input ConfigureSensorMQTTInput {
+  sensorId: ID!
+  mqttTopic: String!
+  payloadFormat: JSON!
+  samplePayload: JSON
+  
+  # Optional configuration
+  cacheKey: String
+  metricsFields: [String!]
+  dataAgeMinutes: Int
+  updateFrequency: Int
 }
 
 input CreateSensorTypeInput {
