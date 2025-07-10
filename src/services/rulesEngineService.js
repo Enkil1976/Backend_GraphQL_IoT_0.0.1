@@ -188,16 +188,16 @@ class RulesEngineService {
    * @returns {boolean} Whether condition is met
    */
   async evaluateCondition(condition) {
-    const { type, sensor, sensorType, field, operator, value, device_id, deviceId, time_window } = condition;
+    const { type, sensorId, field, operator, value, device_id, deviceId, time_window } = condition;
 
-    // Handle both sensor and sensorType field names
-    const sensorName = sensor || sensorType;
+    // Use sensorId for sensor conditions
+    const sensorIdentifier = sensorId;
     const deviceIdValue = device_id || deviceId;
 
     switch (type) {
     case 'SENSOR':
     case 'sensor':
-      return await this.evaluateSensorCondition(sensorName, field, operator, value);
+      return await this.evaluateSensorCondition(sensorIdentifier, field, operator, value);
 
     case 'DEVICE':
     case 'device':
@@ -744,6 +744,10 @@ class RulesEngineService {
    * @returns {Object} Latest sensor data
    */
   async getLatestSensorData(sensor) {
+    if (!sensor) {
+      console.warn("Attempted to get latest sensor data with null or undefined sensor ID.");
+      return null;
+    }
     const key = `sensor_latest:${sensor.toLowerCase()}`;
     const data = await cache.hgetall(key);
 
@@ -881,15 +885,15 @@ class RulesEngineService {
       
       // Extract sensor from conditions
       if (conditions && conditions.rules && Array.isArray(conditions.rules)) {
-        const sensorCondition = conditions.rules.find(cond => cond.type === 'SENSOR' && cond.sensorType);
+        const sensorCondition = conditions.rules.find(cond => cond.type === 'SENSOR' && cond.sensorId);
         if (sensorCondition) {
-          return sensorCondition.sensorType.toLowerCase();
+          return sensorCondition.sensorId.toLowerCase();
         }
       }
       
-      // Fallback to temhum1 if no sensor found
-      console.warn(`No sensor found in rule conditions for rule: ${rule.name}, using temhum1 as fallback`);
-      return 'temhum1';
+      // If no sensorId found, return null
+      console.warn(`No sensorId found in rule conditions for rule: ${rule.name}. Returning null.`);
+      return null;
     } catch (error) {
       console.error('Error extracting sensor from rule:', error);
       return 'temhum1';
