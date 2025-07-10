@@ -1,1 +1,0 @@
-ALTER TABLE sensors ADD COLUMN is_online BOOLEAN DEFAULT false;
