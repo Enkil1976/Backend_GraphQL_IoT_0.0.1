@@ -697,6 +697,12 @@ class RulesEngineService {
       effectiveChannels = [canal];
     }
 
+    console.log(`🔔 Sending notification for rule ${rule.name}:`, {
+      canal: canal,
+      targetChannel: targetChannel,
+      channels: effectiveChannels
+    });
+
     await notificationService.sendNotification({
       title: title || `Rule: ${rule.name}`,
       message: finalMessage,

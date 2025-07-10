@@ -414,6 +414,7 @@ class NotificationService {
       };
 
       console.log('🔗 Sending webhook notification to n8n');
+      console.log('📦 Webhook payload:', JSON.stringify(payload, null, 2));
 
       const response = await axios.post(this.webhookUrl, payload, {
         headers,
