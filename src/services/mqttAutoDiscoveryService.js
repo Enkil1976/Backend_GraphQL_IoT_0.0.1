@@ -825,22 +825,55 @@ class MQTTAutoDiscoveryService {
   }
 
   async createDeviceInternal(deviceData) {
-    const insertQuery = `
-      INSERT INTO devices (device_id, name, type, location, description, status, configuration, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, 'UNKNOWN', $6::jsonb, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      RETURNING *
-    `;
+    // First, check if location column exists in the database
+    let insertQuery, params;
     
-    const result = await query(insertQuery, [
-      deviceData.device_id,
-      deviceData.name,
-      deviceData.type,
-      deviceData.location,
-      deviceData.description,
-      JSON.stringify(deviceData.configuration)
-    ]);
-    
-    return result.rows[0];
+    try {
+      // Try with location column first
+      insertQuery = `
+        INSERT INTO devices (device_id, name, type, location, description, status, configuration, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, 'UNKNOWN', $6::jsonb, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        RETURNING *
+      `;
+      
+      params = [
+        deviceData.device_id,
+        deviceData.name,
+        deviceData.type,
+        deviceData.location || 'Unknown',
+        deviceData.description,
+        JSON.stringify(deviceData.configuration)
+      ];
+      
+      const result = await query(insertQuery, params);
+      return result.rows[0];
+      
+    } catch (error) {
+      // If location column doesn't exist, try without it
+      if (error.code === '42703') { // column does not exist
+        console.log('⚠️ Location column not found, creating device without location');
+        
+        insertQuery = `
+          INSERT INTO devices (device_id, name, type, description, status, configuration, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, 'UNKNOWN', $5::jsonb, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          RETURNING *
+        `;
+        
+        params = [
+          deviceData.device_id,
+          deviceData.name,
+          deviceData.type,
+          deviceData.description,
+          JSON.stringify(deviceData.configuration)
+        ];
+        
+        const result = await query(insertQuery, params);
+        return result.rows[0];
+      }
+      
+      // Re-throw other errors
+      throw error;
+    }
   }
 
   async logAutoCreation(entityType, entityId, topic, analysis) {
