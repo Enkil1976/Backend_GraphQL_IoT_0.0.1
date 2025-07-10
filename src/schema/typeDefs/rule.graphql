@@ -97,7 +97,7 @@ type ConditionRule {
   type: ConditionType!
   
   # Sensor Conditions
-  sensorType: SensorType
+  sensorId: ID
   field: String
   operator: ComparisonOperator
   value: Float
@@ -266,7 +266,7 @@ input ConditionRuleInput {
   type: ConditionType!
   
   # Sensor fields
-  sensorType: SensorType
+  sensorId: ID
   field: String
   operator: ComparisonOperator
   value: Float
