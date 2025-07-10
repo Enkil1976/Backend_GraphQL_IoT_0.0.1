@@ -587,6 +587,15 @@ class MQTTAutoDiscoveryService {
       
       const sensor = await this.createSensorInternal(sensorData);
       
+      // Asegurar que mqtt_topic se actualice inmediatamente (fallback para compatibilidad)
+      if (!sensor.mqtt_topic) {
+        await query(
+          'UPDATE sensors SET mqtt_topic = $1 WHERE id = $2',
+          [topic, sensor.id]
+        );
+        sensor.mqtt_topic = topic;
+      }
+      
       // Configurar MQTT
       const mqttConfig = {
         sensorId: sensor.id,
@@ -740,22 +749,53 @@ class MQTTAutoDiscoveryService {
   // Métodos de creación interna...
   
   async createSensorInternal(sensorData) {
-    const insertQuery = `
-      INSERT INTO sensors (hardware_id, name, sensor_type, mqtt_topic, location, description, is_active, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      RETURNING *
-    `;
-    
-    const result = await query(insertQuery, [
-      sensorData.hardwareId,
-      sensorData.name,
-      sensorData.type,
-      sensorData.mqttTopic,
-      sensorData.location,
-      sensorData.description
-    ]);
-    
-    return result.rows[0];
+    // Intentar con mqtt_topic incluido primero (versión nueva)
+    try {
+      const insertQuery = `
+        INSERT INTO sensors (hardware_id, name, sensor_type, mqtt_topic, location, description, is_active, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        RETURNING *
+      `;
+      
+      const result = await query(insertQuery, [
+        sensorData.hardwareId,
+        sensorData.name,
+        sensorData.type,
+        sensorData.mqttTopic || null,
+        sensorData.location,
+        sensorData.description
+      ]);
+      
+      return result.rows[0];
+    } catch (error) {
+      // Si falla, intentar sin mqtt_topic (versión anterior para compatibilidad)
+      console.log('🔄 Fallback: Creating sensor without mqtt_topic first');
+      
+      const insertQuery = `
+        INSERT INTO sensors (hardware_id, name, sensor_type, location, description, is_active, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        RETURNING *
+      `;
+      
+      const result = await query(insertQuery, [
+        sensorData.hardwareId,
+        sensorData.name,
+        sensorData.type,
+        sensorData.location,
+        sensorData.description
+      ]);
+      
+      // Inmediatamente actualizar con mqtt_topic
+      if (sensorData.mqttTopic) {
+        await query(
+          'UPDATE sensors SET mqtt_topic = $1 WHERE id = $2',
+          [sensorData.mqttTopic, result.rows[0].id]
+        );
+        result.rows[0].mqtt_topic = sensorData.mqttTopic;
+      }
+      
+      return result.rows[0];
+    }
   }
 
   async configureSensorMQTTInternal(mqttConfig) {
