@@ -238,13 +238,74 @@ class MQTTAutoDiscoveryService {
    */
   async isKnownTopic(topic) {
     try {
-      // Verificar en sensores
+      // Obtener todos los sensores activos para mapeo inteligente
       const sensorQuery = `
-        SELECT id FROM sensors 
-        WHERE mqtt_topic = $1 OR configuration->>'mqtt_topic' = $1
+        SELECT id, mqtt_topic FROM sensors 
+        WHERE is_active = true
       `;
-      const sensorResult = await query(sensorQuery, [topic]);
-      if (sensorResult.rows.length > 0) {
+      const sensorResult = await query(sensorQuery);
+      
+      // Aplicar la misma lógica de mapping que en dynamicSensorService
+      const foundSensor = sensorResult.rows.find(sensor => {
+        if (!sensor.mqtt_topic) return false;
+        
+        const sensorTopic = sensor.mqtt_topic.toLowerCase();
+        const incomingTopic = topic.toLowerCase();
+        
+        // Coincidencia exacta
+        if (sensorTopic === incomingTopic) {
+          return true;
+        }
+        
+        // Extraer partes del tópico para comparación inteligente
+        const sensorParts = sensorTopic.split('/');
+        const incomingParts = incomingTopic.split('/');
+        
+        // Deben tener la misma estructura básica (Invernadero/sensor/data)
+        if (sensorParts.length !== incomingParts.length) {
+          return false;
+        }
+        
+        // El primer y último segmento deben coincidir
+        if (sensorParts[0] !== incomingParts[0] || sensorParts[sensorParts.length - 1] !== incomingParts[incomingParts.length - 1]) {
+          return false;
+        }
+        
+        // Comparar el segmento del sensor (posición 1) con variaciones específicas
+        const sensorName = sensorParts[1];
+        const incomingName = incomingParts[1];
+        
+        // Normalizar nombres para comparación flexible
+        const normalizeName = (name) => name.toLowerCase().replace(/[-_]/g, '');
+        
+        // Mapeo directo con normalización
+        if (normalizeName(sensorName) === normalizeName(incomingName)) {
+          return true;
+        }
+        
+        // Mapeos específicos conocidos
+        const specificMappings = {
+          'agua': 'aguaquality01',
+          'water': 'aguaquality01',
+          'calidadagua': 'aguaquality01',
+          'th1': 'temhum1',
+          'th2': 'temhum2', 
+          'th3': 'temhum3',
+          'light': 'luxometro',
+          'luz': 'luxometro',
+          'lux': 'luxometro',
+          'pressure1': 'bmp2801',
+          'presion1': 'bmp2801'
+        };
+        
+        const normalizedSensor = normalizeName(sensorName);
+        const normalizedIncoming = normalizeName(incomingName);
+        
+        return specificMappings[normalizedIncoming] === normalizedSensor;
+      });
+      
+      if (foundSensor) {
+        console.log(`✅ Topic ${topic} is known (matches sensor ID ${foundSensor.id})`);
         return true;
       }
 
@@ -255,9 +316,11 @@ class MQTTAutoDiscoveryService {
       `;
       const deviceResult = await query(deviceQuery, [topic]);
       if (deviceResult.rows.length > 0) {
+        console.log(`✅ Topic ${topic} is known (matches device)`);
         return true;
       }
 
+      console.log(`🆕 Topic ${topic} is truly unknown`);
       return false;
     } catch (error) {
       console.error('❌ Error checking known topic:', error);
@@ -518,7 +581,8 @@ class MQTTAutoDiscoveryService {
         hardwareId: hardwareId,
         type: analysis.sensorSubtype,
         location: 'Auto-detected',
-        description: `Auto-created from MQTT topic: ${topic}`
+        description: `Auto-created from MQTT topic: ${topic}`,
+        mqttTopic: topic  // Incluir mqtt_topic desde el inicio
       };
       
       const sensor = await this.createSensorInternal(sensorData);
@@ -677,8 +741,8 @@ class MQTTAutoDiscoveryService {
   
   async createSensorInternal(sensorData) {
     const insertQuery = `
-      INSERT INTO sensors (hardware_id, name, sensor_type, location, description, is_active, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      INSERT INTO sensors (hardware_id, name, sensor_type, mqtt_topic, location, description, is_active, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       RETURNING *
     `;
     
@@ -686,6 +750,7 @@ class MQTTAutoDiscoveryService {
       sensorData.hardwareId,
       sensorData.name,
       sensorData.type,
+      sensorData.mqttTopic,
       sensorData.location,
       sensorData.description
     ]);
