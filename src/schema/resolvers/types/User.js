@@ -48,7 +48,7 @@ const User = {
     if (parent.notifications && typeof parent.notifications === 'object') {
       return parent.notifications;
     }
-    
+
     if (parent.notification_preferences) {
       if (typeof parent.notification_preferences === 'string') {
         try {
@@ -57,12 +57,12 @@ const User = {
           console.error('[UserTypeResolver] Error parsing notification preferences:', error);
         }
       }
-      
+
       if (typeof parent.notification_preferences === 'object') {
         return parent.notification_preferences;
       }
     }
-    
+
     // Default notification preferences
     return {
       email: true,
@@ -83,7 +83,7 @@ const User = {
     if (parent.dashboardConfig) {
       return parent.dashboardConfig;
     }
-    
+
     if (parent.dashboard_config) {
       if (typeof parent.dashboard_config === 'string') {
         try {
@@ -93,17 +93,17 @@ const User = {
           return null;
         }
       }
-      
+
       return parent.dashboard_config;
     }
-    
+
     return null;
   },
 
   /**
    * Resolve devices owned by user
    */
-  ownedDevices: async (parent, args, context) => {
+  ownedDevices: async(parent, args, context) => {
     try {
       const devices = await deviceService.getDevices({ owner_id: parent.id });
       return devices || [];
@@ -116,7 +116,7 @@ const User = {
   /**
    * Resolve user configurations
    */
-  configurations: async (parent, args, context) => {
+  configurations: async(parent, args, context) => {
     try {
       const result = await query(
         `SELECT id, config_name, config, is_active, created_at, updated_at
@@ -125,7 +125,7 @@ const User = {
          ORDER BY created_at DESC`,
         [parent.id]
       );
-      
+
       return result.rows.map(config => ({
         ...config,
         configName: config.config_name,
@@ -143,7 +143,7 @@ const User = {
   /**
    * Resolve active configuration
    */
-  activeConfiguration: async (parent, args, context) => {
+  activeConfiguration: async(parent, args, context) => {
     try {
       const result = await query(
         `SELECT id, config_name, config, is_active, created_at, updated_at
@@ -152,11 +152,11 @@ const User = {
          LIMIT 1`,
         [parent.id]
       );
-      
+
       if (result.rows.length === 0) {
         return null;
       }
-      
+
       const config = result.rows[0];
       return {
         ...config,
@@ -180,26 +180,26 @@ const UserConfiguration = {
   /**
    * Resolve user field for configuration
    */
-  user: async (parent, args, context) => {
+  user: async(parent, args, context) => {
     if (parent.user && typeof parent.user === 'object') {
       return parent.user;
     }
-    
+
     const userId = parent.user_id || parent.user?.id;
     if (!userId) {
       return null;
     }
-    
+
     try {
       const result = await query(
         'SELECT id, username, email, first_name, last_name, role FROM users WHERE id = $1',
         [userId]
       );
-      
+
       if (result.rows.length === 0) {
         return null;
       }
-      
+
       const user = result.rows[0];
       return {
         id: user.id,
@@ -222,7 +222,7 @@ const UserConfiguration = {
     if (parent.config && typeof parent.config === 'object') {
       return parent.config;
     }
-    
+
     if (typeof parent.config === 'string') {
       try {
         return JSON.parse(parent.config);
@@ -231,7 +231,7 @@ const UserConfiguration = {
         return null;
       }
     }
-    
+
     return null;
   },
 

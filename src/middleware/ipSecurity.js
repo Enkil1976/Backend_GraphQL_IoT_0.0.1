@@ -13,10 +13,10 @@ class IPSecurityMiddleware {
     this.blacklist = this.parseIPList(process.env.IP_BLACKLIST);
     this.allowedCountries = this.parseCountryList(process.env.ALLOWED_COUNTRIES);
     this.blockedCountries = this.parseCountryList(process.env.BLOCKED_COUNTRIES);
-    
+
     // Rate limiting by country/region
     this.countryRateLimits = this.parseCountryRateLimits(process.env.COUNTRY_RATE_LIMITS);
-    
+
     // Private IP ranges (RFC 1918, RFC 4193, etc.)
     this.privateRanges = [
       { start: '10.0.0.0', end: '10.255.255.255' },
@@ -42,7 +42,7 @@ class IPSecurityMiddleware {
    */
   parseIPList(ipListStr) {
     if (!ipListStr) return [];
-    
+
     return ipListStr.split(',')
       .map(ip => ip.trim())
       .filter(ip => ip.length > 0)
@@ -61,7 +61,7 @@ class IPSecurityMiddleware {
   parseCIDR(cidr) {
     const [ip, prefixLength] = cidr.split('/');
     const prefix = parseInt(prefixLength);
-    
+
     return {
       ip,
       prefix,
@@ -74,7 +74,7 @@ class IPSecurityMiddleware {
    */
   parseCountryList(countryListStr) {
     if (!countryListStr) return [];
-    
+
     return countryListStr.split(',')
       .map(country => country.trim().toUpperCase())
       .filter(country => country.length === 2); // ISO 3166-1 alpha-2
@@ -85,7 +85,7 @@ class IPSecurityMiddleware {
    */
   parseCountryRateLimits(rateLimitsStr) {
     if (!rateLimitsStr) return {};
-    
+
     const limits = {};
     rateLimitsStr.split(',').forEach(limit => {
       const [country, rate] = limit.split(':');
@@ -93,7 +93,7 @@ class IPSecurityMiddleware {
         limits[country.trim().toUpperCase()] = parseInt(rate);
       }
     });
-    
+
     return limits;
   }
 
@@ -113,11 +113,11 @@ class IPSecurityMiddleware {
       // IPv6 - simplified check
       return ip.startsWith(range.start.split('::')[0]);
     }
-    
+
     const ipNum = this.ipToNumber(ip);
     const startNum = this.ipToNumber(range.start);
     const endNum = this.ipToNumber(range.end);
-    
+
     return ipNum >= startNum && ipNum <= endNum;
   }
 
@@ -135,7 +135,7 @@ class IPSecurityMiddleware {
     const ipNum = this.ipToNumber(ip);
     const networkNum = this.ipToNumber(cidr.ip);
     const mask = (-1 << (32 - cidr.prefix)) >>> 0;
-    
+
     return (ipNum & mask) === (networkNum & mask);
   }
 
@@ -256,11 +256,11 @@ class IPSecurityMiddleware {
    * Main IP security check middleware
    */
   createMiddleware() {
-    return async (req, res, next) => {
+    return async(req, res, next) => {
       try {
         const clientIP = this.getClientIP(req);
         const userAgent = req.get('User-Agent') || '';
-        
+
         // Always allow private IPs for internal network access
         if (this.isPrivateIP(clientIP)) {
           req.ipSecurity = {
@@ -294,7 +294,7 @@ class IPSecurityMiddleware {
 
         // Get country information
         const countryCode = await this.getCountryCode(clientIP);
-        
+
         // Check country restrictions
         if (!this.isCountryAllowed(countryCode)) {
           await this.logSecurityViolation(
@@ -360,7 +360,7 @@ class IPSecurityMiddleware {
         // Handle comma-separated list (x-forwarded-for can have multiple IPs)
         const ips = headerValue.split(',').map(ip => ip.trim());
         const firstIP = ips[0];
-        
+
         // Validate IP format
         if (this.isValidIP(firstIP)) {
           return firstIP;
@@ -369,9 +369,9 @@ class IPSecurityMiddleware {
     }
 
     // Fallback to socket remote address
-    return req.connection?.remoteAddress || 
-           req.socket?.remoteAddress || 
-           req.ip || 
+    return req.connection?.remoteAddress ||
+           req.socket?.remoteAddress ||
+           req.ip ||
            'unknown';
   }
 
@@ -381,10 +381,10 @@ class IPSecurityMiddleware {
   isValidIP(ip) {
     // IPv4 pattern
     const ipv4Pattern = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-    
+
     // IPv6 pattern (simplified)
     const ipv6Pattern = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/;
-    
+
     return ipv4Pattern.test(ip) || ipv6Pattern.test(ip);
   }
 
@@ -454,10 +454,10 @@ class IPSecurityMiddleware {
    */
   updateIPList(type, operation, entry) {
     const list = type === 'whitelist' ? this.whitelist : this.blacklist;
-    
+
     if (operation === 'add') {
-      const parsedEntry = entry.includes('/') 
-        ? this.parseCIDR(entry) 
+      const parsedEntry = entry.includes('/')
+        ? this.parseCIDR(entry)
         : { ip: entry, type: 'single' };
       list.push(parsedEntry);
     } else if (operation === 'remove') {

@@ -9,10 +9,10 @@ const deviceQueries = {
   /**
    * Get all devices with optional filtering
    */
-  devices: async (parent, { status, type }, context) => {
+  devices: async(parent, { status, type }, context) => {
     try {
       console.log('[DeviceResolver] Getting devices', { status, type, user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to view devices');
@@ -23,7 +23,7 @@ const deviceQueries = {
       if (type) filters.type = type;
 
       const devices = await deviceService.getDevices(filters);
-      
+
       console.log(`[DeviceResolver] Found ${devices.length} devices`);
       return devices;
     } catch (error) {
@@ -35,17 +35,17 @@ const deviceQueries = {
   /**
    * Get device by ID
    */
-  device: async (parent, { id }, context) => {
+  device: async(parent, { id }, context) => {
     try {
       console.log(`[DeviceResolver] Getting device ${id}`, { user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to view device details');
       }
 
       const device = await deviceService.getDeviceById(id);
-      
+
       if (!device) {
         return null;
       }
@@ -64,12 +64,12 @@ const deviceQueries = {
   /**
    * Get device history/events
    */
-  deviceHistory: async (parent, { deviceId, limit }, context) => {
+  deviceHistory: async(parent, { deviceId, limit }, context) => {
     try {
-      console.log(`[DeviceResolver] Getting history for device ${deviceId}`, { 
-        limit, user: context.user?.username 
+      console.log(`[DeviceResolver] Getting history for device ${deviceId}`, {
+        limit, user: context.user?.username
       });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to view device history');
@@ -81,7 +81,7 @@ const deviceQueries = {
       }
 
       const history = await deviceService.getDeviceHistory(deviceId, { limit });
-      
+
       console.log(`[DeviceResolver] Found ${history.length} history entries`);
       return history;
     } catch (error) {

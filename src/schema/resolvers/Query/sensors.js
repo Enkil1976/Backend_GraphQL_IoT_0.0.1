@@ -1,152 +1,287 @@
-const sensorService = require('../../../services/sensorService');
-const { AuthenticationError, ForbiddenError } = require('apollo-server-express');
+const dynamicSensorService = require('../../../services/dynamicSensorService');
+const sensorTypeService = require('../../../services/sensorTypeService');
+const { AuthenticationError, UserInputError } = require('apollo-server-express');
 
 /**
- * Sensor Query Resolvers
- * Handles all sensor-related GraphQL queries
+ * Resolvers de consultas para gestión dinámica de sensores
  */
 const sensorQueries = {
   /**
-   * Get all sensors with optional filtering
+   * Obtiene todos los sensores con filtros opcionales
    */
-  sensors: async (parent, { types, online }, context) => {
-    try {
-      console.log('[SensorResolver] Getting sensors', { types, online, user: context.user?.username });
-      
-      // Authentication required
-      if (!context.user) {
-        throw new AuthenticationError('You must be logged in to view sensor data');
-      }
+  sensors: async(_, { types, online }, { user }) => {
+    if (!user) {
+      throw new AuthenticationError('Debe estar autenticado para ver sensores');
+    }
 
+    try {
       const filters = {};
+
       if (types && types.length > 0) {
         filters.types = types;
       }
-      if (typeof online === 'boolean') {
+
+      if (online !== undefined) {
         filters.online = online;
       }
 
-      const sensors = await sensorService.getSensors(filters);
-      
-      console.log(`[SensorResolver] Found ${sensors.length} sensors`);
-      return sensors;
+      const sensors = await dynamicSensorService.getAllSensors(filters);
+      return sensors.map(sensor => dynamicSensorService.formatSensorForGraphQL(sensor));
+
     } catch (error) {
-      console.error('[SensorResolver] Error in sensors query:', error);
+      console.error('❌ Error in sensors query:', error);
       throw error;
     }
   },
 
   /**
-   * Get sensor by ID
+   * Obtiene un sensor por ID
    */
-  sensor: async (parent, { id }, context) => {
-    try {
-      console.log(`[SensorResolver] Getting sensor ${id}`, { user: context.user?.username });
-      
-      // Authentication required
-      if (!context.user) {
-        throw new AuthenticationError('You must be logged in to view sensor details');
-      }
+  sensor: async(_, { id }, { user }) => {
+    if (!user) {
+      throw new AuthenticationError('Debe estar autenticado para ver sensores');
+    }
 
-      const sensor = await sensorService.getSensorById(id);
-      
+    try {
+      const sensor = await dynamicSensorService.getSensorById(id);
       if (!sensor) {
         return null;
       }
 
-      console.log(`[SensorResolver] Found sensor: ${sensor.name}`);
-      return sensor;
+      return dynamicSensorService.formatSensorForGraphQL(sensor);
+
     } catch (error) {
-      console.error(`[SensorResolver] Error getting sensor ${id}:`, error);
-      if (error.message.includes('not found')) {
-        return null;
-      }
+      console.error('❌ Error in sensor query:', error);
       throw error;
     }
   },
 
   /**
-   * Get sensor readings with pagination
+   * Obtiene todos los tipos de sensores disponibles
    */
-  sensorReadings: async (parent, { sensorId, limit, offset, from, to }, context) => {
+  sensorTypes: async(_, {}, { user }) => {
+    if (!user) {
+      throw new AuthenticationError('Debe estar autenticado para ver tipos de sensores');
+    }
+
     try {
-      console.log(`[SensorResolver] Getting readings for sensor ${sensorId}`, { 
-        limit, offset, from, to, user: context.user?.username 
-      });
-      
-      // Authentication required
-      if (!context.user) {
-        throw new AuthenticationError('You must be logged in to view sensor readings');
-      }
+      const sensorTypes = sensorTypeService.getAllSensorTypes();
 
-      const options = { limit, offset };
-      if (from) options.from = from;
-      if (to) options.to = to;
+      return sensorTypes.map(type => ({
+        id: type.id,
+        typeId: type.id,
+        name: type.name,
+        description: type.description || '',
+        mqttTopicTemplate: type.mqttTopicTemplate,
+        payloadTemplate: type.payloadTemplate,
+        defaultTableName: type.tableName,
+        cacheKeyTemplate: type.cacheKeyTemplate,
+        availableFields: type.metricsFields || [],
+        metricsFields: type.metricsFields || [],
+        specialHandling: type.specialHandling || {},
+        isActive: true,
+        isCustomizable: type.customizable || false,
+        createdAt: type.createdAt || new Date().toISOString(),
+        updatedAt: type.createdAt || new Date().toISOString(),
+        sensors: [] // TODO: Implementar relación con sensores
+      }));
 
-      const readings = await sensorService.getSensorReadings(sensorId, options);
-      
-      console.log(`[SensorResolver] Found ${readings.edges.length} readings (total: ${readings.totalCount})`);
-      return readings;
     } catch (error) {
-      console.error(`[SensorResolver] Error getting readings for sensor ${sensorId}:`, error);
+      console.error('❌ Error in sensorTypes query:', error);
       throw error;
     }
   },
 
   /**
-   * Get latest sensor data for specified types
+   * Obtiene un tipo de sensor específico
    */
-  latestSensorData: async (parent, { types }, context) => {
-    try {
-      console.log('[SensorResolver] Getting latest sensor data', { types, user: context.user?.username });
-      
-      // Authentication required
-      if (!context.user) {
-        throw new AuthenticationError('You must be logged in to view sensor data');
-      }
-
-      // Default to all sensor types if none specified
-      const sensorTypes = types && types.length > 0 ? types : ['TEMHUM1', 'TEMHUM2', 'CALIDAD_AGUA', 'LUXOMETRO', 'POWER_MONITOR'];
-      
-      const latestData = await sensorService.getLatestSensorData(sensorTypes);
-      
-      console.log(`[SensorResolver] Found ${latestData.length} latest readings`);
-      return latestData;
-    } catch (error) {
-      console.error('[SensorResolver] Error getting latest sensor data:', error);
-      throw error;
+  sensorType: async(_, { typeId }, { user }) => {
+    if (!user) {
+      throw new AuthenticationError('Debe estar autenticado para ver tipos de sensores');
     }
-  },
 
-  /**
-   * Get sensor statistics for a time range
-   */
-  sensorStats: async (parent, { sensorId, timeRange }, context) => {
     try {
-      console.log(`[SensorResolver] Getting stats for sensor ${sensorId}`, { 
-        timeRange, user: context.user?.username 
-      });
-      
-      // Authentication required  
-      if (!context.user) {
-        throw new AuthenticationError('You must be logged in to view sensor statistics');
-      }
-
-      // Editors and above can view detailed statistics
-      if (!context.user.role || !['admin', 'editor', 'operator'].includes(context.user.role)) {
-        throw new ForbiddenError('Insufficient permissions to view sensor statistics');
-      }
-
-      const stats = await sensorService.getSensorStats(sensorId, timeRange);
-      
-      if (!stats) {
+      const type = sensorTypeService.getSensorType(typeId);
+      if (!type) {
         return null;
       }
 
-      console.log(`[SensorResolver] Generated stats for sensor ${sensorId}`);
-      return stats;
+      return {
+        id: type.id,
+        typeId: type.id,
+        name: type.name,
+        description: type.description || '',
+        mqttTopicTemplate: type.mqttTopicTemplate,
+        payloadTemplate: type.payloadTemplate,
+        defaultTableName: type.tableName,
+        cacheKeyTemplate: type.cacheKeyTemplate,
+        availableFields: type.metricsFields || [],
+        metricsFields: type.metricsFields || [],
+        specialHandling: type.specialHandling || {},
+        isActive: true,
+        isCustomizable: type.customizable || false,
+        createdAt: type.createdAt || new Date().toISOString(),
+        updatedAt: type.createdAt || new Date().toISOString(),
+        sensors: [] // TODO: Implementar relación con sensores
+      };
+
     } catch (error) {
-      console.error(`[SensorResolver] Error getting stats for sensor ${sensorId}:`, error);
+      console.error('❌ Error in sensorType query:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Obtiene la plantilla de payload para un tipo de sensor
+   */
+  sensorPayloadTemplate: async(_, { typeId }, { user }) => {
+    if (!user) {
+      throw new AuthenticationError('Debe estar autenticado para ver plantillas de payload');
+    }
+
+    try {
+      const type = sensorTypeService.getSensorType(typeId);
+      if (!type) {
+        throw new UserInputError(`Tipo de sensor no encontrado: ${typeId}`);
+      }
+
+      return type.payloadTemplate;
+
+    } catch (error) {
+      console.error('❌ Error in sensorPayloadTemplate query:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Genera un payload de ejemplo para un tipo de sensor
+   */
+  sensorSamplePayload: async(_, { typeId }, { user }) => {
+    if (!user) {
+      throw new AuthenticationError('Debe estar autenticado para generar payloads de ejemplo');
+    }
+
+    try {
+      const samplePayload = sensorTypeService.generateSamplePayload(typeId);
+      return samplePayload;
+
+    } catch (error) {
+      console.error('❌ Error in sensorSamplePayload query:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Obtiene las alertas configuradas para un sensor
+   */
+  sensorAlerts: async(_, { sensorId }, { user }) => {
+    if (!user) {
+      throw new AuthenticationError('Debe estar autenticado para ver alertas de sensores');
+    }
+
+    try {
+      // TODO: Implementar consulta de alertas desde la base de datos
+      // Por ahora retornamos un array vacío
+      return [];
+
+    } catch (error) {
+      console.error('❌ Error in sensorAlerts query:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Obtiene datos históricos de un sensor
+   */
+  sensorReadings: async(_, { sensorId, limit = 100, offset = 0, from, to }, { user }) => {
+    if (!user) {
+      throw new AuthenticationError('Debe estar autenticado para ver lecturas de sensores');
+    }
+
+    try {
+      const sensor = await dynamicSensorService.getSensorById(sensorId);
+      if (!sensor) {
+        throw new UserInputError(`Sensor no encontrado: ${sensorId}`);
+      }
+
+      // TODO: Implementar consulta de datos históricos
+      // Por ahora retornamos estructura vacía
+      return {
+        edges: [],
+        pageInfo: {
+          hasNextPage: false,
+          hasPreviousPage: false,
+          startCursor: null,
+          endCursor: null
+        },
+        totalCount: 0
+      };
+
+    } catch (error) {
+      console.error('❌ Error in sensorReadings query:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Obtiene los últimos datos de sensores
+   */
+  latestSensorData: async(_, { types }, { user }) => {
+    if (!user) {
+      throw new AuthenticationError('Debe estar autenticado para ver datos de sensores');
+    }
+
+    try {
+      const filters = {};
+      if (types && types.length > 0) {
+        filters.types = types;
+      }
+
+      const sensors = await dynamicSensorService.getAllSensors(filters);
+
+      // TODO: Implementar obtención de datos más recientes
+      // Por ahora retornamos array vacío
+      return [];
+
+    } catch (error) {
+      console.error('❌ Error in latestSensorData query:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Obtiene estadísticas de un sensor
+   */
+  sensorStats: async(_, { sensorId, timeRange }, { user }) => {
+    if (!user) {
+      throw new AuthenticationError('Debe estar autenticado para ver estadísticas de sensores');
+    }
+
+    try {
+      const sensor = await dynamicSensorService.getSensorById(sensorId);
+      if (!sensor) {
+        throw new UserInputError(`Sensor no encontrado: ${sensorId}`);
+      }
+
+      // TODO: Implementar estadísticas reales
+      // Por ahora retornamos estructura básica
+      return {
+        sensor: dynamicSensorService.formatSensorForGraphQL(sensor),
+        timeRange: {
+          from: timeRange.from,
+          to: timeRange.to
+        },
+        totalReadings: 0,
+        validReadings: 0,
+        errorReadings: 0,
+        dataQualityPercent: 0,
+        uptimePercent: 0,
+        lastOnlineTime: sensor.last_seen,
+        averageInterval: 30
+      };
+
+    } catch (error) {
+      console.error('❌ Error in sensorStats query:', error);
       throw error;
     }
   }

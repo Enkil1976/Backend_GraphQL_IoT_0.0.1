@@ -4,14 +4,14 @@ services:
   db-init:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.fixed
     env_file:
       - .env
     environment:
       - NODE_ENV=${NODE_ENV:-development}
-      # Configuración de PostgreSQL
+      # Configuración de PostgreSQL - usar hostname del servicio
       - PG_HOST=postgres
-      - PG_PORT=${PG_PORT:-5432}
+      - PG_PORT=5432
       - PG_DATABASE=${PG_DATABASE:-invernadero_iot}
       - PG_USER=${PG_USER:-postgres}
       - PG_PASSWORD=${PG_PASSWORD:-postgres123}
@@ -24,6 +24,8 @@ services:
       - ./package-lock.json:/usr/src/app/package-lock.json:ro
       - ./init-database.js:/usr/src/app/init-database.js:ro
       - ./sql:/usr/src/app/sql:ro
+      - ./migrations:/usr/src/app/migrations:ro
+      - ./apply-comprehensive-migration.js:/usr/src/app/apply-comprehensive-migration.js:ro
     command: ["init-db"]
     networks:
       - iot-network
@@ -33,7 +35,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.fixed
     ports:
       - "${PORT:-4001}:${PORT:-4001}"
     env_file:
@@ -41,9 +43,9 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV:-development}
       - PORT=${PORT:-4001}
-      # Configuración de PostgreSQL
+      # Configuración de PostgreSQL - usar hostname del servicio
       - PG_HOST=postgres
-      - PG_PORT=${PG_PORT:-5432}
+      - PG_PORT=5432
       - PG_DATABASE=${PG_DATABASE:-invernadero_iot}
       - PG_USER=${PG_USER:-postgres}
       - PG_PASSWORD=${PG_PASSWORD:-postgres123}
@@ -73,6 +75,8 @@ services:
       - ./package-lock.json:/usr/src/app/package-lock.json:ro
       - ./init-database.js:/usr/src/app/init-database.js:ro
       - ./sql:/usr/src/app/sql:ro
+      - ./migrations:/usr/src/app/migrations:ro
+      - ./apply-comprehensive-migration.js:/usr/src/app/apply-comprehensive-migration.js:ro
     command: ["start"]
     networks:
       - iot-network

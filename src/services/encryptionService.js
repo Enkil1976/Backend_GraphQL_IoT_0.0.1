@@ -13,7 +13,7 @@ class EncryptionService {
     this.ivLength = 16; // 128 bits
     this.tagLength = 16; // 128 bits
     this.saltLength = 32; // 256 bits
-    
+
     // Initialize encryption keys
     this.initializeKeys();
   }
@@ -24,7 +24,7 @@ class EncryptionService {
   async initializeKeys() {
     try {
       // Primary encryption key
-      this.masterKey = process.env.ENCRYPTION_MASTER_KEY 
+      this.masterKey = process.env.ENCRYPTION_MASTER_KEY
         ? Buffer.from(process.env.ENCRYPTION_MASTER_KEY, 'hex')
         : await this.generateKey();
 
@@ -39,7 +39,7 @@ class EncryptionService {
         : await this.generateKey();
 
       console.log('🔐 Encryption service initialized');
-      
+
       // Warn if using generated keys (should be in environment)
       if (!process.env.ENCRYPTION_MASTER_KEY) {
         console.warn('⚠️ Using generated encryption key - set ENCRYPTION_MASTER_KEY in production');
@@ -80,7 +80,7 @@ class EncryptionService {
 
       let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'hex');
       encrypted += cipher.final('hex');
-      
+
       const tag = cipher.getAuthTag();
 
       return {
@@ -107,11 +107,11 @@ class EncryptionService {
       }
 
       const decipher = crypto.createDecipher(
-        algorithm, 
-        key, 
+        algorithm,
+        key,
         { iv: Buffer.from(iv, 'hex') }
       );
-      
+
       decipher.setAuthTag(Buffer.from(tag, 'hex'));
 
       let decrypted = decipher.update(encrypted, 'hex', 'utf8');
@@ -128,7 +128,7 @@ class EncryptionService {
    */
   async encryptDBField(value) {
     if (!value) return null;
-    
+
     try {
       const result = await this.encrypt(value, 'database');
       return `encrypted:${JSON.stringify(result)}`;
@@ -162,10 +162,10 @@ class EncryptionService {
     try {
       const data = await fs.readFile(filePath);
       const encrypted = await this.encrypt(data.toString('base64'), 'file');
-      
+
       const output = outputPath || `${filePath}.encrypted`;
       await fs.writeFile(output, JSON.stringify(encrypted));
-      
+
       return output;
     } catch (error) {
       throw new Error(`File encryption failed: ${error.message}`);
@@ -180,10 +180,10 @@ class EncryptionService {
       const encryptedData = JSON.parse(await fs.readFile(encryptedFilePath, 'utf8'));
       const decryptedBase64 = await this.decrypt(encryptedData, 'file');
       const decryptedData = Buffer.from(decryptedBase64, 'base64');
-      
+
       const output = outputPath || encryptedFilePath.replace('.encrypted', '');
       await fs.writeFile(output, decryptedData);
-      
+
       return output;
     } catch (error) {
       throw new Error(`File decryption failed: ${error.message}`);
@@ -196,7 +196,7 @@ class EncryptionService {
   async hashWithSalt(data, providedSalt = null) {
     const salt = providedSalt || crypto.randomBytes(this.saltLength);
     const hash = crypto.pbkdf2Sync(data, salt, 100000, 64, 'sha512');
-    
+
     return {
       hash: hash.toString('hex'),
       salt: salt.toString('hex')
@@ -209,7 +209,7 @@ class EncryptionService {
   async verifyHash(data, hash, salt) {
     const saltBuffer = Buffer.from(salt, 'hex');
     const computedHash = crypto.pbkdf2Sync(data, saltBuffer, 100000, 64, 'sha512');
-    
+
     return crypto.timingSafeEqual(
       Buffer.from(hash, 'hex'),
       computedHash
@@ -230,12 +230,12 @@ class EncryptionService {
     const range = max - min + 1;
     const bytesNeeded = Math.ceil(Math.log2(range) / 8);
     const maxValidValue = Math.floor(256 ** bytesNeeded / range) * range - 1;
-    
+
     let randomValue;
     do {
       randomValue = crypto.randomBytes(bytesNeeded).readUIntBE(0, bytesNeeded);
     } while (randomValue > maxValidValue);
-    
+
     return min + (randomValue % range);
   }
 
@@ -261,7 +261,7 @@ class EncryptionService {
 
       let encrypted = cipher.update(JSON.stringify(backupData), 'utf8', 'hex');
       encrypted += cipher.final('hex');
-      
+
       const tag = cipher.getAuthTag();
 
       return {
@@ -298,7 +298,7 @@ class EncryptionService {
         backupKey,
         { iv: Buffer.from(iv, 'hex') }
       );
-      
+
       decipher.setAuthTag(Buffer.from(tag, 'hex'));
 
       let decrypted = decipher.update(encrypted, 'hex', 'utf8');
@@ -309,7 +309,7 @@ class EncryptionService {
       // Validate backup age (optional security check)
       const backupDate = new Date(backupData.timestamp);
       const maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
-      
+
       if (Date.now() - backupDate.getTime() > maxAge) {
         console.warn('⚠️ Backup is older than 30 days');
       }
@@ -326,7 +326,7 @@ class EncryptionService {
   async rotateKeys() {
     try {
       console.log('🔄 Starting key rotation...');
-      
+
       // Generate new keys
       const newMasterKey = await this.generateKey();
       const newDbKey = await this.generateKey();
@@ -365,14 +365,14 @@ class EncryptionService {
    */
   getKey(keyType) {
     switch (keyType) {
-      case 'master':
-        return this.masterKey;
-      case 'database':
-        return this.dbKey;
-      case 'file':
-        return this.fileKey;
-      default:
-        throw new Error(`Unknown key type: ${keyType}`);
+    case 'master':
+      return this.masterKey;
+    case 'database':
+      return this.dbKey;
+    case 'file':
+      return this.fileKey;
+    default:
+      throw new Error(`Unknown key type: ${keyType}`);
     }
   }
 
@@ -392,9 +392,9 @@ class EncryptionService {
     return {
       algorithm: this.algorithm,
       keyLength: this.keyLength,
-      initialized: !!(this.masterKey && this.dbKey && this.fileKey),
-      hasOldKeys: !!this.oldKeys,
-      secureRandomAvailable: crypto.constants ? true : false
+      initialized: Boolean(this.masterKey && this.dbKey && this.fileKey),
+      hasOldKeys: Boolean(this.oldKeys),
+      secureRandomAvailable: Boolean(crypto.constants)
     };
   }
 }

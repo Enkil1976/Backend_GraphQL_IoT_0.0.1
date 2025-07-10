@@ -20,7 +20,7 @@ const notificationSubscriptions = {
           }
 
           const notification = payload.newNotification;
-          
+
           // Check if this notification is for the current user
           if (notification.user_id && notification.user_id !== context.user.id) {
             // Only admin can see all notifications
@@ -51,7 +51,7 @@ const notificationSubscriptions = {
     ),
     resolve: (payload) => {
       const notification = payload.newNotification;
-      
+
       return {
         ...notification,
         type: notification.type || 'INFO_MESSAGE',
@@ -82,7 +82,7 @@ const notificationSubscriptions = {
           }
 
           const notification = payload.notificationUpdated;
-          
+
           // Check if this notification belongs to the current user
           if (notification.user_id && notification.user_id !== context.user.id) {
             // Only admin can see all notifications

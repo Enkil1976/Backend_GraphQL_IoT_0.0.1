@@ -75,9 +75,12 @@ const baseTypeDefs = gql`
   }
 
   type ValidationResult {
+    valid: Boolean!
     isValid: Boolean!
     errors: [ValidationError!]!
+    errorMessages: [String!]!
     warnings: [String!]!
+    validatedPayload: JSON
   }
 `;
 

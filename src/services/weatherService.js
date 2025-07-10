@@ -8,7 +8,7 @@ class WeatherService {
     this.apiKey = process.env.WEATHER_API_KEY;
     this.baseUrl = 'http://api.weatherapi.com/v1';
     this.location = process.env.WEATHER_LOCATION || 'las chilcas,Villarrica,Chile';
-    
+
     if (!this.apiKey) {
       console.warn('[WeatherService] WEATHER_API_KEY not configured. Service disabled.');
     }
@@ -27,9 +27,9 @@ class WeatherService {
     try {
       const searchLocation = location || this.location;
       const url = `${this.baseUrl}/current.json`;
-      
+
       console.log(`[WeatherService] Fetching current weather for: ${searchLocation}`);
-      
+
       const response = await axios.get(url, {
         params: {
           key: this.apiKey,
@@ -41,7 +41,7 @@ class WeatherService {
       });
 
       const data = response.data;
-      
+
       // Format data according to GraphQL schema
       const weatherData = {
         id: `weather_${Date.now()}`,
@@ -96,7 +96,7 @@ class WeatherService {
     try {
       const weatherData = await this.getCurrentWeather(location);
       const savedData = await this.saveWeatherToDB(weatherData);
-      
+
       // Publish to subscribers
       await pubsub.publish(EVENTS.WEATHER_DATA_UPDATED, {
         weatherDataUpdated: { ...weatherData, id: savedData.id }
@@ -201,7 +201,7 @@ class WeatherService {
   async getWeatherHistory(hours = 24, limit = 100, page = 1) {
     try {
       const offset = (page - 1) * limit;
-      
+
       // Get total count
       const countQuery = `
         SELECT COUNT(*) as total
@@ -433,7 +433,7 @@ class WeatherService {
   getWeatherConfig() {
     return {
       isConfigured: this.isConfigured(),
-      hasApiKey: !!this.apiKey,
+      hasApiKey: Boolean(this.apiKey),
       currentLocation: this.location,
       defaultLocation: process.env.WEATHER_LOCATION || 'las chilcas,Villarrica,Chile',
       apiProvider: 'WeatherAPI.com',
@@ -457,15 +457,15 @@ class WeatherService {
   async updateWeatherConfig(input) {
     try {
       const { location } = input;
-      
+
       // Test the location first
       await this.getCurrentWeather(location);
-      
+
       // Update if test successful
       this.updateLocation(location);
-      
+
       const updatedConfig = this.getWeatherConfig();
-      
+
       // Publish config change
       await pubsub.publish(EVENTS.WEATHER_CONFIG_CHANGED, {
         weatherConfigChanged: updatedConfig
@@ -495,7 +495,7 @@ class WeatherService {
   async testWeatherLocation(location) {
     try {
       const testWeather = await this.getCurrentWeather(location);
-      
+
       return {
         success: true,
         message: `Location "${location}" is valid`,
@@ -530,7 +530,7 @@ class WeatherService {
         ...weatherData,
         cachedAt: new Date()
       };
-      
+
       await cache.set(key, cacheData, 300); // 5 minutes cache
       console.log('[WeatherService] Weather data cached in Redis');
     } catch (error) {
@@ -546,12 +546,12 @@ class WeatherService {
     try {
       const key = 'weather:latest';
       const cachedData = await cache.get(key);
-      
+
       if (cachedData) {
         console.log('[WeatherService] Retrieved cached weather data from Redis');
         return cachedData;
       }
-      
+
       return null;
     } catch (error) {
       console.error('[WeatherService] Error getting cached weather data:', error.message);
@@ -606,10 +606,10 @@ class WeatherService {
   calculateDewPoint(temp, humidity) {
     const a = 17.27;
     const b = 237.7;
-    
+
     const alpha = ((a * temp) / (b + temp)) + Math.log(humidity / 100);
     const dewPoint = (b * alpha) / (a - alpha);
-    
+
     return Math.round(dewPoint * 10) / 10;
   }
 
@@ -618,7 +618,7 @@ class WeatherService {
    * @returns {boolean} True if configured
    */
   isConfigured() {
-    return !!this.apiKey;
+    return Boolean(this.apiKey);
   }
 
   /**
@@ -629,7 +629,7 @@ class WeatherService {
     if (!newLocation || typeof newLocation !== 'string') {
       throw new Error('Invalid location parameter. Must be a non-empty string.');
     }
-    
+
     const cleanLocation = newLocation.trim();
     console.log(`[WeatherService] Updating location from '${this.location}' to '${cleanLocation}'`);
     this.location = cleanLocation;

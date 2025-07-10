@@ -13,12 +13,24 @@ extend type Query {
   ): SensorReadingConnection!
   latestSensorData(types: [SensorType!]): [SensorReading!]!
   sensorStats(sensorId: ID!, timeRange: TimeRange!): SensorStatistics!
+  
+  # Dynamic Sensor Management
+  sensorTypes: [SensorTypeDefinition!]!
+  sensorType(typeId: String!): SensorTypeDefinition
+  sensorPayloadTemplate(typeId: String!): JSON!
+  sensorSamplePayload(typeId: String!): JSON!
+  sensorAlerts(sensorId: ID): [SensorAlert!]!
 }
 
 extend type Subscription {
   # Real-time sensor data
   sensorDataUpdated(sensorTypes: [SensorType!]): SensorReading!
   sensorStatusChanged: Sensor!
+  
+  # Dynamic sensor subscriptions
+  sensorCreated: Sensor!
+  sensorDeleted: DeletedSensor!
+  sensorAlertTriggered: SensorAlert!
 }
 
 # Sensor Types
@@ -147,6 +159,16 @@ enum SensorType {
   SOIL_MOISTURE
   LIGHT_SENSOR
   CO2_SENSOR
+  
+  # Dynamic sensor types
+  TEMHUM
+  TEMP_PRESSURE
+  WATER_QUALITY
+  LIGHT
+  CO2
+  MOTION
+  CUSTOM
+  SYSTEM
 }
 
 enum TrendDirection {
@@ -154,4 +176,193 @@ enum TrendDirection {
   DOWN
   STABLE
   VOLATILE
+}
+
+# Dynamic Sensor Management Types
+
+extend type Mutation {
+  # Create/Update/Delete Sensors
+  createSensor(input: CreateSensorInput!): Sensor!
+  updateSensor(id: ID!, input: UpdateSensorInput!): Sensor!
+  deleteSensor(id: ID!): DeletedSensor!
+  
+  # Sensor configuration
+  configureSensorAlerts(sensorId: ID!, alerts: [SensorAlertInput!]!): [SensorAlert!]!
+  testSensorPayload(sensorId: ID!, payload: JSON!): ValidationResult!
+  
+  # Sensor types management
+  createSensorType(input: CreateSensorTypeInput!): SensorTypeDefinition!
+  updateSensorType(typeId: String!, input: UpdateSensorTypeInput!): SensorTypeDefinition!
+  deleteSensorType(typeId: String!): DeletedSensorType!
+}
+
+input CreateSensorInput {
+  sensorId: String!
+  name: String!
+  type: String!
+  description: String
+  location: String
+  
+  # MQTT Configuration
+  mqttTopic: String
+  hardwareId: String
+  
+  # Database Configuration
+  tableName: String
+  
+  # Payload and validation
+  payloadTemplate: JSON
+  validationRules: JSON
+  
+  # Configuration
+  samplingInterval: Int
+  retentionDays: Int
+  alertThresholds: JSON
+  
+  # Custom fields for CUSTOM sensor type
+  customFields: JSON
+}
+
+input UpdateSensorInput {
+  name: String
+  description: String
+  location: String
+  
+  # Configuration updates
+  isActive: Boolean
+  samplingInterval: Int
+  retentionDays: Int
+  alertThresholds: JSON
+  
+  # Custom fields updates
+  customFields: JSON
+}
+
+input CreateSensorTypeInput {
+  typeId: String!
+  name: String!
+  description: String
+  
+  # Templates
+  mqttTopicTemplate: String!
+  payloadTemplate: JSON!
+  
+  # Database configuration
+  defaultTableName: String!
+  cacheKeyTemplate: String!
+  
+  # Fields configuration
+  availableFields: [String!]!
+  metricsFields: [String!]!
+  
+  # Special handling
+  specialHandling: JSON
+  isCustomizable: Boolean
+}
+
+input UpdateSensorTypeInput {
+  name: String
+  description: String
+  payloadTemplate: JSON
+  availableFields: [String!]
+  metricsFields: [String!]
+  specialHandling: JSON
+  isActive: Boolean
+  isCustomizable: Boolean
+}
+
+input SensorAlertInput {
+  alertName: String!
+  fieldName: String!
+  conditionType: AlertConditionType!
+  thresholdValue: Float
+  thresholdMin: Float
+  thresholdMax: Float
+  notificationChannels: [String!]
+  cooldownMinutes: Int
+  isActive: Boolean
+}
+
+type SensorTypeDefinition {
+  id: ID!
+  typeId: String!
+  name: String!
+  description: String
+  
+  # Templates
+  mqttTopicTemplate: String!
+  payloadTemplate: JSON!
+  
+  # Database configuration
+  defaultTableName: String!
+  cacheKeyTemplate: String!
+  
+  # Fields configuration
+  availableFields: [String!]!
+  metricsFields: [String!]!
+  
+  # Special handling
+  specialHandling: JSON
+  isActive: Boolean!
+  isCustomizable: Boolean!
+  
+  # Metadata
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  
+  # Associated sensors
+  sensors: [Sensor!]!
+}
+
+type SensorAlert {
+  id: ID!
+  sensor: Sensor!
+  alertName: String!
+  fieldName: String!
+  conditionType: AlertConditionType!
+  
+  # Thresholds
+  thresholdValue: Float
+  thresholdMin: Float
+  thresholdMax: Float
+  
+  # Status
+  isActive: Boolean!
+  isTriggered: Boolean!
+  lastTriggered: DateTime
+  triggerCount: Int!
+  
+  # Notification configuration
+  notificationChannels: [String!]!
+  cooldownMinutes: Int!
+  
+  # Metadata
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  createdBy: User
+}
+
+type DeletedSensor {
+  id: ID!
+  sensorId: String!
+  name: String!
+  deletedAt: DateTime!
+  deletedBy: User
+}
+
+type DeletedSensorType {
+  typeId: String!
+  name: String!
+  deletedAt: DateTime!
+  deletedBy: User
+}
+
+
+enum AlertConditionType {
+  ABOVE
+  BELOW
+  EQUALS
+  RANGE
+  CHANGE_RATE
+  MISSING_DATA
 }

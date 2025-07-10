@@ -40,7 +40,7 @@ const resolvers = {
   Notification,
   NotificationTemplate,
   TemplateVariable,
-  NotificationAction,
+  NotificationAction
 };
 
 module.exports = resolvers;

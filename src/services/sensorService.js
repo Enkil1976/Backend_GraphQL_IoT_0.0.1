@@ -26,12 +26,12 @@ class SensorService {
    */
   async getSensors(filters = {}) {
     console.log('[SensorService] Getting sensors with filters:', filters);
-    
+
     try {
       // For this IoT system, sensors are not stored as separate entities
       // but are represented by the actual data tables and latest data
       const sensors = [];
-      
+
       const sensorConfigs = [
         {
           id: 'temhum1',
@@ -41,7 +41,7 @@ class SensorService {
           description: 'Sensor de temperatura y humedad ambiente principal'
         },
         {
-          id: 'temhum2', 
+          id: 'temhum2',
           name: 'Sensor Temperatura/Humedad 2',
           type: 'TEMHUM2',
           location: 'Invernadero Principal - Zona B',
@@ -67,7 +67,7 @@ class SensorService {
       let powerSensors = { rows: [] };
       try {
         powerSensors = await query(
-          "SELECT id, name, device_id, config FROM devices WHERE type = 'power_sensor'"
+          'SELECT id, name, device_id, config FROM devices WHERE type = \'power_sensor\''
         );
       } catch (error) {
         console.warn('[SensorService] Could not query devices table (might not exist yet):', error.message);
@@ -126,11 +126,11 @@ class SensorService {
    */
   async getSensorById(id) {
     console.log(`[SensorService] Getting sensor by ID: ${id}`);
-    
+
     try {
       const sensors = await this.getSensors();
       const sensor = sensors.find(s => s.id === id);
-      
+
       if (!sensor) {
         throw new Error(`Sensor with ID ${id} not found`);
       }
@@ -158,7 +158,7 @@ class SensorService {
       // Determine table and build query based on sensor type
       if (sensorId === 'temhum1' || sensorId === 'temhum2') {
         tableName = sensorId;
-        
+
         if (from) {
           conditions.push(`received_at >= $${paramCount++}`);
           values.push(from);
@@ -216,7 +216,7 @@ class SensorService {
 
       } else if (sensorId === 'calidad_agua') {
         tableName = 'calidad_agua';
-        
+
         if (from) {
           conditions.push(`received_at >= $${paramCount++}`);
           values.push(from);
@@ -261,7 +261,7 @@ class SensorService {
 
       } else if (sensorId === 'luxometro') {
         tableName = 'luxometro';
-        
+
         if (from) {
           conditions.push(`received_at >= $${paramCount++}`);
           values.push(from);
@@ -319,7 +319,7 @@ class SensorService {
       } else if (sensorId.startsWith('power_')) {
         const deviceId = sensorId.replace('power_', '');
         tableName = 'power_monitor_logs';
-        
+
         conditions.push(`device_hardware_id = $${paramCount++}`);
         values.push(deviceId);
 
@@ -390,7 +390,7 @@ class SensorService {
     if (typeof types === 'string') {
       const singleType = types;
       types = [singleType.toUpperCase()];
-      
+
       // For single type queries, return the data object directly
       if (singleType === 'temhum1') {
         return await cache.hgetall('sensor_latest:temhum1');
@@ -406,102 +406,102 @@ class SensorService {
       return null;
     }
     console.log('[SensorService] Getting latest sensor data for types:', types);
-    
+
     try {
       const latestReadings = [];
 
       for (const type of types) {
         let data;
-        
+
         switch (type) {
-          case 'TEMHUM1':
-            data = await mqttService.getLatestData('temhum1');
-            if (data) {
-              latestReadings.push({
-                id: `temhum1_latest`,
-                sensorId: 'temhum1',
-                timestamp: data.last_updated,
-                temperatura: parseFloat(data.temperatura),
-                humedad: parseFloat(data.humedad),
-                heatIndex: data.heatindex ? parseFloat(data.heatindex) : null,
-                dewPoint: data.dewpoint ? parseFloat(data.dewpoint) : null,
-                rssi: data.rssi ? parseInt(data.rssi) : null
-              });
-            }
-            break;
+        case 'TEMHUM1':
+          data = await mqttService.getLatestData('temhum1');
+          if (data) {
+            latestReadings.push({
+              id: 'temhum1_latest',
+              sensorId: 'temhum1',
+              timestamp: data.last_updated,
+              temperatura: parseFloat(data.temperatura),
+              humedad: parseFloat(data.humedad),
+              heatIndex: data.heatindex ? parseFloat(data.heatindex) : null,
+              dewPoint: data.dewpoint ? parseFloat(data.dewpoint) : null,
+              rssi: data.rssi ? parseInt(data.rssi) : null
+            });
+          }
+          break;
 
-          case 'TEMHUM2':
-            data = await mqttService.getLatestData('temhum2');
-            if (data) {
-              latestReadings.push({
-                id: `temhum2_latest`,
-                sensorId: 'temhum2',
-                timestamp: data.last_updated,
-                temperatura: parseFloat(data.temperatura),
-                humedad: parseFloat(data.humedad),
-                heatIndex: data.heatindex ? parseFloat(data.heatindex) : null,
-                dewPoint: data.dewpoint ? parseFloat(data.dewpoint) : null,
-                rssi: data.rssi ? parseInt(data.rssi) : null
-              });
-            }
-            break;
+        case 'TEMHUM2':
+          data = await mqttService.getLatestData('temhum2');
+          if (data) {
+            latestReadings.push({
+              id: 'temhum2_latest',
+              sensorId: 'temhum2',
+              timestamp: data.last_updated,
+              temperatura: parseFloat(data.temperatura),
+              humedad: parseFloat(data.humedad),
+              heatIndex: data.heatindex ? parseFloat(data.heatindex) : null,
+              dewPoint: data.dewpoint ? parseFloat(data.dewpoint) : null,
+              rssi: data.rssi ? parseInt(data.rssi) : null
+            });
+          }
+          break;
 
-          case 'CALIDAD_AGUA':
-            data = await mqttService.getLatestData('calidad_agua');
-            if (data) {
-              latestReadings.push({
-                id: `calidad_agua_latest`,
-                sensorId: 'calidad_agua',
-                timestamp: data.last_updated_multiparam || data.last_updated_temp_agua,
-                ph: data.ph ? parseFloat(data.ph) : null,
-                ec: data.ec ? parseFloat(data.ec) : null,
-                ppm: data.ppm ? parseFloat(data.ppm) : null,
-                temperaturaAgua: data.temperatura_agua ? parseFloat(data.temperatura_agua) : null
-              });
-            }
-            break;
+        case 'CALIDAD_AGUA':
+          data = await mqttService.getLatestData('calidad_agua');
+          if (data) {
+            latestReadings.push({
+              id: 'calidad_agua_latest',
+              sensorId: 'calidad_agua',
+              timestamp: data.last_updated_multiparam || data.last_updated_temp_agua,
+              ph: data.ph ? parseFloat(data.ph) : null,
+              ec: data.ec ? parseFloat(data.ec) : null,
+              ppm: data.ppm ? parseFloat(data.ppm) : null,
+              temperaturaAgua: data.temperatura_agua ? parseFloat(data.temperatura_agua) : null
+            });
+          }
+          break;
 
-          case 'LUXOMETRO':
-            data = await mqttService.getLatestData('luxometro');
-            if (data) {
-              latestReadings.push({
-                id: `luxometro_latest`,
-                sensorId: 'luxometro',
-                timestamp: data.last_updated,
-                light: data.light ? parseFloat(data.light) : null,
-                whiteLight: data.white_light ? parseFloat(data.white_light) : null,
-                rawLight: data.raw_light ? parseFloat(data.raw_light) : null,
-                rssi: data.rssi ? parseInt(data.rssi) : null
-              });
-            }
-            break;
+        case 'LUXOMETRO':
+          data = await mqttService.getLatestData('luxometro');
+          if (data) {
+            latestReadings.push({
+              id: 'luxometro_latest',
+              sensorId: 'luxometro',
+              timestamp: data.last_updated,
+              light: data.light ? parseFloat(data.light) : null,
+              whiteLight: data.white_light ? parseFloat(data.white_light) : null,
+              rawLight: data.raw_light ? parseFloat(data.raw_light) : null,
+              rssi: data.rssi ? parseInt(data.rssi) : null
+            });
+          }
+          break;
 
-          case 'POWER_MONITOR':
-            // Get all power sensors (if table exists)
-            try {
-              const powerSensors = await query(
-                "SELECT device_id FROM devices WHERE type = 'power_sensor'"
-              );
-              
-              for (const sensor of powerSensors.rows) {
-                data = await mqttService.getLatestData('power', sensor.device_id);
-                if (data) {
-                  latestReadings.push({
-                    id: `power_${sensor.device_id}_latest`,
-                    sensorId: `power_${sensor.device_id}`,
-                    timestamp: data.last_updated,
-                    watts: data.watts ? parseFloat(data.watts) : null,
-                    voltage: data.voltage ? parseFloat(data.voltage) : null,
-                    current: data.current ? parseFloat(data.current) : null,
-                    frequency: data.frequency ? parseFloat(data.frequency) : null,
-                    powerFactor: data.power_factor ? parseFloat(data.power_factor) : null
-                  });
-                }
+        case 'POWER_MONITOR':
+          // Get all power sensors (if table exists)
+          try {
+            const powerSensors = await query(
+              'SELECT device_id FROM devices WHERE type = \'power_sensor\''
+            );
+
+            for (const sensor of powerSensors.rows) {
+              data = await mqttService.getLatestData('power', sensor.device_id);
+              if (data) {
+                latestReadings.push({
+                  id: `power_${sensor.device_id}_latest`,
+                  sensorId: `power_${sensor.device_id}`,
+                  timestamp: data.last_updated,
+                  watts: data.watts ? parseFloat(data.watts) : null,
+                  voltage: data.voltage ? parseFloat(data.voltage) : null,
+                  current: data.current ? parseFloat(data.current) : null,
+                  frequency: data.frequency ? parseFloat(data.frequency) : null,
+                  powerFactor: data.power_factor ? parseFloat(data.power_factor) : null
+                });
               }
-            } catch (error) {
-              console.warn('[SensorService] Could not query devices table for power sensors:', error.message);
             }
-            break;
+          } catch (error) {
+            console.warn('[SensorService] Could not query devices table for power sensors:', error.message);
+          }
+          break;
         }
       }
 
@@ -521,14 +521,14 @@ class SensorService {
    */
   async getSensorStats(sensorId, timeRange) {
     console.log(`[SensorService] Getting stats for sensor ${sensorId}`, timeRange);
-    
+
     try {
       const { from, to } = timeRange;
       let tableName, statsQuery, conditions = [], values = [], paramCount = 1;
 
       if (sensorId === 'temhum1' || sensorId === 'temhum2') {
         tableName = sensorId;
-        
+
         if (from) {
           conditions.push(`received_at >= $${paramCount++}`);
           values.push(from);
@@ -539,7 +539,7 @@ class SensorService {
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-        
+
         statsQuery = `
           SELECT 
             COUNT(*) as total_readings,
@@ -595,7 +595,7 @@ class SensorService {
 
       } else if (sensorId === 'calidad_agua') {
         tableName = 'calidad_agua';
-        
+
         if (from) {
           conditions.push(`received_at >= $${paramCount++}`);
           values.push(from);
@@ -606,7 +606,7 @@ class SensorService {
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-        
+
         statsQuery = `
           SELECT 
             COUNT(*) as total_readings,
@@ -672,7 +672,7 @@ class SensorService {
 
       } else if (sensorId === 'luxometro') {
         tableName = 'luxometro';
-        
+
         if (from) {
           conditions.push(`received_at >= $${paramCount++}`);
           values.push(from);
@@ -683,7 +683,7 @@ class SensorService {
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-        
+
         statsQuery = `
           SELECT 
             COUNT(*) as total_readings,
@@ -761,14 +761,14 @@ class SensorService {
   /**
    * Helper methods
    */
-  
+
   isSensorOnline(lastUpdated) {
     if (!lastUpdated) return false;
-    
+
     const lastUpdate = new Date(lastUpdated);
     const now = new Date();
     const diffMinutes = (now - lastUpdate) / (1000 * 60);
-    
+
     // Consider sensor online if last update was within 30 minutes
     return diffMinutes <= 30;
   }
@@ -776,28 +776,28 @@ class SensorService {
   calculateUptimePercent(firstReading, lastReading, from, to) {
     // Simplified uptime calculation
     if (!firstReading || !lastReading) return 0;
-    
+
     const start = from ? new Date(from) : new Date(firstReading);
     const end = to ? new Date(to) : new Date(lastReading);
     const totalTime = end - start;
     const activeTime = new Date(lastReading) - new Date(firstReading);
-    
+
     return totalTime > 0 ? Math.min((activeTime / totalTime) * 100, 100) : 0;
   }
 
   calculateAverageInterval(firstReading, lastReading, totalReadings) {
     if (!firstReading || !lastReading || totalReadings <= 1) return 0;
-    
+
     const totalTime = new Date(lastReading) - new Date(firstReading);
     const totalSeconds = totalTime / 1000;
-    
+
     return totalSeconds / (totalReadings - 1);
   }
 
   buildPaginatedResponse(data, totalCount, limit, offset) {
     const hasNextPage = offset + limit < totalCount;
     const hasPreviousPage = offset > 0;
-    
+
     const edges = data.map((item, index) => ({
       cursor: Buffer.from(`${offset + index}`).toString('base64'),
       node: item

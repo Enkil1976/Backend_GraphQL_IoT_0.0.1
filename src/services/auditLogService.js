@@ -18,7 +18,7 @@ class AuditLogService {
   setupWinstonLogger() {
     const fs = require('fs');
     const path = require('path');
-    
+
     // Create logs directory if it doesn't exist
     const logsDir = path.join(process.cwd(), 'logs');
     try {
@@ -42,14 +42,14 @@ class AuditLogService {
     try {
       fs.accessSync(logsDir, fs.constants.W_OK);
       transports.push(
-        new winston.transports.File({ 
-          filename: 'logs/audit-error.log', 
+        new winston.transports.File({
+          filename: 'logs/audit-error.log',
           level: 'error',
           maxsize: 5242880, // 5MB
           maxFiles: 10,
           tailable: true
         }),
-        new winston.transports.File({ 
+        new winston.transports.File({
           filename: 'logs/audit-combined.log',
           maxsize: 5242880, // 5MB
           maxFiles: 20,
@@ -129,7 +129,7 @@ class AuditLogService {
       resource_type: logData.resource_type,
       resource_id: logData.resource_id
     });
-    
+
     const secret = process.env.AUDIT_SECRET || process.env.JWT_SECRET || 'audit-secret';
     return crypto.createHmac('sha256', secret).update(payload).digest('hex');
   }
@@ -214,7 +214,7 @@ class AuditLogService {
   /**
    * Specific audit log methods for common events
    */
-  
+
   async logAuthentication(username, success, clientIP, userAgent, method = 'password') {
     return this.logEvent({
       eventType: 'AUTHENTICATION',
@@ -239,7 +239,7 @@ class AuditLogService {
       resourceId: deviceId,
       oldValues: { status: device.previous_status },
       newValues: { status: device.status },
-      metadata: { 
+      metadata: {
         device_name: device.name,
         device_type: device.type,
         location: device.location
@@ -432,7 +432,7 @@ class AuditLogService {
 
       const log = result.rows[0];
       const expectedChecksum = this.generateChecksum(log);
-      
+
       return {
         valid: log.checksum === expectedChecksum,
         stored_checksum: log.checksum,
@@ -456,7 +456,7 @@ class AuditLogService {
 
       const deletedCount = result.rowCount;
       console.log(`🧹 Cleaned up ${deletedCount} old audit log entries`);
-      
+
       return deletedCount;
     } catch (error) {
       console.error('❌ Failed to cleanup old audit logs:', error);

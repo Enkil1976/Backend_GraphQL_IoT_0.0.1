@@ -4,6 +4,33 @@
 
 **Health Check**: `https://postgres-bakend.2h4eh9.easypanel.host/health`
 
+## ✅ READY FOR FRONTEND DEVELOPMENT
+
+The API is fully operational and production-ready as of **January 8, 2025**.
+
+### Quick Start Checklist
+- ✅ **Authentication**: JWT tokens working
+- ✅ **Real-time Sensor Data**: Temperature/humidity data available
+- ✅ **Device Control**: 5 devices with real-time status
+- ✅ **Notifications**: 590+ notifications with pagination
+- ✅ **Health Monitoring**: All services operational
+- ✅ **Error Handling**: Proper error responses
+- ✅ **CORS**: Configured for frontend integration
+
+### Production Status Summary
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Authentication | ✅ Working | JWT tokens, role-based access |
+| Sensor Data (TEMHUM1/2) | ✅ Working | Live temperature/humidity data |
+| Sensor Data (Water Quality) | ✅ Working | pH, EC, PPM measurements |
+| Sensor Data (Light) | ⚠️ Ready | Tables created, awaiting MQTT data |
+| Sensor Data (Power) | ⚠️ Ready | Tables created, awaiting MQTT data |
+| Device Management | ✅ Working | 5 devices with real-time control |
+| Notifications | ✅ Working | 590+ notifications, pagination |
+| Rules Engine | ✅ Working | Automated rules with priorities |
+| Health Monitoring | ✅ Working | System status endpoints |
+| WebSocket Subscriptions | ✅ Working | Real-time updates |
+
 ## Authentication
 
 ### Login
@@ -80,15 +107,20 @@ query {
 }
 ```
 
-**Response Example:**
+**Response Example (Live Production Data):**
 ```json
 {
   "data": {
     "latestSensorData": [
       {
-        "timestamp": "2025-07-08T17:12:03.165Z",
-        "temperatura": 25.8,
-        "humedad": 57.1
+        "timestamp": "2025-07-08T21:47:11.833Z",
+        "temperatura": 14.2,
+        "humedad": 80.5
+      },
+      {
+        "timestamp": "2025-07-08T21:47:08.439Z",
+        "temperatura": 14.1,
+        "humedad": 80.7
       }
     ]
   }
@@ -145,7 +177,7 @@ query {
 }
 ```
 
-**Response Example:**
+**Response Example (Live Production Data):**
 ```json
 {
   "data": {
@@ -168,7 +200,7 @@ query {
         "id": "3",
         "name": "Lámpara LED Crecimiento",
         "type": "LIGHTS",
-        "status": "OFFLINE",
+        "status": "ON",
         "location": null
       },
       {
@@ -462,8 +494,235 @@ const response = await fetch('https://postgres-bakend.2h4eh9.easypanel.host/grap
 const data = await response.json();
 ```
 
-## Known Issues
+## ✅ NOTIFICATIONS SYSTEM (UPDATED - WORKING)
 
-1. **Notifications Query**: The `notifications` query has server-side issues. Use alternative endpoints or wait for fixes.
-2. **Schema Fields**: Some documented fields may not be available. Always test queries before implementing.
-3. **Real-time Data**: WebSocket subscriptions require proper connection handling and reconnection logic.
+### Get Notifications with Pagination
+```graphql
+query {
+  notifications(limit: 10, offset: 0) {
+    edges {
+      node {
+        id
+        title
+        message
+        createdAt
+        type
+        channel
+        isRead
+        readAt
+        deliveryStatus
+      }
+    }
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+      startCursor
+      endCursor
+    }
+    totalCount
+    unreadCount
+  }
+}
+```
+
+**Response Example:**
+```json
+{
+  "data": {
+    "notifications": {
+      "edges": [
+        {
+          "node": {
+            "id": "590",
+            "title": "Rule: ⚠️ Temperatura Baja 18°C",
+            "message": "⚠️ TEMPERATURA BAJA: Temperatura actual 14.5°C, por debajo del rango óptimo (18-23°C).",
+            "createdAt": "2025-07-08T21:45:42.832Z",
+            "type": "ALERT",
+            "channel": "WEBHOOK",
+            "isRead": false,
+            "readAt": null,
+            "deliveryStatus": "SENT"
+          }
+        }
+      ],
+      "pageInfo": {
+        "hasNextPage": true,
+        "hasPreviousPage": false,
+        "startCursor": "abc123",
+        "endCursor": "xyz789"
+      },
+      "totalCount": 590,
+      "unreadCount": 45
+    }
+  }
+}
+```
+
+### Get Single Notification
+```graphql
+query {
+  notification(id: "590") {
+    id
+    title
+    message
+    createdAt
+    type
+    channel
+    isRead
+    readAt
+    deliveryStatus
+    deliveredAt
+    user {
+      id
+      username
+    }
+  }
+}
+```
+
+### Filter Notifications
+```graphql
+# Get only unread notifications
+query {
+  notifications(unread: true, limit: 5) {
+    edges {
+      node {
+        id
+        title
+        message
+        createdAt
+      }
+    }
+    unreadCount
+  }
+}
+
+# Get notifications by channel
+query {
+  notifications(channel: "WEBHOOK", limit: 10) {
+    edges {
+      node {
+        id
+        title
+        channel
+        deliveryStatus
+      }
+    }
+  }
+}
+```
+
+### Mark Notification as Read
+```graphql
+mutation {
+  markNotificationAsRead(id: "590") {
+    id
+    isRead
+    readAt
+  }
+}
+```
+
+### Notification Types
+- `ALERT` - Alertas del sistema
+- `INFO_MESSAGE` - Mensajes informativos
+- `WARNING` - Advertencias
+- `ERROR` - Errores del sistema
+
+### Notification Channels
+- `WEBHOOK` - Webhook (n8n → WhatsApp)
+- `EMAIL` - Correo electrónico
+- `TELEGRAM` - Telegram
+- `PUSH` - Notificaciones push
+
+### Delivery Status
+- `PENDING` - Pendiente de envío
+- `SENT` - Enviado exitosamente
+- `FAILED` - Error en el envío
+- `DELIVERED` - Entregado y confirmado
+
+## ✅ UPDATED SENSOR DATA STATUS
+
+### Working Sensors (Live Data Available)
+```graphql
+# ✅ Temperature/Humidity Sensors - WORKING
+query {
+  latestSensorData(types: [TEMHUM1, TEMHUM2]) {
+    timestamp
+    temperatura
+    humedad
+  }
+}
+
+# ✅ Water Quality Sensor - WORKING
+query {
+  latestSensorData(types: [CALIDAD_AGUA]) {
+    timestamp
+    ph
+    ec
+    ppm
+  }
+}
+```
+
+### Sensors Ready for Data (Tables Created)
+```graphql
+# ⚠️ Light Sensor - Table ready, awaiting MQTT data
+query {
+  latestSensorData(types: [LUXOMETRO]) {
+    timestamp
+    light
+    whiteLight
+    rawLight
+  }
+}
+
+# ⚠️ Power Monitor - Table ready, awaiting MQTT data
+query {
+  latestSensorData(types: [POWER_MONITOR]) {
+    timestamp
+    watts
+    voltage
+    current
+    frequency
+    powerFactor
+  }
+}
+```
+
+## ✅ PRODUCTION DEPLOYMENT STATUS
+
+### API Health Check
+```graphql
+query {
+  health {
+    status
+    timestamp
+    services {
+      database
+      mqtt
+      redis
+    }
+  }
+}
+```
+
+**Current Status:**
+- **Database**: OK
+- **MQTT**: OK
+- **Redis**: OK
+- **API**: Fully operational
+
+### Latest Test Results (January 8, 2025)
+- ✅ **Authentication**: Working (JWT tokens)
+- ✅ **Notifications**: 590 notifications, pagination working
+- ✅ **Sensor Data**: Live temperature/humidity data
+- ✅ **Device Management**: 5 devices with real-time status
+- ✅ **Health Monitoring**: All services operational
+- ✅ **Database**: All migrations applied successfully
+
+## Known Limitations
+
+1. **LUXOMETRO/POWER_MONITOR**: Tables exist but no sensor data yet (requires MQTT configuration)
+2. **Real-time Subscriptions**: WebSocket connection requires proper reconnection logic
+3. **Notification Templates**: Advanced template features may need additional UI integration

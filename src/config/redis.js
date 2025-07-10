@@ -16,7 +16,7 @@ const redisConfig = {
   keepAlive: 30000,
   family: 4, // 4 (IPv4) or 6 (IPv6)
   connectTimeout: 10000,
-  commandTimeout: 5000,
+  commandTimeout: 5000
 };
 
 // Create Redis client
@@ -44,7 +44,7 @@ redis.on('reconnecting', () => {
 });
 
 // Test Redis connection
-const testConnection = async () => {
+const testConnection = async() => {
   try {
     await redis.ping();
     console.log('✅ Redis ping successful');
@@ -56,14 +56,14 @@ const testConnection = async () => {
 };
 
 // Health check function
-const healthCheck = async () => {
+const healthCheck = async() => {
   try {
     const pong = await redis.ping();
     if (pong === 'PONG') {
       return { status: 'OK', message: 'Redis connection healthy' };
-    } else {
-      return { status: 'ERROR', message: 'Redis ping returned unexpected response' };
     }
+    return { status: 'ERROR', message: 'Redis ping returned unexpected response' };
+
   } catch (error) {
     return { status: 'ERROR', message: error.message };
   }
@@ -72,7 +72,7 @@ const healthCheck = async () => {
 // Cache helper functions
 const cache = {
   // Get value from cache
-  get: async (key) => {
+  get: async(key) => {
     try {
       const value = await redis.get(key);
       return value ? JSON.parse(value) : null;
@@ -83,7 +83,7 @@ const cache = {
   },
 
   // Set value in cache with TTL
-  set: async (key, value, ttlSeconds = 300) => {
+  set: async(key, value, ttlSeconds = 300) => {
     try {
       const serialized = JSON.stringify(value);
       await redis.setex(key, ttlSeconds, serialized);
@@ -95,7 +95,7 @@ const cache = {
   },
 
   // Delete from cache
-  del: async (key) => {
+  del: async(key) => {
     try {
       await redis.del(key);
       return true;
@@ -106,7 +106,7 @@ const cache = {
   },
 
   // Check if key exists
-  exists: async (key) => {
+  exists: async(key) => {
     try {
       const result = await redis.exists(key);
       return result === 1;
@@ -117,7 +117,7 @@ const cache = {
   },
 
   // Get multiple keys
-  mget: async (keys) => {
+  mget: async(keys) => {
     try {
       const values = await redis.mget(keys);
       return values.map(value => value ? JSON.parse(value) : null);
@@ -128,15 +128,15 @@ const cache = {
   },
 
   // Set multiple keys
-  mset: async (keyValuePairs, ttlSeconds = 300) => {
+  mset: async(keyValuePairs, ttlSeconds = 300) => {
     try {
       const pipeline = redis.pipeline();
-      
+
       for (const [key, value] of keyValuePairs) {
         const serialized = JSON.stringify(value);
         pipeline.setex(key, ttlSeconds, serialized);
       }
-      
+
       await pipeline.exec();
       return true;
     } catch (error) {
@@ -146,7 +146,7 @@ const cache = {
   },
 
   // Increment counter
-  incr: async (key, amount = 1) => {
+  incr: async(key, amount = 1) => {
     try {
       return await redis.incrby(key, amount);
     } catch (error) {
@@ -156,7 +156,7 @@ const cache = {
   },
 
   // Add to list (LIFO)
-  lpush: async (key, ...values) => {
+  lpush: async(key, ...values) => {
     try {
       const serialized = values.map(v => JSON.stringify(v));
       return await redis.lpush(key, ...serialized);
@@ -167,7 +167,7 @@ const cache = {
   },
 
   // Get list range
-  lrange: async (key, start = 0, end = -1) => {
+  lrange: async(key, start = 0, end = -1) => {
     try {
       const values = await redis.lrange(key, start, end);
       return values.map(v => JSON.parse(v));
@@ -178,7 +178,7 @@ const cache = {
   },
 
   // Trim list to specified size
-  ltrim: async (key, start, end) => {
+  ltrim: async(key, start, end) => {
     try {
       await redis.ltrim(key, start, end);
       return true;
@@ -189,7 +189,7 @@ const cache = {
   },
 
   // Hash operations
-  hset: async (key, ...args) => {
+  hset: async(key, ...args) => {
     try {
       return await redis.hset(key, ...args);
     } catch (error) {
@@ -198,7 +198,7 @@ const cache = {
     }
   },
 
-  hget: async (key, field) => {
+  hget: async(key, field) => {
     try {
       return await redis.hget(key, field);
     } catch (error) {
@@ -207,7 +207,7 @@ const cache = {
     }
   },
 
-  hgetall: async (key) => {
+  hgetall: async(key) => {
     try {
       return await redis.hgetall(key);
     } catch (error) {
@@ -216,7 +216,7 @@ const cache = {
     }
   },
 
-  hdel: async (key, ...fields) => {
+  hdel: async(key, ...fields) => {
     try {
       return await redis.hdel(key, ...fields);
     } catch (error) {
@@ -225,7 +225,7 @@ const cache = {
     }
   },
 
-  hlen: async (key) => {
+  hlen: async(key) => {
     try {
       return await redis.hlen(key);
     } catch (error) {
@@ -234,7 +234,7 @@ const cache = {
     }
   },
 
-  hkeys: async (key) => {
+  hkeys: async(key) => {
     try {
       return await redis.hkeys(key);
     } catch (error) {
@@ -243,7 +243,7 @@ const cache = {
     }
   },
 
-  hvals: async (key) => {
+  hvals: async(key) => {
     try {
       return await redis.hvals(key);
     } catch (error) {
@@ -253,7 +253,7 @@ const cache = {
   },
 
   // Stream operations - with error handling
-  xadd: async (...args) => {
+  xadd: async(...args) => {
     try {
       return await redis.xadd(...args);
     } catch (error) {
@@ -261,8 +261,8 @@ const cache = {
       return null;
     }
   },
-  
-  xgroup: async (...args) => {
+
+  xgroup: async(...args) => {
     try {
       return await redis.xgroup(...args);
     } catch (error) {
@@ -270,8 +270,8 @@ const cache = {
       return null;
     }
   },
-  
-  xreadgroup: async (...args) => {
+
+  xreadgroup: async(...args) => {
     try {
       // Prevent the malformed duplicate arguments issue
       if (args.length > 8 && args[0] === 'GROUP' && args[1] === 'GROUP') {
@@ -284,8 +284,8 @@ const cache = {
       return null;
     }
   },
-  
-  xpending: async (...args) => {
+
+  xpending: async(...args) => {
     try {
       return await redis.xpending(...args);
     } catch (error) {
@@ -293,8 +293,8 @@ const cache = {
       return null;
     }
   },
-  
-  xack: async (...args) => {
+
+  xack: async(...args) => {
     try {
       return await redis.xack(...args);
     } catch (error) {
@@ -302,8 +302,8 @@ const cache = {
       return false;
     }
   },
-  
-  xlen: async (...args) => {
+
+  xlen: async(...args) => {
     try {
       return await redis.xlen(...args);
     } catch (error) {
@@ -311,8 +311,8 @@ const cache = {
       return 0;
     }
   },
-  
-  xclaim: async (...args) => {
+
+  xclaim: async(...args) => {
     try {
       return await redis.xclaim(...args);
     } catch (error) {
@@ -320,8 +320,8 @@ const cache = {
       return null;
     }
   },
-  
-  xrange: async (...args) => {
+
+  xrange: async(...args) => {
     try {
       return await redis.xrange(...args);
     } catch (error) {
@@ -329,8 +329,8 @@ const cache = {
       return [];
     }
   },
-  
-  xdel: async (...args) => {
+
+  xdel: async(...args) => {
     try {
       return await redis.xdel(...args);
     } catch (error) {
@@ -338,8 +338,8 @@ const cache = {
       return false;
     }
   },
-  
-  xinfo: async (...args) => {
+
+  xinfo: async(...args) => {
     try {
       return await redis.xinfo(...args);
     } catch (error) {
@@ -350,7 +350,7 @@ const cache = {
 };
 
 // Graceful shutdown
-const closeConnection = async () => {
+const closeConnection = async() => {
   try {
     await redis.quit();
     console.log('📛 Redis connection closed gracefully');

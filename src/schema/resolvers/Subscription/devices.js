@@ -47,7 +47,7 @@ const deviceSubscriptions = {
 
           // Check if this event is for the requested device
           let deviceInPayload = null;
-          
+
           if (payload.deviceStatusChanged) {
             deviceInPayload = payload.deviceStatusChanged;
           } else if (payload.deviceUpdated) {
@@ -137,7 +137,7 @@ const deviceSubscriptions = {
 
           // Check if this event is for the requested device and includes value changes
           let deviceInPayload = null;
-          
+
           if (payload.deviceConfigurationChanged) {
             deviceInPayload = payload.deviceConfigurationChanged;
           } else if (payload.deviceStatusChanged) {
@@ -145,7 +145,7 @@ const deviceSubscriptions = {
           }
 
           // Only pass through if the device matches and has value-related changes
-          return deviceInPayload && 
+          return deviceInPayload &&
                  deviceInPayload.id === variables.deviceId &&
                  (deviceInPayload.value !== undefined || deviceInPayload.configuration);
         } catch (error) {

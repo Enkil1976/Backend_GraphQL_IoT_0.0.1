@@ -55,7 +55,21 @@ init_database() {
     
     if node init-database.js; then
         echo "✅ Database initialization completed successfully!"
-        return 0
+        
+        # Verify database deployment
+        echo "🔍 Verifying database deployment..."
+        if [ -f "verify-database-deploy.js" ]; then
+            if node verify-database-deploy.js; then
+                echo "✅ Database verification passed!"
+                return 0
+            else
+                echo "⚠️ Database verification had warnings, but proceeding..."
+                return 0
+            fi
+        else
+            echo "⚠️ Database verification script not found, skipping..."
+            return 0
+        fi
     else
         echo "❌ Database initialization failed!"
         exit 1

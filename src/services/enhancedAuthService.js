@@ -33,22 +33,22 @@ class EnhancedAuthService {
       // Validate and sanitize input
       const validatedData = validateInput(userData, 'userRegistration');
       const { username, email, password, role = 'viewer' } = validatedData;
-      
+
       // Sanitize string inputs
       const sanitizedUsername = advancedSanitize(username);
       const sanitizedEmail = advancedSanitize(email);
-      
+
       // Check if user already exists
       const existingUser = await query(
         'SELECT id, username, email FROM users WHERE username = $1 OR email = $2',
         [sanitizedUsername, sanitizedEmail]
       );
-      
+
       if (existingUser.rows.length > 0) {
         // Log registration attempt with existing credentials
         await auditLogService.logSecurityViolation(
           'REGISTRATION_DUPLICATE',
-          { 
+          {
             attempted_username: sanitizedUsername,
             attempted_email: sanitizedEmail,
             existing_user: existingUser.rows[0].username
@@ -64,7 +64,7 @@ class EnhancedAuthService {
         type: argon2.argon2id,
         memoryCost: 2 ** 16, // 64 MB
         timeCost: 3,
-        parallelism: 1,
+        parallelism: 1
       });
 
       // Create user with security fields
@@ -80,7 +80,7 @@ class EnhancedAuthService {
       );
 
       const user = result.rows[0];
-      
+
       // Log successful registration
       await auditLogService.logUserManagement(
         'USER_REGISTERED',
@@ -117,7 +117,7 @@ class EnhancedAuthService {
     try {
       // Sanitize input
       const sanitizedUsername = advancedSanitize(username);
-      
+
       // Find user by username or email
       const result = await query(
         `SELECT id, username, email, password_hash, role, is_active, 
@@ -145,7 +145,7 @@ class EnhancedAuthService {
       if (lockStatus.locked) {
         await auditLogService.logSecurityViolation(
           'LOGIN_BLOCKED_LOCKED',
-          { 
+          {
             username: user.username,
             locked_until: lockStatus.lockedUntil,
             attempts: lockStatus.attempts
@@ -172,7 +172,7 @@ class EnhancedAuthService {
       if (!isValidPassword) {
         // Handle failed login
         await this.handleFailedLogin(user.id, clientIP);
-        
+
         await auditLogService.logAuthentication(
           user.username,
           false,
@@ -256,20 +256,20 @@ class EnhancedAuthService {
       'SELECT failed_login_attempts, account_locked_until FROM users WHERE id = $1',
       [userId]
     );
-    
+
     if (result.rows.length === 0) return { locked: false };
-    
+
     const user = result.rows[0];
     const now = new Date();
-    
+
     if (user.account_locked_until && new Date(user.account_locked_until) > now) {
-      return { 
-        locked: true, 
+      return {
+        locked: true,
         lockedUntil: user.account_locked_until,
         attempts: user.failed_login_attempts
       };
     }
-    
+
     return { locked: false, attempts: user.failed_login_attempts || 0 };
   }
 
@@ -281,26 +281,26 @@ class EnhancedAuthService {
       'SELECT failed_login_attempts FROM users WHERE id = $1',
       [userId]
     );
-    
+
     if (result.rows.length === 0) return;
-    
+
     const attempts = (result.rows[0].failed_login_attempts || 0) + 1;
     let lockUntil = null;
-    
+
     if (attempts >= this.maxLoginAttempts) {
       lockUntil = new Date(Date.now() + this.lockoutDuration);
     }
-    
+
     await query(
       'UPDATE users SET failed_login_attempts = $1, account_locked_until = $2 WHERE id = $3',
       [attempts, lockUntil, userId]
     );
-    
+
     // Log the lockout
     if (lockUntil) {
       await auditLogService.logSecurityViolation(
         'ACCOUNT_LOCKED',
-        { 
+        {
           user_id: userId,
           attempts: attempts,
           locked_until: lockUntil
@@ -326,7 +326,7 @@ class EnhancedAuthService {
    */
   async generateTokens(user, clientIP = null) {
     const sessionId = crypto.randomUUID();
-    
+
     const payload = {
       id: user.id,
       username: user.username,
@@ -379,17 +379,17 @@ class EnhancedAuthService {
     try {
       const sessionKey = `session:${userId}:${sessionId}`;
       const refreshKey = `refresh_token:${userId}:${sessionId}`;
-      
+
       const expiration = this.getExpirationSeconds(this.refreshTokenExpiresIn);
-      
+
       await cache.setex(sessionKey, expiration, JSON.stringify(sessionData));
       await cache.setex(refreshKey, expiration, sessionData.refreshToken);
-      
+
       // Track active sessions for the user
       const userSessionsKey = `user_sessions:${userId}`;
       await cache.sadd(userSessionsKey, sessionId);
       await cache.expire(userSessionsKey, expiration);
-      
+
     } catch (error) {
       console.error('Error storing session:', error);
       throw new Error('Failed to create session');
@@ -401,8 +401,8 @@ class EnhancedAuthService {
    */
   generateTempToken(userId) {
     return jwt.sign(
-      { 
-        userId, 
+      {
+        userId,
         type: '2fa_temp',
         exp: Math.floor(Date.now() / 1000) + (5 * 60) // 5 minutes
       },
@@ -423,7 +423,7 @@ class EnhancedAuthService {
       if (decoded.sessionId) {
         const sessionKey = `session:${decoded.id}:${decoded.sessionId}`;
         const sessionData = await cache.get(sessionKey);
-        
+
         if (!sessionData) {
           throw new Error('Session expired');
         }
@@ -508,12 +508,12 @@ class EnhancedAuthService {
     try {
       const userSessionsKey = `user_sessions:${userId}`;
       const sessionIds = await cache.smembers(userSessionsKey);
-      
+
       const sessions = [];
       for (const sessionId of sessionIds) {
         const sessionKey = `session:${userId}:${sessionId}`;
         const sessionData = await cache.get(sessionKey);
-        
+
         if (sessionData) {
           const session = JSON.parse(sessionData);
           sessions.push({
@@ -524,7 +524,7 @@ class EnhancedAuthService {
           });
         }
       }
-      
+
       return sessions;
     } catch (error) {
       console.error('Error getting active sessions:', error);
@@ -550,13 +550,13 @@ class EnhancedAuthService {
   getExpirationSeconds(timeString) {
     const timeValue = parseInt(timeString);
     const timeUnit = timeString.slice(-1);
-    
+
     switch (timeUnit) {
-      case 's': return timeValue;
-      case 'm': return timeValue * 60;
-      case 'h': return timeValue * 60 * 60;
-      case 'd': return timeValue * 24 * 60 * 60;
-      default: return 3600; // 1 hour default
+    case 's': return timeValue;
+    case 'm': return timeValue * 60;
+    case 'h': return timeValue * 60 * 60;
+    case 'd': return timeValue * 24 * 60 * 60;
+    default: return 3600; // 1 hour default
     }
   }
 
@@ -569,9 +569,9 @@ class EnhancedAuthService {
     const hasLowerCase = /[a-z]/.test(password);
     const hasNumbers = /\d/.test(password);
     const hasSpecialChar = /[!@#$%^&*(),.?\":{}|<>]/.test(password);
-    
+
     const issues = [];
-    
+
     if (password.length < minLength) {
       issues.push(`Password must be at least ${minLength} characters long`);
     }
@@ -587,7 +587,7 @@ class EnhancedAuthService {
     if (!hasSpecialChar) {
       issues.push('Password must contain at least one special character');
     }
-    
+
     return {
       valid: issues.length === 0,
       issues

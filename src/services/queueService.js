@@ -57,12 +57,12 @@ class QueueService {
     }
 
     await this.initialize();
-    
+
     console.log('🚀 Starting action queue processor...');
     this.isProcessing = true;
-    
+
     // Start processing loop
-    this.intervalId = setInterval(async () => {
+    this.intervalId = setInterval(async() => {
       try {
         await this.processActions();
         await this.processPendingActions();
@@ -85,7 +85,7 @@ class QueueService {
 
     console.log('🛑 Stopping action queue processor...');
     this.isProcessing = false;
-    
+
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
@@ -115,9 +115,9 @@ class QueueService {
 
     try {
       const streamId = await redis.xadd(this.streamName, '*', ...Object.entries(actionData).flat());
-      
+
       console.log(`📤 Action published to queue: ${action.type} (${streamId})`);
-      
+
       // Publish queue action event
       await pubsub.publish(QUEUE_EVENTS.ACTION_QUEUED, {
         actionQueued: {
@@ -141,9 +141,9 @@ class QueueService {
       // Temporarily disabled to isolate Redis issue
       console.log('🔄 Queue processing (temporarily disabled for debugging)');
       return;
-      
+
       // Read from the stream using ioredis object format
-      const results = await redis.call('XREADGROUP', 
+      const results = await redis.call('XREADGROUP',
         'GROUP', this.consumerGroup, this.consumerName,
         'BLOCK', 1000,
         'COUNT', 10,
@@ -155,7 +155,7 @@ class QueueService {
       }
 
       const [streamName, messages] = results[0];
-      
+
       for (const [messageId, fields] of messages) {
         await this.processAction(messageId, fields);
       }
@@ -172,10 +172,10 @@ class QueueService {
       // Temporarily disabled to isolate Redis issue
       console.log('🔄 Pending processing (temporarily disabled for debugging)');
       return;
-      
+
       // Get pending messages
       const pendingMessages = await redis.xpending(
-        this.streamName, this.consumerGroup, 
+        this.streamName, this.consumerGroup,
         '-', '+', 10, this.consumerName
       );
 
@@ -212,18 +212,18 @@ class QueueService {
     try {
       // Convert fields array to object
       const action = this.fieldsToObject(fields);
-      
+
       console.log(`🔄 Processing action: ${action.type} (${messageId})`);
-      
+
       // Execute the action
       const success = await this.executeAction(action);
-      
+
       if (success) {
         // Acknowledge the message
         await redis.xack(this.streamName, this.consumerGroup, messageId);
-        
+
         console.log(`✅ Action completed successfully: ${action.type} (${messageId})`);
-        
+
         // Publish action completed event
         await pubsub.publish(QUEUE_EVENTS.ACTION_COMPLETED, {
           actionCompleted: {
@@ -237,7 +237,7 @@ class QueueService {
       }
     } catch (error) {
       console.error(`❌ Error processing action ${messageId}:`, error);
-      
+
       // Convert fields array to object for error handling
       const action = this.fieldsToObject(fields);
       await this.handleActionFailure(messageId, action, error.message);
@@ -254,21 +254,21 @@ class QueueService {
 
     try {
       switch (type) {
-        case 'device_status':
-          return await this.executeDeviceStatusAction(device_id, status);
-        
-        case 'device_configuration':
-          return await this.executeDeviceConfigurationAction(device_id, JSON.parse(configuration));
-        
-        case 'operation':
-          return await this.executeOperationAction(JSON.parse(operation));
-        
-        default:
-          console.warn(`Unknown action type: ${type}`);
-          return false;
+      case 'device_status':
+        return await this.executeDeviceStatusAction(device_id, status);
+
+      case 'device_configuration':
+        return await this.executeDeviceConfigurationAction(device_id, JSON.parse(configuration));
+
+      case 'operation':
+        return await this.executeOperationAction(JSON.parse(operation));
+
+      default:
+        console.warn(`Unknown action type: ${type}`);
+        return false;
       }
     } catch (error) {
-      console.error(`❌ Error executing action:`, error);
+      console.error('❌ Error executing action:', error);
       return false;
     }
   }
@@ -285,7 +285,7 @@ class QueueService {
       await deviceService.updateDeviceStatus(deviceId, status);
       return true;
     } catch (error) {
-      console.error(`❌ Failed to update device status:`, error);
+      console.error('❌ Failed to update device status:', error);
       return false;
     }
   }
@@ -302,7 +302,7 @@ class QueueService {
       await deviceService.updateDeviceConfiguration(deviceId, configuration);
       return true;
     } catch (error) {
-      console.error(`❌ Failed to update device configuration:`, error);
+      console.error('❌ Failed to update device configuration:', error);
       return false;
     }
   }
@@ -315,10 +315,10 @@ class QueueService {
   async executeOperationAction(operation) {
     try {
       // Implementation depends on specific operation types
-      console.log(`⚡ Executing operation:`, operation);
+      console.log('⚡ Executing operation:', operation);
       return true;
     } catch (error) {
-      console.error(`❌ Failed to execute operation:`, error);
+      console.error('❌ Failed to execute operation:', error);
       return false;
     }
   }
@@ -331,16 +331,16 @@ class QueueService {
    */
   async handleActionFailure(messageId, action, error = null) {
     const retryCount = parseInt(action.retry_count || '0');
-    
+
     if (retryCount >= this.maxRetries) {
       // Move to DLQ
       await this.moveToDeadLetterQueue(messageId, action, error);
-      
+
       // Acknowledge the original message
       await redis.xack(this.streamName, this.consumerGroup, messageId);
-      
+
       console.log(`💀 Action moved to DLQ: ${action.type} (${messageId})`);
-      
+
       // Publish action failed event
       await pubsub.publish(QUEUE_EVENTS.ACTION_FAILED, {
         actionFailed: {
@@ -359,10 +359,10 @@ class QueueService {
       };
 
       await this.publishAction(updatedAction);
-      
+
       // Acknowledge the original message
       await redis.xack(this.streamName, this.consumerGroup, messageId);
-      
+
       console.log(`🔄 Action retried: ${action.type} (retry ${retryCount + 1}/${this.maxRetries})`);
     }
   }
@@ -401,9 +401,9 @@ class QueueService {
     try {
       const streamInfo = await redis.xinfo('STREAM', this.streamName);
       const dlqInfo = await redis.xinfo('STREAM', this.dlqStreamName);
-      
+
       const pending = await redis.xpending(this.streamName, this.consumerGroup);
-      
+
       return {
         streamLength: streamInfo[1],
         dlqLength: dlqInfo[1],
@@ -431,7 +431,7 @@ class QueueService {
   async getDeadLetterActions(limit = 100) {
     try {
       const messages = await redis.xrange(this.dlqStreamName, '-', '+', 'COUNT', limit);
-      
+
       return messages.map(([messageId, fields]) => ({
         id: messageId,
         ...this.fieldsToObject(fields)
@@ -451,27 +451,27 @@ class QueueService {
     try {
       // Get the message from DLQ
       const messages = await redis.xrange(this.dlqStreamName, messageId, messageId);
-      
+
       if (!messages || messages.length === 0) {
         throw new Error('Message not found in DLQ');
       }
 
       const [id, fields] = messages[0];
       const action = this.fieldsToObject(fields);
-      
+
       // Reset retry count and republish
       delete action.original_message_id;
       delete action.error;
       delete action.failed_at;
       action.retry_count = '0';
-      
+
       await this.publishAction(action);
-      
+
       // Remove from DLQ
       await redis.xdel(this.dlqStreamName, messageId);
-      
+
       console.log(`🔄 Action retried from DLQ: ${action.type} (${messageId})`);
-      
+
       return true;
     } catch (error) {
       console.error('❌ Error retrying from DLQ:', error);

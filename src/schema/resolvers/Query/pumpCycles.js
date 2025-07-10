@@ -5,14 +5,14 @@ const { query } = require('../../../config/database');
  * Provides GraphQL queries for pump cycling system status
  */
 const pumpCycleQueries = {
-  
+
   /**
    * Get current pump cycle status
    */
-  pumpCycleStatus: async (parent, args, context) => {
+  pumpCycleStatus: async(parent, args, context) => {
     try {
       console.log('[PumpCycleQuery] Getting pump cycle status');
-      
+
       // Get all pump cycle rules
       const rulesResult = await query(`
         SELECT 
@@ -24,22 +24,22 @@ const pumpCycleQueries = {
         AND name LIKE '%Bomba%'
         ORDER BY name
       `);
-      
+
       const rules = rulesResult.rows;
       const enabledCount = rules.filter(rule => rule.enabled).length;
       const totalCount = rules.length;
-      
+
       // Determine cycle pattern from rules
       let cyclePattern = null;
       if (rules.length >= 2) {
         const onRule = rules.find(r => r.name.includes('ON') || r.name.includes('on'));
         const offRule = rules.find(r => r.name.includes('OFF') || r.name.includes('off'));
-        
+
         if (onRule && offRule) {
           // Extract minutes from rule names
           const onMatch = onRule.name.match(/(\d+)min/);
           const offMatch = offRule.name.match(/(\d+)min/);
-          
+
           if (onMatch && offMatch) {
             cyclePattern = {
               onMinutes: parseInt(onMatch[1]),
@@ -51,7 +51,7 @@ const pumpCycleQueries = {
           }
         }
       }
-      
+
       // Get execution statistics
       const statsResult = await query(`
         SELECT 
@@ -63,16 +63,16 @@ const pumpCycleQueries = {
         WHERE r.name LIKE '%CICLO%' 
         AND r.name LIKE '%Bomba%'
       `);
-      
+
       const stats = statsResult.rows[0] || {
         total_executions: 0,
         successful_executions: 0,
         last_execution: null
       };
-      
+
       // Calculate next evaluation (rules engine runs every 30 seconds)
       const nextEvaluation = new Date(Date.now() + 30000);
-      
+
       return {
         isActive: enabledCount > 0,
         totalRules: totalCount,
@@ -85,20 +85,20 @@ const pumpCycleQueries = {
         successfulExecutions: parseInt(stats.successful_executions) || 0,
         lastExecution: stats.last_execution
       };
-      
+
     } catch (error) {
       console.error('[PumpCycleQuery] Error getting status:', error);
       throw error;
     }
   },
-  
+
   /**
    * Get pump cycle execution history
    */
-  pumpCycleHistory: async (parent, { limit = 20, offset = 0 }, context) => {
+  pumpCycleHistory: async(parent, { limit = 20, offset = 0 }, context) => {
     try {
       console.log('[PumpCycleQuery] Getting pump cycle history', { limit, offset });
-      
+
       const result = await query(`
         SELECT 
           re.id,
@@ -117,13 +117,13 @@ const pumpCycleQueries = {
         ORDER BY re.triggered_at DESC
         LIMIT $1 OFFSET $2
       `, [limit, offset]);
-      
+
       // Transform to match GraphQL schema
       const executions = result.rows.map(row => {
         // Determine action and cycle phase from rule name and actions
         let action = 'TURN_ON';
         let cyclePhase = 'UNKNOWN';
-        
+
         if (row.rule_name.includes('ON') || row.rule_name.includes('on')) {
           action = 'TURN_ON';
           cyclePhase = 'ON_PHASE';
@@ -131,7 +131,7 @@ const pumpCycleQueries = {
           action = 'TURN_OFF';
           cyclePhase = 'OFF_PHASE';
         }
-        
+
         // Try to extract from actions JSON
         try {
           const actions = JSON.parse(row.actions);
@@ -141,7 +141,7 @@ const pumpCycleQueries = {
         } catch (e) {
           // Use default action
         }
-        
+
         return {
           id: row.id,
           ruleId: row.rule_id,
@@ -154,9 +154,9 @@ const pumpCycleQueries = {
           error: row.error_message
         };
       });
-      
+
       return executions;
-      
+
     } catch (error) {
       console.error('[PumpCycleQuery] Error getting history:', error);
       throw error;
