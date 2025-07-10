@@ -16,7 +16,6 @@ class DatabaseInitService {
     this.retryDelay = 2000;
     this.requiredTables = [
       'users', 'devices', 'rules', 'notifications',
-      'temhum1', 'temhum2', 'calidad_agua', 'luxometro',
       'power_monitor_logs', 'rule_executions', 'weather_current',
       'audit_logs', 'scheduled_operations', 'operations_log',
       // Dynamic sensor tables
