@@ -335,15 +335,40 @@ class DynamicSensorService {
    */
   async processSensorData(mqttTopic, payload) {
     try {
-      // Buscar sensor por tópico MQTT (case-insensitive)
-      const sensor = Array.from(this.activeSensors.values()).find(
-        s => s.mqtt_topic.toLowerCase() === mqttTopic.toLowerCase()
-      );
+      // Buscar sensor por tópico MQTT (case-insensitive y con variaciones)
+      const sensor = Array.from(this.activeSensors.values()).find(s => {
+        const sensorTopic = s.mqtt_topic.toLowerCase();
+        const incomingTopic = mqttTopic.toLowerCase();
+        
+        // Coincidencia exacta
+        if (sensorTopic === incomingTopic) {
+          return true;
+        }
+        
+        // Variaciones comunes para compatibilidad
+        const topicVariations = [
+          // Para agua: agua-quality-01 <-> Agua
+          sensorTopic.replace('agua-quality-01', 'agua'),
+          sensorTopic.replace('-quality-01', ''),
+          // Para sensores numerados: temhum1 <-> temhum-01
+          sensorTopic.replace(/(\w+)(\d+)/, '$1-$2'),
+          sensorTopic.replace(/(\w+)-(\d+)/, '$1$2')
+        ];
+        
+        return topicVariations.some(variation => 
+          variation === incomingTopic || 
+          incomingTopic.includes(variation.split('/').pop()) ||
+          variation.includes(incomingTopic.split('/').pop())
+        );
+      });
 
       if (!sensor) {
         console.warn(`⚠️ No se encontró sensor para el tópico: ${mqttTopic}`);
         return false; // Indica que no se procesó
       }
+      
+      // Log cuando se encuentra un match (especialmente útil para variaciones)
+      console.log(`✅ Sensor encontrado: ${sensor.hardware_id} (${sensor.mqtt_topic}) para tópico: ${mqttTopic}`);
 
       // Validar payload
       console.log(`🔍 Validando payload para sensor ${sensor.hardware_id} (${sensor.sensor_type}):`, JSON.stringify(payload));
