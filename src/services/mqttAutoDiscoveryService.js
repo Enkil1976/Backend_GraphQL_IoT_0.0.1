@@ -14,9 +14,9 @@ class MQTTAutoDiscoveryService {
     this.detectionConfig = {
       enabled: process.env.MQTT_AUTO_DISCOVERY !== 'false',
       analysisWindow: 60000, // 60 segundos
-      minSamples: 3,
-      autoCreateThreshold: 90,
-      approvalThreshold: 70
+      minSamples: 2, // Reducido para testing
+      autoCreateThreshold: 70, // Reducido para testing
+      approvalThreshold: 50
     };
     
     this.sensorDetectionRules = this.initializeSensorRules();
@@ -283,6 +283,11 @@ class MQTTAutoDiscoveryService {
     }
 
     console.log(`🔍 Unknown topic: ${topic} (${topicData.messageCount} messages, ${topicData.payloads.length} samples)`);
+    
+    // Log cuando alcance el mínimo de muestras
+    if (topicData.payloads.length === this.detectionConfig.minSamples) {
+      console.log(`✅ Topic ${topic} reached minimum samples (${this.detectionConfig.minSamples}), ready for analysis!`);
+    }
   }
 
   /**
