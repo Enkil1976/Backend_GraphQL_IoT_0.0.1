@@ -669,8 +669,8 @@ class RulesEngineService {
       template,
       priority = 'medium',
       channels = ['webhook'],
-      canal = 'whatsapp',
-      targetChannel = 'webhook',
+      canal,
+      targetChannel,
       variables = {}
     } = action;
 
@@ -748,11 +748,13 @@ class RulesEngineService {
       console.warn("Attempted to get latest sensor data with null or undefined sensor ID.");
       return null;
     }
+    
     const key = `sensor_latest:${sensor.toLowerCase()}`;
     const data = await cache.hgetall(key);
 
     if (!data || Object.keys(data).length === 0) {
-      return null;
+      console.log(`🔍 No cache data for ${sensor}, trying PostgreSQL fallback...`);
+      return await this.getLatestSensorDataFromDB(sensor);
     }
 
     // Convert string values to numbers where appropriate
@@ -772,7 +774,84 @@ class RulesEngineService {
       convertedData.timestamp = new Date();
     }
 
+    console.log(`✅ Got sensor data from cache for ${sensor}:`, Object.keys(convertedData));
     return convertedData;
+  }
+
+  /**
+   * Get latest sensor data from PostgreSQL (fallback)
+   * @param {string} sensorHardwareId - Sensor hardware ID
+   * @returns {Object} Latest sensor data
+   */
+  async getLatestSensorDataFromDB(sensorHardwareId) {
+    try {
+      // Get sensor info and latest data
+      const sensorQuery = `
+        SELECT s.id, s.hardware_id, s.sensor_type, s.name
+        FROM sensors s 
+        WHERE s.hardware_id = $1 AND s.is_active = true
+      `;
+      
+      const sensorResult = await query(sensorQuery, [sensorHardwareId]);
+      
+      if (sensorResult.rows.length === 0) {
+        console.log(`⚠️ Sensor not found in database: ${sensorHardwareId}`);
+        return null;
+      }
+      
+      const sensor = sensorResult.rows[0];
+      
+      // Get latest sensor data
+      const dataQuery = `
+        SELECT payload, received_at
+        FROM sensor_data_generic 
+        WHERE sensor_id = $1 
+        ORDER BY received_at DESC 
+        LIMIT 1
+      `;
+      
+      const dataResult = await query(dataQuery, [sensor.id]);
+      
+      if (dataResult.rows.length === 0) {
+        console.log(`⚠️ No data found for sensor: ${sensorHardwareId}`);
+        return null;
+      }
+      
+      const latestData = dataResult.rows[0];
+      const payload = typeof latestData.payload === 'string' 
+        ? JSON.parse(latestData.payload) 
+        : latestData.payload;
+      
+      // Extract normalized data for rules engine
+      const normalizedData = {
+        timestamp: new Date(latestData.received_at),
+        sensor_id: sensor.id,
+        hardware_id: sensor.hardware_id,
+        sensor_type: sensor.sensor_type,
+        
+        // Extract data fields for rule evaluation
+        temperatura: payload.data?.temperature || payload.temperatura || null,
+        humedad: payload.data?.humidity || payload.humedad || null,
+        presion: payload.data?.pressure || payload.presion || null,
+        light: payload.data?.light || payload.light || null,
+        white_light: payload.data?.white_light || payload.white_light || null,
+        raw_light: payload.data?.raw_light || payload.raw_light || null,
+        heatindex: payload.data?.heat_index || payload.heatindex || null,
+        dewpoint: payload.data?.dew_point || payload.dewpoint || null,
+        
+        // Additional fields
+        rssi: payload.rssi || null,
+        boot: payload.boot || null,
+        mem: payload.mem || null
+      };
+      
+      console.log(`✅ Got sensor data from PostgreSQL for ${sensorHardwareId}:`, Object.keys(normalizedData));
+      return normalizedData;
+      
+    } catch (error) {
+      console.error('❌ Error getting sensor data from PostgreSQL:', error);
+      return null;
+    }
   }
 
   /**

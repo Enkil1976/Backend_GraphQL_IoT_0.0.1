@@ -509,30 +509,81 @@ class DynamicSensorService {
    */
   async updateSensorCache(sensor, payload) {
     try {
-      const cacheKey = sensor.cache_key;
+      // Normalizar payload para cache
+      const normalizedPayload = this.normalizePayload(sensor.sensor_type, payload);
+      
+      // Cache key compatible con rulesEngine
+      const cacheKey = `sensor_latest:${sensor.hardware_id.toLowerCase()}`;
+      
+      // Datos para cache en formato esperado por rulesEngine
       const cacheData = {
-        ...payload,
-        last_updated: new Date().toISOString()
+        // Campos básicos
+        timestamp: new Date().toISOString(),
+        sensor_id: sensor.id,
+        hardware_id: sensor.hardware_id,
+        sensor_type: sensor.sensor_type,
+        
+        // Datos del sensor en formato legacy para compatibilidad
+        temperatura: normalizedPayload.data.temperature || null,
+        humedad: normalizedPayload.data.humidity || null,
+        presion: normalizedPayload.data.pressure || null,
+        light: normalizedPayload.data.light || null,
+        white_light: normalizedPayload.data.white_light || null,
+        raw_light: normalizedPayload.data.raw_light || null,
+        heatindex: normalizedPayload.data.heat_index || null,
+        dewpoint: normalizedPayload.data.dew_point || null,
+        
+        // Campos adicionales
+        rssi: normalizedPayload.rssi,
+        boot: normalizedPayload.boot,
+        mem: normalizedPayload.mem,
+        
+        // Original payload para referencia
+        _original: payload,
+        _normalized: normalizedPayload
       };
+
+      console.log(`📋 Updating cache key: ${cacheKey}`);
+      console.log(`📊 Cache data:`, JSON.stringify(cacheData, null, 2));
 
       await cache.hset(cacheKey, cacheData);
 
       // Almacenar datos históricos
-      const metricsFields = JSON.parse(sensor.metrics_fields || '[]');
+      const metricsFields = this.getMetricsFields(sensor.sensor_type);
       for (const field of metricsFields) {
-        if (payload[field] !== undefined) {
-          const historyKey = `sensor_history:${sensor.hardware_id}:${field}`;
+        if (cacheData[field] !== undefined && cacheData[field] !== null) {
+          const historyKey = `sensor_history:${sensor.hardware_id.toLowerCase()}:${field}`;
           const dataPoint = JSON.stringify({
             ts: new Date().toISOString(),
-            val: payload[field]
+            val: cacheData[field]
           });
           await cache.lpush(historyKey, dataPoint);
           await cache.ltrim(historyKey, 0, 99); // Mantener últimos 100 puntos
         }
       }
 
+      console.log(`✅ Cache updated for sensor: ${sensor.hardware_id}`);
+
     } catch (error) {
       console.error('❌ Error updating sensor cache:', error);
+    }
+  }
+
+  /**
+   * Obtiene campos de métricas según tipo de sensor
+   */
+  getMetricsFields(sensorType) {
+    switch (sensorType) {
+      case 'TEMHUM':
+        return ['temperatura', 'humedad', 'heatindex', 'dewpoint'];
+      case 'TEMP_PRESSURE':
+        return ['temperatura', 'presion'];
+      case 'LIGHT':
+        return ['light', 'white_light', 'raw_light'];
+      case 'WATER_QUALITY':
+        return ['ph', 'ec', 'ppm', 'temperatura'];
+      default:
+        return ['temperatura', 'humedad']; // Fallback
     }
   }
 
