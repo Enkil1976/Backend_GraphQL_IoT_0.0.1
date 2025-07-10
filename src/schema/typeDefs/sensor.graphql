@@ -24,6 +24,37 @@ extend type Query {
   # Auto-Discovery
   autoDiscoveryStatus: AutoDiscoveryStatus!
   unknownTopics: [UnknownTopic!]!
+  
+  # Historical Data - All Sensors and Devices
+  allSensorHistory(
+    limit: Int = 100
+    offset: Int = 0
+    from: DateTime
+    to: DateTime
+    types: [SensorType!]
+  ): SensorHistoryConnection!
+  
+  # Specific table data queries
+  tempPressureData(
+    sensorId: String
+    limit: Int = 100
+    from: DateTime
+    to: DateTime
+  ): [TempPressureReading!]!
+  
+  waterQualityData(
+    sensorId: String
+    limit: Int = 100
+    from: DateTime
+    to: DateTime
+  ): [WaterQualityReading!]!
+  
+  lightData(
+    sensorId: String
+    limit: Int = 100
+    from: DateTime
+    to: DateTime
+  ): [LightReading!]!
 }
 
 extend type Subscription {
@@ -73,6 +104,10 @@ type SensorReading {
   humedad: Float
   heatIndex: Float
   dewPoint: Float
+  
+  # Pressure Data (BMP280 sensor)
+  presion: Float # Atmospheric pressure in Pascals
+  altitude: Float # Calculated altitude in meters
   
   # Water Quality Data  
   ph: Float
@@ -124,6 +159,12 @@ type SensorStatistics {
   # Temperature stats
   temperaturaStats: FieldStats
   humedadStats: FieldStats
+  
+  # Pressure stats
+  presionStats: FieldStats
+  altitudeStats: FieldStats
+  
+  # Water Quality stats
   phStats: FieldStats
   ecStats: FieldStats
   ppmStats: FieldStats
@@ -132,6 +173,11 @@ type SensorStatistics {
   lightStats: FieldStats
   whiteLightStats: FieldStats
   rawLightStats: FieldStats
+  
+  # Power stats
+  wattsStats: FieldStats
+  voltageStats: FieldStats
+  currentStats: FieldStats
   
   # Data quality
   totalReadings: Int!
@@ -433,4 +479,94 @@ enum DiscoveryStatus {
   AUTO_CREATED
   IGNORED
   MANUAL_REVIEW
+}
+
+# Historical Data Types for All Sensors
+
+type SensorHistoryConnection {
+  edges: [SensorHistoryEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+  byType: [SensorHistoryByType!]!
+}
+
+type SensorHistoryEdge {
+  cursor: String!
+  node: SensorHistoryReading!
+}
+
+type SensorHistoryReading {
+  id: ID!
+  sensorId: String!
+  sensorName: String!
+  sensorType: SensorType!
+  timestamp: DateTime!
+  data: JSON!
+  
+  # Specific typed data based on sensor type
+  tempPressureData: TempPressureReading
+  waterQualityData: WaterQualityReading
+  lightData: LightReading
+  tempHumData: TempHumReading
+  powerData: PowerReading
+}
+
+type SensorHistoryByType {
+  sensorType: SensorType!
+  count: Int!
+  latestReading: DateTime
+  sensors: [String!]!
+}
+
+# Specific sensor data types
+
+type TempPressureReading {
+  id: ID!
+  sensorId: String!
+  temperatura: Float!
+  presion: Float!
+  altitude: Float
+  receivedAt: DateTime!
+}
+
+type WaterQualityReading {
+  id: ID!
+  sensorId: String!
+  ph: Float!
+  ec: Float!
+  ppm: Float!
+  temperatura: Float
+  timestamp: DateTime!
+}
+
+type LightReading {
+  id: ID!
+  sensorId: String!
+  light: Float!
+  whiteLight: Float
+  rawLight: Float
+  uvIndex: Float
+  timestamp: DateTime!
+}
+
+type TempHumReading {
+  id: ID!
+  sensorId: String!
+  temperatura: Float!
+  humedad: Float!
+  heatIndex: Float
+  dewPoint: Float
+  timestamp: DateTime!
+}
+
+type PowerReading {
+  id: ID!
+  deviceId: String!
+  voltage: Float!
+  current: Float!
+  watts: Float!
+  frequency: Float
+  powerFactor: Float
+  energyTotal: Float
+  timestamp: DateTime!
 }

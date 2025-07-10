@@ -1,6 +1,7 @@
 const dynamicSensorService = require('../../../services/dynamicSensorService');
 const sensorTypeService = require('../../../services/sensorTypeService');
 const mqttAutoDiscoveryService = require('../../../services/mqttAutoDiscoveryService');
+const { query } = require('../../../config/database');
 const { AuthenticationError, UserInputError, ForbiddenError } = require('apollo-server-express');
 
 /**
@@ -205,17 +206,129 @@ const sensorQueries = {
         throw new UserInputError(`Sensor no encontrado: ${sensorId}`);
       }
 
-      // TODO: Implementar consulta de datos históricos
-      // Por ahora retornamos estructura vacía
+      console.log(`🔍 Consultando lecturas del sensor ${sensorId} (${sensor.sensor_type})`);
+
+      let readings = [];
+
+      // Consultar según el tipo de sensor
+      if (sensor.sensor_type === 'TEMP_PRESSURE') {
+        // Datos de temperatura y presión
+        let whereConditions = [`sensor_id = $1`];
+        let queryParams = [sensor.hardware_id || sensorId];
+        let paramIndex = 2;
+
+        if (from) {
+          whereConditions.push(`received_at >= $${paramIndex}`);
+          queryParams.push(from);
+          paramIndex++;
+        }
+
+        if (to) {
+          whereConditions.push(`received_at <= $${paramIndex}`);
+          queryParams.push(to);
+          paramIndex++;
+        }
+
+        try {
+          const tempPressureQuery = `
+            SELECT id, sensor_id, temperatura, presion, altitude, received_at
+            FROM temp_pressure_data
+            WHERE ${whereConditions.join(' AND ')}
+            ORDER BY received_at DESC
+            LIMIT $${paramIndex}
+            OFFSET $${paramIndex + 1}
+          `;
+
+          queryParams.push(limit, offset);
+          const result = await query(tempPressureQuery, queryParams);
+
+          readings = result.rows.map(row => ({
+            id: `temp_pressure:${row.id}`,
+            sensor: sensor,
+            timestamp: row.received_at,
+            temperatura: row.temperatura,
+            presion: row.presion,
+            altitude: row.altitude,
+            rawData: {
+              temperatura: row.temperatura,
+              presion: row.presion,
+              altitude: row.altitude
+            }
+          }));
+
+        } catch (error) {
+          console.warn('⚠️ Error consultando temp_pressure_data:', error.message);
+        }
+      } else {
+        // Datos genéricos desde sensor_data_generic
+        let whereConditions = [`sensor_id = $1`];
+        let queryParams = [sensorId];
+        let paramIndex = 2;
+
+        if (from) {
+          whereConditions.push(`timestamp >= $${paramIndex}`);
+          queryParams.push(from);
+          paramIndex++;
+        }
+
+        if (to) {
+          whereConditions.push(`timestamp <= $${paramIndex}`);
+          queryParams.push(to);
+          paramIndex++;
+        }
+
+        try {
+          const genericQuery = `
+            SELECT id, sensor_id, data, timestamp
+            FROM sensor_data_generic
+            WHERE ${whereConditions.join(' AND ')}
+            ORDER BY timestamp DESC
+            LIMIT $${paramIndex}
+            OFFSET $${paramIndex + 1}
+          `;
+
+          queryParams.push(limit, offset);
+          const result = await query(genericQuery, queryParams);
+
+          readings = result.rows.map(row => {
+            const data = row.data || {};
+            return {
+              id: `generic:${row.id}`,
+              sensor: sensor,
+              timestamp: row.timestamp,
+              temperatura: data.temperatura,
+              humedad: data.humedad,
+              ph: data.ph,
+              ec: data.ec,
+              ppm: data.ppm,
+              light: data.light,
+              watts: data.watts,
+              voltage: data.voltage,
+              current: data.current,
+              rawData: data
+            };
+          });
+
+        } catch (error) {
+          console.warn('⚠️ Error consultando sensor_data_generic:', error.message);
+        }
+      }
+
+      // Formatear para GraphQL Connection
+      const edges = readings.map((reading, index) => ({
+        cursor: Buffer.from(`${sensorId}:${reading.timestamp}:${index}`).toString('base64'),
+        node: reading
+      }));
+
       return {
-        edges: [],
+        edges,
         pageInfo: {
-          hasNextPage: false,
-          hasPreviousPage: false,
-          startCursor: null,
-          endCursor: null
+          hasNextPage: readings.length === limit,
+          hasPreviousPage: offset > 0,
+          startCursor: edges.length > 0 ? edges[0].cursor : null,
+          endCursor: edges.length > 0 ? edges[edges.length - 1].cursor : null
         },
-        totalCount: 0
+        totalCount: readings.length
       };
 
     } catch (error) {
@@ -353,6 +466,341 @@ const sensorQueries = {
     } catch (error) {
       console.error('❌ Error in unknownTopics query:', error);
       throw error;
+    }
+  },
+
+  /**
+   * Obtiene datos históricos de todos los sensores
+   */
+  allSensorHistory: async(_, { limit = 100, offset = 0, from, to, types }, { user }) => {
+    if (!user) {
+      throw new AuthenticationError('Debe estar autenticado para ver datos históricos');
+    }
+
+    try {
+      console.log('🔍 Consultando datos históricos de todos los sensores...');
+      
+      let whereConditions = [];
+      let queryParams = [];
+      let paramIndex = 1;
+
+      // Filtros de tiempo
+      if (from) {
+        whereConditions.push(`received_at >= $${paramIndex}`);
+        queryParams.push(from);
+        paramIndex++;
+      }
+      
+      if (to) {
+        whereConditions.push(`received_at <= $${paramIndex}`);
+        queryParams.push(to);
+        paramIndex++;
+      }
+
+      const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+      // Consultar datos de todas las tablas de sensores
+      const sensorTables = [
+        { table: 'temp_pressure_data', type: 'TEMP_PRESSURE', fields: 'sensor_id, temperatura, presion, altitude, received_at' },
+        { table: 'sensor_data_generic', type: 'GENERIC', fields: 'sensor_id, data, timestamp as received_at' }
+      ];
+
+      let allResults = [];
+
+      for (const tableInfo of sensorTables) {
+        try {
+          const tableQuery = `
+            SELECT id, ${tableInfo.fields}, '${tableInfo.type}' as sensor_type
+            FROM ${tableInfo.table}
+            ${whereClause}
+            ORDER BY received_at DESC
+            LIMIT ${limit}
+            OFFSET ${offset}
+          `;
+
+          const tableResults = await query(tableQuery, queryParams);
+          
+          allResults = allResults.concat(
+            tableResults.rows.map(row => ({
+              ...row,
+              table_source: tableInfo.table,
+              sensor_type: tableInfo.type
+            }))
+          );
+
+        } catch (tableError) {
+          console.warn(`⚠️ Error consultando tabla ${tableInfo.table}:`, tableError.message);
+        }
+      }
+
+      // Ordenar todos los resultados por fecha
+      allResults.sort((a, b) => new Date(b.received_at) - new Date(a.received_at));
+
+      // Limitar resultados finales
+      const limitedResults = allResults.slice(0, limit);
+
+      // Formatear para GraphQL
+      const edges = limitedResults.map((row, index) => ({
+        cursor: Buffer.from(`${row.table_source}:${row.id}`).toString('base64'),
+        node: {
+          id: `${row.table_source}:${row.id}`,
+          sensorId: row.sensor_id || 'unknown',
+          sensorName: `Sensor ${row.sensor_id}`,
+          sensorType: row.sensor_type,
+          timestamp: row.received_at,
+          data: row.data || {
+            temperatura: row.temperatura,
+            presion: row.presion,
+            altitude: row.altitude
+          }
+        }
+      }));
+
+      // Estadísticas por tipo
+      const byType = {};
+      limitedResults.forEach(row => {
+        if (!byType[row.sensor_type]) {
+          byType[row.sensor_type] = {
+            sensorType: row.sensor_type,
+            count: 0,
+            latestReading: null,
+            sensors: new Set()
+          };
+        }
+        byType[row.sensor_type].count++;
+        byType[row.sensor_type].sensors.add(row.sensor_id);
+        if (!byType[row.sensor_type].latestReading || new Date(row.received_at) > new Date(byType[row.sensor_type].latestReading)) {
+          byType[row.sensor_type].latestReading = row.received_at;
+        }
+      });
+
+      const byTypeArray = Object.values(byType).map(type => ({
+        ...type,
+        sensors: Array.from(type.sensors)
+      }));
+
+      console.log(`📊 Encontrados ${edges.length} registros históricos de ${byTypeArray.length} tipos de sensores`);
+
+      return {
+        edges,
+        pageInfo: {
+          hasNextPage: allResults.length > limit,
+          hasPreviousPage: offset > 0,
+          startCursor: edges.length > 0 ? edges[0].cursor : null,
+          endCursor: edges.length > 0 ? edges[edges.length - 1].cursor : null
+        },
+        totalCount: allResults.length,
+        byType: byTypeArray
+      };
+
+    } catch (error) {
+      console.error('❌ Error in allSensorHistory query:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Obtiene datos específicos de sensores de temperatura y presión
+   */
+  tempPressureData: async(_, { sensorId, limit = 100, from, to }, { user }) => {
+    if (!user) {
+      throw new AuthenticationError('Debe estar autenticado para ver datos de temperatura y presión');
+    }
+
+    try {
+      let whereConditions = ['1=1'];
+      let queryParams = [];
+      let paramIndex = 1;
+
+      if (sensorId) {
+        whereConditions.push(`sensor_id = $${paramIndex}`);
+        queryParams.push(sensorId);
+        paramIndex++;
+      }
+
+      if (from) {
+        whereConditions.push(`received_at >= $${paramIndex}`);
+        queryParams.push(from);
+        paramIndex++;
+      }
+
+      if (to) {
+        whereConditions.push(`received_at <= $${paramIndex}`);
+        queryParams.push(to);
+        paramIndex++;
+      }
+
+      const tempPressureQuery = `
+        SELECT id, sensor_id, temperatura, presion, altitude, received_at
+        FROM temp_pressure_data
+        WHERE ${whereConditions.join(' AND ')}
+        ORDER BY received_at DESC
+        LIMIT $${paramIndex}
+      `;
+
+      queryParams.push(limit);
+
+      const result = await query(tempPressureQuery, queryParams);
+
+      return result.rows.map(row => ({
+        id: row.id.toString(),
+        sensorId: row.sensor_id,
+        temperatura: row.temperatura,
+        presion: row.presion,
+        altitude: row.altitude,
+        receivedAt: row.received_at
+      }));
+
+    } catch (error) {
+      console.error('❌ Error in tempPressureData query:', error);
+      // Si la tabla no existe, retornar array vacío
+      if (error.code === '42P01') {
+        console.warn('⚠️ Tabla temp_pressure_data no existe');
+        return [];
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * Obtiene datos específicos de calidad del agua
+   */
+  waterQualityData: async(_, { sensorId, limit = 100, from, to }, { user }) => {
+    if (!user) {
+      throw new AuthenticationError('Debe estar autenticado para ver datos de calidad del agua');
+    }
+
+    try {
+      let whereConditions = ['1=1'];
+      let queryParams = [];
+      let paramIndex = 1;
+
+      if (sensorId) {
+        whereConditions.push(`sensor_id = $${paramIndex}`);
+        queryParams.push(sensorId);
+        paramIndex++;
+      }
+
+      if (from) {
+        whereConditions.push(`timestamp >= $${paramIndex}`);
+        queryParams.push(from);
+        paramIndex++;
+      }
+
+      if (to) {
+        whereConditions.push(`timestamp <= $${paramIndex}`);
+        queryParams.push(to);
+        paramIndex++;
+      }
+
+      // Intentar primero con tabla sensor_data_generic filtrando por tipo WATER_QUALITY
+      const waterQualityQuery = `
+        SELECT s.id, s.hardware_id as sensor_id, 
+               (data->>'ph')::float as ph,
+               (data->>'ec')::float as ec,
+               (data->>'ppm')::float as ppm,
+               (data->>'temperatura')::float as temperatura,
+               timestamp
+        FROM sensor_data_generic s
+        JOIN sensors sen ON s.sensor_id = sen.id
+        WHERE sen.sensor_type = 'WATER_QUALITY'
+        ${sensorId ? `AND sen.id = $${paramIndex}` : ''}
+        ORDER BY timestamp DESC
+        LIMIT $${sensorId ? paramIndex + 1 : paramIndex}
+      `;
+
+      if (sensorId) {
+        queryParams.push(sensorId);
+        paramIndex++;
+      }
+      queryParams.push(limit);
+
+      const result = await query(waterQualityQuery, queryParams);
+
+      return result.rows.map(row => ({
+        id: row.id.toString(),
+        sensorId: row.sensor_id,
+        ph: row.ph,
+        ec: row.ec,
+        ppm: row.ppm,
+        temperatura: row.temperatura,
+        timestamp: row.timestamp
+      }));
+
+    } catch (error) {
+      console.error('❌ Error in waterQualityData query:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Obtiene datos específicos de luz
+   */
+  lightData: async(_, { sensorId, limit = 100, from, to }, { user }) => {
+    if (!user) {
+      throw new AuthenticationError('Debe estar autenticado para ver datos de luz');
+    }
+
+    try {
+      let whereConditions = ['1=1'];
+      let queryParams = [];
+      let paramIndex = 1;
+
+      if (sensorId) {
+        whereConditions.push(`sensor_id = $${paramIndex}`);
+        queryParams.push(sensorId);
+        paramIndex++;
+      }
+
+      if (from) {
+        whereConditions.push(`timestamp >= $${paramIndex}`);
+        queryParams.push(from);
+        paramIndex++;
+      }
+
+      if (to) {
+        whereConditions.push(`timestamp <= $${paramIndex}`);
+        queryParams.push(to);
+        paramIndex++;
+      }
+
+      // Consultar datos de luz desde sensor_data_generic
+      const lightQuery = `
+        SELECT s.id, s.hardware_id as sensor_id,
+               (data->>'light')::float as light,
+               (data->>'white_light')::float as white_light,
+               (data->>'raw_light')::float as raw_light,
+               (data->>'uv_index')::float as uv_index,
+               timestamp
+        FROM sensor_data_generic s
+        JOIN sensors sen ON s.sensor_id = sen.id
+        WHERE sen.sensor_type = 'LIGHT'
+        ${sensorId ? `AND sen.id = $${paramIndex}` : ''}
+        ORDER BY timestamp DESC
+        LIMIT $${sensorId ? paramIndex + 1 : paramIndex}
+      `;
+
+      if (sensorId) {
+        queryParams.push(sensorId);
+        paramIndex++;
+      }
+      queryParams.push(limit);
+
+      const result = await query(lightQuery, queryParams);
+
+      return result.rows.map(row => ({
+        id: row.id.toString(),
+        sensorId: row.sensor_id,
+        light: row.light,
+        whiteLight: row.white_light,
+        rawLight: row.raw_light,
+        uvIndex: row.uv_index,
+        timestamp: row.timestamp
+      }));
+
+    } catch (error) {
+      console.error('❌ Error in lightData query:', error);
+      return [];
     }
   }
 };
