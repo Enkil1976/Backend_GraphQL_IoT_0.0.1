@@ -22,7 +22,7 @@ class SensorTypeService {
       name: 'Temperatura y Humedad',
       description: 'Sensor de temperatura y humedad ambiental',
       mqttTopicTemplate: 'Invernadero/{sensorId}/data',
-      tableName: 'temhum_data',
+      tableName: 'sensor_data_generic',
       payloadTemplate: {
         temperatura: { type: 'float', required: true, min: -50, max: 80 },
         humedad: { type: 'float', required: true, min: 0, max: 100 },
@@ -71,7 +71,7 @@ class SensorTypeService {
       name: 'Calidad del Agua',
       description: 'Sensor de calidad del agua (pH, EC, PPM)',
       mqttTopicTemplate: 'Invernadero/{sensorId}/data',
-      tableName: 'calidad_agua',
+      tableName: 'sensor_data_generic',
       payloadTemplate: {
         ph: { type: 'float', required: true, min: 0, max: 14 },
         ec: { type: 'float', required: true, min: 0, max: 10000 },
@@ -89,7 +89,7 @@ class SensorTypeService {
       name: 'Sensor de Luz',
       description: 'Sensor de luz ambiental y espectro',
       mqttTopicTemplate: 'Invernadero/{sensorId}/data',
-      tableName: 'luxometro',
+      tableName: 'sensor_data_generic',
       payloadTemplate: {
         light: { type: 'float', required: true, min: 0, max: 100000 },
         white_light: { type: 'float', required: false, min: 0, max: 100000 },
@@ -121,7 +121,7 @@ class SensorTypeService {
       name: 'Humedad del Suelo',
       description: 'Sensor de humedad del suelo y nutrientes',
       mqttTopicTemplate: 'Invernadero/{sensorId}/data',
-      tableName: 'soil_moisture_data',
+      tableName: 'sensor_data_generic',
       payloadTemplate: {
         humedad_suelo: { type: 'float', required: true, min: 0, max: 100 },
         temperatura_suelo: { type: 'float', required: false, min: -10, max: 50 },
@@ -141,7 +141,7 @@ class SensorTypeService {
       name: 'Dióxido de Carbono',
       description: 'Sensor de CO2 y calidad del aire',
       mqttTopicTemplate: 'Invernadero/{sensorId}/data',
-      tableName: 'co2_data',
+      tableName: 'sensor_data_generic',
       payloadTemplate: {
         co2: { type: 'float', required: true, min: 0, max: 10000 },
         tvoc: { type: 'float', required: false, min: 0, max: 1000 },
@@ -205,7 +205,7 @@ class SensorTypeService {
       name: 'Sensor de Movimiento',
       description: 'Sensor de movimiento y presencia',
       mqttTopicTemplate: 'Invernadero/{sensorId}/data',
-      tableName: 'motion_data',
+      tableName: 'sensor_data_generic',
       payloadTemplate: {
         motion_detected: { type: 'boolean', required: true },
         confidence: { type: 'float', required: false, min: 0, max: 100 },
@@ -222,7 +222,7 @@ class SensorTypeService {
       name: 'Sensor Personalizado',
       description: 'Sensor con campos personalizables',
       mqttTopicTemplate: 'Invernadero/{sensorId}/data',
-      tableName: 'custom_sensor_data',
+      tableName: 'sensor_data_generic',
       payloadTemplate: {
         value: { type: 'float', required: true },
         unit: { type: 'string', required: false },
