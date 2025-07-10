@@ -20,6 +20,10 @@ extend type Query {
   sensorPayloadTemplate(typeId: String!): JSON!
   sensorSamplePayload(typeId: String!): JSON!
   sensorAlerts(sensorId: ID): [SensorAlert!]!
+  
+  # Auto-Discovery
+  autoDiscoveryStatus: AutoDiscoveryStatus!
+  unknownTopics: [UnknownTopic!]!
 }
 
 extend type Subscription {
@@ -381,4 +385,52 @@ enum AlertConditionType {
   RANGE
   CHANGE_RATE
   MISSING_DATA
+}
+
+# Auto-Discovery Types
+
+type AutoDiscoveryStatus {
+  enabled: Boolean!
+  unknownTopicsCount: Int!
+  totalAnalyzed: Int!
+  autoCreatedCount: Int!
+  recentActivity: [AutoDiscoveryActivity!]!
+  config: AutoDiscoveryConfig!
+}
+
+type AutoDiscoveryConfig {
+  analysisWindow: Int!
+  minSamples: Int!
+  autoCreateThreshold: Int!
+  approvalThreshold: Int!
+}
+
+type AutoDiscoveryActivity {
+  timestamp: DateTime!
+  action: String!
+  topic: String!
+  entityType: String
+  entityId: ID
+  confidence: Int
+}
+
+type UnknownTopic {
+  topic: String!
+  firstSeen: DateTime!
+  lastSeen: DateTime!
+  messageCount: Int!
+  payloadSamples: [JSON!]!
+  sensorScore: Int!
+  deviceScore: Int!
+  suggestedType: String!
+  confidence: Int!
+  status: DiscoveryStatus!
+}
+
+enum DiscoveryStatus {
+  ANALYZING
+  PENDING_APPROVAL
+  AUTO_CREATED
+  IGNORED
+  MANUAL_REVIEW
 }

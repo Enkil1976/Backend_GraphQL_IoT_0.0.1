@@ -1,6 +1,7 @@
 const dynamicSensorService = require('../../../services/dynamicSensorService');
 const sensorTypeService = require('../../../services/sensorTypeService');
-const { AuthenticationError, UserInputError } = require('apollo-server-express');
+const mqttAutoDiscoveryService = require('../../../services/mqttAutoDiscoveryService');
+const { AuthenticationError, UserInputError, ForbiddenError } = require('apollo-server-express');
 
 /**
  * Resolvers de consultas para gestión dinámica de sensores
@@ -282,6 +283,75 @@ const sensorQueries = {
 
     } catch (error) {
       console.error('❌ Error in sensorStats query:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Obtiene el estado del auto-discovery
+   */
+  autoDiscoveryStatus: async(_, {}, { user }) => {
+    if (!user) {
+      throw new AuthenticationError('Debe estar autenticado para ver el estado del auto-discovery');
+    }
+
+    if (user.role !== 'admin') {
+      throw new ForbiddenError('Solo los administradores pueden ver el estado del auto-discovery');
+    }
+
+    try {
+      const stats = mqttAutoDiscoveryService.getAutoDiscoveryStats();
+      
+      return {
+        enabled: stats.enabled,
+        unknownTopicsCount: stats.unknownTopicsCount,
+        totalAnalyzed: 0, // TODO: Implementar contador
+        autoCreatedCount: 0, // TODO: Implementar contador
+        recentActivity: [], // TODO: Implementar actividad reciente
+        config: {
+          analysisWindow: stats.config.analysisWindow,
+          minSamples: stats.config.minSamples,
+          autoCreateThreshold: stats.config.autoCreateThreshold,
+          approvalThreshold: stats.config.approvalThreshold
+        }
+      };
+
+    } catch (error) {
+      console.error('❌ Error in autoDiscoveryStatus query:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Obtiene la lista de tópicos desconocidos
+   */
+  unknownTopics: async(_, {}, { user }) => {
+    if (!user) {
+      throw new AuthenticationError('Debe estar autenticado para ver tópicos desconocidos');
+    }
+
+    if (user.role !== 'admin') {
+      throw new ForbiddenError('Solo los administradores pueden ver tópicos desconocidos');
+    }
+
+    try {
+      const stats = mqttAutoDiscoveryService.getAutoDiscoveryStats();
+      
+      return stats.recentUnknown.map(topicData => ({
+        topic: topicData.topic,
+        firstSeen: topicData.firstSeen,
+        lastSeen: topicData.lastSeen,
+        messageCount: topicData.messageCount,
+        payloadSamples: topicData.payloads.map(p => p.payload),
+        sensorScore: 0, // TODO: Calcular en real-time
+        deviceScore: 0, // TODO: Calcular en real-time
+        suggestedType: 'unknown',
+        confidence: 0,
+        status: 'ANALYZING'
+      }));
+
+    } catch (error) {
+      console.error('❌ Error in unknownTopics query:', error);
       throw error;
     }
   }

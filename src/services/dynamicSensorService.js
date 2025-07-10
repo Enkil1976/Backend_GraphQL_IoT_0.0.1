@@ -342,7 +342,7 @@ class DynamicSensorService {
 
       if (!sensor) {
         console.warn(`⚠️ No se encontró sensor para el tópico: ${mqttTopic}`);
-        return;
+        return false; // Indica que no se procesó
       }
 
       // Validar payload
@@ -351,7 +351,7 @@ class DynamicSensorService {
       console.log(`🔍 Resultado de validación:`, JSON.stringify(validation));
       if (!validation.valid) {
         console.error(`❌ Payload inválido para sensor ${sensor.hardware_id}:`, validation.errors || 'Sin errores específicos');
-        return;
+        return false; // Indica que no se procesó
       }
 
       // Almacenar en tabla específica
@@ -370,9 +370,11 @@ class DynamicSensorService {
       await this.updateSensorOnlineStatus(sensor.hardware_id, true);
 
       console.log(`✅ Datos procesados para sensor: ${sensor.hardware_id}`);
+      return true; // Indica que se procesó exitosamente
 
     } catch (error) {
       console.error('❌ Error processing sensor data:', error);
+      return false; // Indica que hubo error
     }
   }
 

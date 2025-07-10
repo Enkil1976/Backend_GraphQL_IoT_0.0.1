@@ -4,6 +4,7 @@ const { cache } = require('../config/redis');
 const { pubsub, SENSOR_EVENTS } = require('../utils/pubsub');
 const EventEmitter = require('events');
 const dynamicSensorService = require('./dynamicSensorService');
+const mqttAutoDiscoveryService = require('./mqttAutoDiscoveryService');
 
 /**
  * MQTT Service for GraphQL Backend
@@ -138,12 +139,36 @@ class MqttService extends EventEmitter {
     // Try to process with dynamic sensor service first
     try {
       const parsedPayload = JSON.parse(rawPayload);
-      await dynamicSensorService.processSensorData(topic, parsedPayload);
+      const processed = await dynamicSensorService.processSensorData(topic, parsedPayload);
+      
+      // If no sensor found, try auto-discovery
+      if (!processed) {
+        console.log(`🔍 No sensor found for topic ${topic}, attempting auto-discovery...`);
+        const autoCreated = await mqttAutoDiscoveryService.processUnknownMessage(topic, parsedPayload);
+        
+        if (autoCreated) {
+          console.log(`🤖 Auto-discovery initiated for topic: ${topic}`);
+        } else {
+          console.log(`⚠️ Auto-discovery skipped for topic: ${topic}`);
+        }
+      }
+      
     } catch (error) {
-      console.log(`⚠️ Dynamic sensor processing failed, trying legacy processing: ${error.message}`);
+      console.log(`⚠️ Dynamic sensor processing failed, trying auto-discovery and legacy: ${error.message}`);
 
-      // Fall back to legacy processing
-      await this.processLegacyMessage(topic, rawPayload, receivedAt);
+      // Try auto-discovery for unknown topics
+      try {
+        const parsedPayload = JSON.parse(rawPayload);
+        const autoCreated = await mqttAutoDiscoveryService.processUnknownMessage(topic, parsedPayload);
+        
+        if (!autoCreated) {
+          // Fall back to legacy processing
+          await this.processLegacyMessage(topic, rawPayload, receivedAt);
+        }
+      } catch (parseError) {
+        console.error(`❌ JSON parsing failed: ${parseError.message}`);
+        await this.processLegacyMessage(topic, rawPayload, receivedAt);
+      }
     }
   }
 
