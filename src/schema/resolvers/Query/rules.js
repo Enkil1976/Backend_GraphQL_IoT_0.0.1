@@ -222,8 +222,8 @@ const ruleQueries = {
 
         switch (rule.type) {
         case 'SENSOR':
-          if (!rule.sensorType) {
-            errors.push(`Condition ${i + 1}: Sensor type is required for sensor conditions`);
+          if (!rule.sensorId) {
+            errors.push(`Condition ${i + 1}: Sensor ID is required for sensor conditions`);
           }
           if (!rule.field) {
             errors.push(`Condition ${i + 1}: Field is required for sensor conditions`);

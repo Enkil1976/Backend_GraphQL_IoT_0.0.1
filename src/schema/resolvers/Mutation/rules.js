@@ -503,7 +503,7 @@ const ruleMutations = {
             operator: 'AND',
             rules: [{
               type: 'SENSOR',
-              sensorType: 'TEMHUM1',
+              sensorId: variables.sensorId,
               field: 'temperatura',
               operator: 'GT',
               value: variables.threshold || 30
@@ -522,7 +522,7 @@ const ruleMutations = {
             operator: 'AND',
             rules: [{
               type: 'SENSOR',
-              sensorType: 'TEMHUM1',
+              sensorId: variables.sensorId,
               field: 'humedad',
               operator: 'GT',
               value: variables.humidity_threshold || 80
