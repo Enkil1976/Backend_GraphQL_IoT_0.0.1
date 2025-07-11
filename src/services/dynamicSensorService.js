@@ -331,6 +331,22 @@ class DynamicSensorService {
   }
 
   /**
+   * Obtiene un sensor por ID numérico (para GraphQL queries)
+   */
+  async getSensorByNumericId(id) {
+    try {
+      const result = await query(
+        'SELECT * FROM sensors WHERE id = $1',
+        [id]
+      );
+      return result.rows[0];
+    } catch (error) {
+      console.error('❌ Error getting sensor by numeric ID:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Procesa datos de sensor recibidos por MQTT
    */
   async processSensorData(mqttTopic, payload) {

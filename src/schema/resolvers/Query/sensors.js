@@ -45,7 +45,13 @@ const sensorQueries = {
     }
 
     try {
-      const sensor = await dynamicSensorService.getSensorById(id);
+      // Intentar primero con ID numérico, luego con hardware_id
+      let sensor = await dynamicSensorService.getSensorByNumericId(id);
+      
+      if (!sensor) {
+        sensor = await dynamicSensorService.getSensorById(id);
+      }
+      
       if (!sensor) {
         return null;
       }
@@ -201,7 +207,13 @@ const sensorQueries = {
     }
 
     try {
-      const sensor = await dynamicSensorService.getSensorById(sensorId);
+      // Intentar primero con ID numérico, luego con hardware_id
+      let sensor = await dynamicSensorService.getSensorByNumericId(sensorId);
+      
+      if (!sensor) {
+        sensor = await dynamicSensorService.getSensorById(sensorId);
+      }
+      
       if (!sensor) {
         throw new UserInputError(`Sensor no encontrado: ${sensorId}`);
       }
@@ -372,7 +384,13 @@ const sensorQueries = {
     }
 
     try {
-      const sensor = await dynamicSensorService.getSensorById(sensorId);
+      // Intentar primero con ID numérico, luego con hardware_id
+      let sensor = await dynamicSensorService.getSensorByNumericId(sensorId);
+      
+      if (!sensor) {
+        sensor = await dynamicSensorService.getSensorById(sensorId);
+      }
+      
       if (!sensor) {
         throw new UserInputError(`Sensor no encontrado: ${sensorId}`);
       }
