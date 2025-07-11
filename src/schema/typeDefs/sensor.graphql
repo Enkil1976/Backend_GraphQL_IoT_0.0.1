@@ -55,6 +55,31 @@ extend type Query {
     from: DateTime
     to: DateTime
   ): [LightReading!]!
+  
+  # Legacy sensor data tables (where real data exists)
+  legacyTemHum1Data(
+    limit: Int = 100
+    from: DateTime
+    to: DateTime
+  ): [LegacyTemHumReading!]!
+  
+  legacyTemHum2Data(
+    limit: Int = 100
+    from: DateTime
+    to: DateTime
+  ): [LegacyTemHumReading!]!
+  
+  legacyWaterQualityData(
+    limit: Int = 100
+    from: DateTime
+    to: DateTime
+  ): [LegacyWaterQualityReading!]!
+  
+  legacyLightData(
+    limit: Int = 100
+    from: DateTime
+    to: DateTime
+  ): [LegacyLightReading!]!
 }
 
 extend type Subscription {
@@ -568,5 +593,29 @@ type PowerReading {
   frequency: Float
   powerFactor: Float
   energyTotal: Float
+  timestamp: DateTime!
+}
+
+# Legacy data types (where real historical data exists)
+
+type LegacyTemHumReading {
+  id: ID!
+  temperature: Float!
+  humidity: Float!
+  timestamp: DateTime!
+}
+
+type LegacyWaterQualityReading {
+  id: ID!
+  ph: Float!
+  ec: Float!
+  tds: Float!
+  temperature: Float
+  timestamp: DateTime!
+}
+
+type LegacyLightReading {
+  id: ID!
+  lux: Float!
   timestamp: DateTime!
 }

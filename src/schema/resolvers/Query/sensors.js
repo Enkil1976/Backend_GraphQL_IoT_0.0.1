@@ -517,10 +517,15 @@ const sensorQueries = {
 
       const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
-      // Consultar datos de todas las tablas de sensores
+      // Consultar datos de todas las tablas de sensores (incluyendo legacy)
       const sensorTables = [
         { table: 'temp_pressure_data', type: 'TEMP_PRESSURE', fields: 'sensor_id, temperatura, presion, altitude, received_at' },
-        { table: 'sensor_data_generic', type: 'GENERIC', fields: 'sensor_id, data, timestamp as received_at' }
+        { table: 'sensor_data_generic', type: 'GENERIC', fields: 'sensor_id, data, timestamp as received_at' },
+        // Tablas legacy donde están los datos reales
+        { table: 'sensor_data_temhum1', type: 'TEMHUM1', fields: "'temhum1' as sensor_id, temperature, humidity, timestamp as received_at" },
+        { table: 'sensor_data_temhum2', type: 'TEMHUM2', fields: "'temhum2' as sensor_id, temperature, humidity, timestamp as received_at" },
+        { table: 'sensor_data_calidad_agua', type: 'WATER_QUALITY_LEGACY', fields: "'calidad_agua' as sensor_id, ph, ec, tds, temperature, timestamp as received_at" },
+        { table: 'sensor_data_luxometro', type: 'LIGHT_LEGACY', fields: "'luxometro' as sensor_id, lux, timestamp as received_at" }
       ];
 
       let allResults = [];
@@ -819,6 +824,231 @@ const sensorQueries = {
     } catch (error) {
       console.error('❌ Error in lightData query:', error);
       return [];
+    }
+  },
+
+  /**
+   * Obtiene datos históricos reales de la tabla legacy sensor_data_temhum1
+   */
+  legacyTemHum1Data: async(_, { limit = 100, from, to }, { user }) => {
+    if (!user) {
+      throw new AuthenticationError('Debe estar autenticado para ver datos históricos');
+    }
+
+    try {
+      let whereConditions = ['1=1'];
+      let queryParams = [];
+      let paramIndex = 1;
+
+      if (from) {
+        whereConditions.push(`timestamp >= $${paramIndex}`);
+        queryParams.push(from);
+        paramIndex++;
+      }
+
+      if (to) {
+        whereConditions.push(`timestamp <= $${paramIndex}`);
+        queryParams.push(to);
+        paramIndex++;
+      }
+
+      const legacyQuery = `
+        SELECT id, temperature, humidity, timestamp
+        FROM sensor_data_temhum1
+        WHERE ${whereConditions.join(' AND ')}
+        ORDER BY timestamp DESC
+        LIMIT $${paramIndex}
+      `;
+
+      queryParams.push(limit);
+
+      const result = await query(legacyQuery, queryParams);
+
+      console.log(`📊 Datos legacy TemHum1: ${result.rows.length} registros`);
+
+      return result.rows.map(row => ({
+        id: row.id.toString(),
+        temperature: row.temperature,
+        humidity: row.humidity,
+        timestamp: row.timestamp
+      }));
+
+    } catch (error) {
+      console.error('❌ Error in legacyTemHum1Data query:', error);
+      if (error.code === '42P01') {
+        console.warn('⚠️ Tabla sensor_data_temhum1 no existe');
+        return [];
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * Obtiene datos históricos reales de la tabla legacy sensor_data_temhum2
+   */
+  legacyTemHum2Data: async(_, { limit = 100, from, to }, { user }) => {
+    if (!user) {
+      throw new AuthenticationError('Debe estar autenticado para ver datos históricos');
+    }
+
+    try {
+      let whereConditions = ['1=1'];
+      let queryParams = [];
+      let paramIndex = 1;
+
+      if (from) {
+        whereConditions.push(`timestamp >= $${paramIndex}`);
+        queryParams.push(from);
+        paramIndex++;
+      }
+
+      if (to) {
+        whereConditions.push(`timestamp <= $${paramIndex}`);
+        queryParams.push(to);
+        paramIndex++;
+      }
+
+      const legacyQuery = `
+        SELECT id, temperature, humidity, timestamp
+        FROM sensor_data_temhum2
+        WHERE ${whereConditions.join(' AND ')}
+        ORDER BY timestamp DESC
+        LIMIT $${paramIndex}
+      `;
+
+      queryParams.push(limit);
+
+      const result = await query(legacyQuery, queryParams);
+
+      console.log(`📊 Datos legacy TemHum2: ${result.rows.length} registros`);
+
+      return result.rows.map(row => ({
+        id: row.id.toString(),
+        temperature: row.temperature,
+        humidity: row.humidity,
+        timestamp: row.timestamp
+      }));
+
+    } catch (error) {
+      console.error('❌ Error in legacyTemHum2Data query:', error);
+      if (error.code === '42P01') {
+        console.warn('⚠️ Tabla sensor_data_temhum2 no existe');
+        return [];
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * Obtiene datos históricos reales de la tabla legacy sensor_data_calidad_agua
+   */
+  legacyWaterQualityData: async(_, { limit = 100, from, to }, { user }) => {
+    if (!user) {
+      throw new AuthenticationError('Debe estar autenticado para ver datos históricos');
+    }
+
+    try {
+      let whereConditions = ['1=1'];
+      let queryParams = [];
+      let paramIndex = 1;
+
+      if (from) {
+        whereConditions.push(`timestamp >= $${paramIndex}`);
+        queryParams.push(from);
+        paramIndex++;
+      }
+
+      if (to) {
+        whereConditions.push(`timestamp <= $${paramIndex}`);
+        queryParams.push(to);
+        paramIndex++;
+      }
+
+      const legacyQuery = `
+        SELECT id, ph, ec, tds, temperature, timestamp
+        FROM sensor_data_calidad_agua
+        WHERE ${whereConditions.join(' AND ')}
+        ORDER BY timestamp DESC
+        LIMIT $${paramIndex}
+      `;
+
+      queryParams.push(limit);
+
+      const result = await query(legacyQuery, queryParams);
+
+      console.log(`📊 Datos legacy Calidad Agua: ${result.rows.length} registros`);
+
+      return result.rows.map(row => ({
+        id: row.id.toString(),
+        ph: row.ph,
+        ec: row.ec,
+        tds: row.tds,
+        temperature: row.temperature,
+        timestamp: row.timestamp
+      }));
+
+    } catch (error) {
+      console.error('❌ Error in legacyWaterQualityData query:', error);
+      if (error.code === '42P01') {
+        console.warn('⚠️ Tabla sensor_data_calidad_agua no existe');
+        return [];
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * Obtiene datos históricos reales de la tabla legacy sensor_data_luxometro
+   */
+  legacyLightData: async(_, { limit = 100, from, to }, { user }) => {
+    if (!user) {
+      throw new AuthenticationError('Debe estar autenticado para ver datos históricos');
+    }
+
+    try {
+      let whereConditions = ['1=1'];
+      let queryParams = [];
+      let paramIndex = 1;
+
+      if (from) {
+        whereConditions.push(`timestamp >= $${paramIndex}`);
+        queryParams.push(from);
+        paramIndex++;
+      }
+
+      if (to) {
+        whereConditions.push(`timestamp <= $${paramIndex}`);
+        queryParams.push(to);
+        paramIndex++;
+      }
+
+      const legacyQuery = `
+        SELECT id, lux, timestamp
+        FROM sensor_data_luxometro
+        WHERE ${whereConditions.join(' AND ')}
+        ORDER BY timestamp DESC
+        LIMIT $${paramIndex}
+      `;
+
+      queryParams.push(limit);
+
+      const result = await query(legacyQuery, queryParams);
+
+      console.log(`📊 Datos legacy Luxómetro: ${result.rows.length} registros`);
+
+      return result.rows.map(row => ({
+        id: row.id.toString(),
+        lux: row.lux,
+        timestamp: row.timestamp
+      }));
+
+    } catch (error) {
+      console.error('❌ Error in legacyLightData query:', error);
+      if (error.code === '42P01') {
+        console.warn('⚠️ Tabla sensor_data_luxometro no existe');
+        return [];
+      }
+      throw error;
     }
   }
 };
