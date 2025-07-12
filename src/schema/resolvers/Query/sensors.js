@@ -340,7 +340,7 @@ const sensorQueries = {
 
     try {
       const { cache } = require('../../../config/redis');
-      const sensors = await query('SELECT id, hardware_id, type FROM sensors WHERE is_active = true');
+      const sensors = await query('SELECT id, hardware_id, sensor_type FROM sensors WHERE is_active = true');
       
       const latestData = [];
       
@@ -352,7 +352,7 @@ const sensorQueries = {
           
           if (cachedData && Object.keys(cachedData).length > 0) {
             // Filter by types if specified
-            if (types && types.length > 0 && !types.includes(sensor.type)) {
+            if (types && types.length > 0 && !types.includes(sensor.sensor_type)) {
               continue;
             }
             
@@ -360,7 +360,7 @@ const sensorQueries = {
               id: `${sensor.id}_${Date.now()}`,
               sensorId: sensor.id,
               hardwareId: sensor.hardware_id,
-              sensorType: sensor.type,
+              sensorType: sensor.sensor_type,
               timestamp: cachedData.timestamp || new Date().toISOString(),
               temperatura: parseFloat(cachedData.temperatura) || null,
               humedad: parseFloat(cachedData.humedad) || null,
