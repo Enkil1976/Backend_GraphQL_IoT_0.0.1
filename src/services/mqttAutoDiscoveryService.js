@@ -560,45 +560,92 @@ class MQTTAutoDiscoveryService {
    * Detecta tipo específico de dispositivo
    */
   detectDeviceType(topic, payloads) {
+    console.log(`🔍 [detectDeviceType] Analyzing topic: ${topic}`);
+    console.log(`🔍 [detectDeviceType] Payloads: ${payloads.length} samples`);
+    
     // Primero revisar si algún payload tiene device_type específico
     for (const payload of payloads) {
       if (payload.device_type) {
         const deviceTypeValue = payload.device_type.toLowerCase();
+        console.log(`📋 [detectDeviceType] Found device_type in payload: ${deviceTypeValue}`);
         
         // Buscar coincidencia directa en deviceTypeValues
         for (const deviceType of this.deviceDetectionRules.deviceTypes) {
           if (deviceType.deviceTypeValues && 
               deviceType.deviceTypeValues.some(value => value.toLowerCase() === deviceTypeValue)) {
-            console.log(`🎯 Device type detected from payload: ${deviceType.type}`);
+            console.log(`✅ [detectDeviceType] Device type detected from payload: ${deviceType.type}`);
             return deviceType.type;
           }
         }
         
         // Si no encuentra coincidencia directa, usar el valor tal como viene
-        console.log(`🎯 Device type from payload (direct): ${payload.device_type}`);
+        console.log(`✅ [detectDeviceType] Device type from payload (direct): ${payload.device_type}`);
         return payload.device_type;
       }
     }
     
     // Si no hay device_type en payload, usar detección por patrones
+    console.log(`🔍 [detectDeviceType] No device_type in payload, using pattern detection...`);
+    
     for (const deviceType of this.deviceDetectionRules.deviceTypes) {
+      console.log(`🔍 [detectDeviceType] Testing device type: ${deviceType.type}`);
+      
       // Verificar patrón de tópico
-      const matchesPattern = deviceType.patterns.some(pattern => pattern.test(topic));
+      const patternResults = deviceType.patterns.map(pattern => {
+        const matches = pattern.test(topic);
+        console.log(`   🔍 Pattern ${pattern} matches "${topic}": ${matches}`);
+        return matches;
+      });
+      const matchesPattern = patternResults.some(result => result);
       
       // Verificar campos de control en payloads
-      const hasControlFields = payloads.some(payload => 
-        deviceType.controlFields.some(field => 
-          Object.keys(payload).some(key => key.toLowerCase().includes(field.toLowerCase()))
-        )
-      );
+      const controlFieldResults = [];
+      const hasControlFields = payloads.some(payload => {
+        return deviceType.controlFields.some(field => {
+          const hasField = Object.keys(payload).some(key => key.toLowerCase().includes(field.toLowerCase()));
+          if (hasField) {
+            controlFieldResults.push(`Found field "${field}" in payload keys: ${Object.keys(payload).join(', ')}`);
+          }
+          return hasField;
+        });
+      });
+      
+      if (controlFieldResults.length > 0) {
+        console.log(`   📋 Control fields found: ${controlFieldResults.join('; ')}`);
+      }
       
       if (matchesPattern || hasControlFields) {
-        console.log(`🎯 Device type detected from pattern: ${deviceType.type}`);
+        console.log(`✅ [detectDeviceType] Device type detected from pattern: ${deviceType.type}`);
+        console.log(`   📊 Match details: pattern=${matchesPattern}, controlFields=${hasControlFields}`);
         return deviceType.type;
       }
     }
     
+    console.log(`❌ [detectDeviceType] No specific type detected, defaulting to 'actuator'`);
     return 'actuator'; // Tipo genérico si no coincide con ninguno específico
+  }
+
+  /**
+   * Mapea tipos internos de detección a tipos de base de datos GraphQL
+   */
+  mapToGraphQLDeviceType(detectedType) {
+    const typeMapping = {
+      'water_pump': 'WATER_PUMP',
+      'fan': 'VENTILATOR',
+      'heater': 'HEATER',
+      'water_heater': 'HEATER', // Los calentadores de agua también son HEATER
+      'led_light': 'LIGHTS',
+      'valve': 'VALVE',
+      'actuator': 'SENSOR_ACTUATOR',
+      'motor': 'MOTOR',
+      'relay': 'RELAY',
+      'dimmer': 'DIMMER',
+      'cooler': 'COOLER'
+    };
+    
+    const mappedType = typeMapping[detectedType] || 'SENSOR_ACTUATOR';
+    console.log(`🔄 [mapToGraphQLDeviceType] Mapping "${detectedType}" → "${mappedType}"`);
+    return mappedType;
   }
 
   /**
@@ -704,12 +751,14 @@ class MQTTAutoDiscoveryService {
       
       // Generar IDs usando la nueva estructura
       const deviceId = deviceIdFromPayload || this.generateDeviceId(topicParts);
-      const deviceType = deviceTypeFromPayload || analysis.deviceSubtype;
+      const detectedType = deviceTypeFromPayload || analysis.deviceSubtype;
+      const deviceType = this.mapToGraphQLDeviceType(detectedType); // Map to GraphQL enum
       const deviceName = this.generateDeviceNameWithIds(deviceId, deviceType, topicParts);
       
       console.log(`🤖 Creating auto-device: ${deviceName}`);
       console.log(`   📋 Device ID: ${deviceId}`);
-      console.log(`   🏷️  Device Type: ${deviceType}`);
+      console.log(`   🔍 Detected Type: ${detectedType}`);
+      console.log(`   🏷️  Mapped Type: ${deviceType}`);
       
       // Detectar campo de payload principal y crear mapeo de variables
       const payloadKey = this.detectMainPayloadKey(analysis.payloadAnalysis);
@@ -729,7 +778,9 @@ class MQTTAutoDiscoveryService {
           created_from_analysis: analysis,
           supports_dual_id: true,
           original_device_id: deviceIdFromPayload,
-          original_device_type: deviceTypeFromPayload
+          original_device_type: deviceTypeFromPayload,
+          detected_type: detectedType,
+          mapped_type: deviceType
         }
       };
       
