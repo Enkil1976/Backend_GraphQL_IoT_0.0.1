@@ -69,20 +69,62 @@ class SensorTypeService {
 
     this.registerSensorType('WATER_QUALITY', {
       name: 'Calidad del Agua',
-      description: 'Sensor de calidad del agua (pH, EC, PPM)',
+      description: 'Sensor de calidad del agua (pH, EC, PPM, Temperatura)',
+      mqttTopicTemplate: 'Invernadero/{sensorId}/data',
+      tableName: 'sensor_data_generic',
+      payloadTemplate: {
+        ph: { type: 'float', required: false, min: 0, max: 14 },
+        ec: { type: 'float', required: false, min: 0, max: 10000 },
+        ppm: { type: 'float', required: false, min: 0, max: 5000 },
+        temperatura: { type: 'float', required: false, min: 0, max: 50 },
+        temperatura_agua: { type: 'float', required: false, min: 0, max: 50 },
+        voltage: { type: 'float', required: false, min: 0, max: 5 },
+        rssi: { type: 'integer', required: false },
+        boot: { type: 'integer', required: false, default: 0 },
+        mem: { type: 'integer', required: false },
+        timestamp: { type: 'string', required: false }
+      },
+      cacheKeyTemplate: 'sensor_latest:{sensorId}',
+      metricsFields: ['ph', 'ec', 'ppm', 'temperatura', 'temperatura_agua', 'voltage']
+    });
+
+    // Tipo específico para sensores de pH
+    this.registerSensorType('WATER_PH', {
+      name: 'Sensor de pH del Agua',
+      description: 'Sensor especializado en medición de pH y temperatura del agua',
       mqttTopicTemplate: 'Invernadero/{sensorId}/data',
       tableName: 'sensor_data_generic',
       payloadTemplate: {
         ph: { type: 'float', required: true, min: 0, max: 14 },
-        ec: { type: 'float', required: true, min: 0, max: 10000 },
-        ppm: { type: 'float', required: true, min: 0, max: 5000 },
-        temperatura_agua: { type: 'float', required: false, min: 0, max: 50 },
+        temperatura: { type: 'float', required: false, min: 0, max: 50 },
+        voltage: { type: 'float', required: false, min: 0, max: 5 },
         rssi: { type: 'integer', required: false },
         boot: { type: 'integer', required: false, default: 0 },
-        mem: { type: 'integer', required: false }
+        mem: { type: 'integer', required: false },
+        timestamp: { type: 'string', required: false }
       },
       cacheKeyTemplate: 'sensor_latest:{sensorId}',
-      metricsFields: ['ph', 'ec', 'ppm', 'temperatura_agua']
+      metricsFields: ['ph', 'temperatura', 'voltage']
+    });
+
+    // Tipo específico para sensores de EC/PPM
+    this.registerSensorType('WATER_EC_PPM', {
+      name: 'Sensor de EC/PPM del Agua',
+      description: 'Sensor especializado en medición de conductividad eléctrica y sólidos disueltos',
+      mqttTopicTemplate: 'Invernadero/{sensorId}/data',
+      tableName: 'sensor_data_generic',
+      payloadTemplate: {
+        ec: { type: 'float', required: true, min: 0, max: 10000 },
+        ppm: { type: 'float', required: true, min: 0, max: 5000 },
+        temperatura: { type: 'float', required: false, min: 0, max: 50 },
+        voltage: { type: 'float', required: false, min: 0, max: 5 },
+        rssi: { type: 'integer', required: false },
+        boot: { type: 'integer', required: false, default: 0 },
+        mem: { type: 'integer', required: false },
+        timestamp: { type: 'string', required: false }
+      },
+      cacheKeyTemplate: 'sensor_latest:{sensorId}',
+      metricsFields: ['ec', 'ppm', 'temperatura', 'voltage']
     });
 
     this.registerSensorType('LIGHT', {

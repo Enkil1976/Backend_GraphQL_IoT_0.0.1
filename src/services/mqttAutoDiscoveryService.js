@@ -14,7 +14,7 @@ class MQTTAutoDiscoveryService {
     this.detectionConfig = {
       enabled: process.env.MQTT_AUTO_DISCOVERY !== 'false',
       analysisWindow: 60000, // 60 segundos
-      minSamples: 2, // Reducido para testing
+      minSamples: 1, // Reducido para dispositivos que envían una sola muestra
       autoCreateThreshold: 70, // Reducido para testing
       approvalThreshold: 50
     };
@@ -90,8 +90,20 @@ class MQTTAutoDiscoveryService {
         {
           type: 'WATER_QUALITY',
           patterns: [/agua|water|quality/i],
+          requiredFields: [],
+          optionalFields: ['ph', 'ec', 'ppm', 'temperatura', 'voltage', 'temp']
+        },
+        {
+          type: 'WATER_PH',
+          patterns: [/ph|aguaph/i],
           requiredFields: ['ph'],
-          optionalFields: ['ec', 'ppm', 'temp', 'temperatura']
+          optionalFields: ['temperatura', 'voltage', 'temp']
+        },
+        {
+          type: 'WATER_EC_PPM',
+          patterns: [/ec|ppm|conductivity/i],
+          requiredFields: ['ec', 'ppm'],
+          optionalFields: ['temperatura', 'voltage', 'temp']
         },
         {
           type: 'LIGHT',
@@ -159,34 +171,67 @@ class MQTTAutoDiscoveryService {
           },
           score: 10,
           description: 'Has state values (ON/OFF)'
+        },
+        {
+          name: 'hasDeviceId',
+          test: (payload) => {
+            return payload.hasOwnProperty('device_id') && typeof payload.device_id === 'string';
+          },
+          score: 25,
+          description: 'Has device_id field'
+        },
+        {
+          name: 'hasDeviceType',
+          test: (payload) => {
+            return payload.hasOwnProperty('device_type') && typeof payload.device_type === 'string';
+          },
+          score: 15,
+          description: 'Has device_type field'
         }
       ],
       
       deviceTypes: [
         {
-          type: 'PUMP',
+          type: 'water_pump',
           patterns: [/bomba|pump|water/i],
-          controlFields: ['bombaSw', 'pumpSw', 'sw', 'switch', 'estado']
+          controlFields: ['bombaSw', 'pumpSw', 'sw', 'switch', 'estado'],
+          deviceTypeValues: ['water_pump', 'pump']
         },
         {
-          type: 'FAN',
+          type: 'fan',
           patterns: [/ventilador|fan|air/i],
-          controlFields: ['ventiladorSw', 'fanSw', 'sw', 'switch']
+          controlFields: ['ventiladorSw', 'fanSw', 'sw', 'switch', 'estado'],
+          deviceTypeValues: ['fan', 'ventilador']
         },
         {
-          type: 'HEATER',
+          type: 'heater',
           patterns: [/calefactor|heater|heat/i],
-          controlFields: ['calefactorSw', 'heaterSw', 'sw', 'switch']
+          controlFields: ['calefactorSw', 'heaterSw', 'sw', 'switch', 'estado'],
+          deviceTypeValues: ['heater', 'calefactor']
         },
         {
-          type: 'LIGHT',
+          type: 'water_heater',
+          patterns: [/calefactor.*agua|water.*heater/i],
+          controlFields: ['calefactorAguaSw', 'waterHeaterSw', 'sw', 'switch', 'estado'],
+          deviceTypeValues: ['water_heater', 'calefactor_agua']
+        },
+        {
+          type: 'led_light',
           patterns: [/luz|light|led|lamp/i],
-          controlFields: ['lightSw', 'ledSw', 'lampSw', 'sw', 'switch']
+          controlFields: ['lightSw', 'ledSw', 'lampSw', 'sw', 'switch', 'estado'],
+          deviceTypeValues: ['led_light', 'light', 'led']
         },
         {
-          type: 'VALVE',
+          type: 'valve',
           patterns: [/valve|valvula/i],
-          controlFields: ['valveSw', 'valvulaSw', 'sw', 'switch']
+          controlFields: ['valveSw', 'valvulaSw', 'sw', 'switch', 'estado'],
+          deviceTypeValues: ['valve', 'valvula']
+        },
+        {
+          type: 'actuator',
+          patterns: [/actuator|actuador/i],
+          controlFields: ['sw', 'switch', 'estado', 'command', 'action'],
+          deviceTypeValues: ['actuator', 'actuador']
         }
       ]
     };
@@ -515,6 +560,27 @@ class MQTTAutoDiscoveryService {
    * Detecta tipo específico de dispositivo
    */
   detectDeviceType(topic, payloads) {
+    // Primero revisar si algún payload tiene device_type específico
+    for (const payload of payloads) {
+      if (payload.device_type) {
+        const deviceTypeValue = payload.device_type.toLowerCase();
+        
+        // Buscar coincidencia directa en deviceTypeValues
+        for (const deviceType of this.deviceDetectionRules.deviceTypes) {
+          if (deviceType.deviceTypeValues && 
+              deviceType.deviceTypeValues.some(value => value.toLowerCase() === deviceTypeValue)) {
+            console.log(`🎯 Device type detected from payload: ${deviceType.type}`);
+            return deviceType.type;
+          }
+        }
+        
+        // Si no encuentra coincidencia directa, usar el valor tal como viene
+        console.log(`🎯 Device type from payload (direct): ${payload.device_type}`);
+        return payload.device_type;
+      }
+    }
+    
+    // Si no hay device_type en payload, usar detección por patrones
     for (const deviceType of this.deviceDetectionRules.deviceTypes) {
       // Verificar patrón de tópico
       const matchesPattern = deviceType.patterns.some(pattern => pattern.test(topic));
@@ -527,11 +593,12 @@ class MQTTAutoDiscoveryService {
       );
       
       if (matchesPattern || hasControlFields) {
+        console.log(`🎯 Device type detected from pattern: ${deviceType.type}`);
         return deviceType.type;
       }
     }
     
-    return 'ACTUATOR'; // Tipo genérico si no coincide con ninguno específico
+    return 'actuator'; // Tipo genérico si no coincide con ninguno específico
   }
 
   /**
@@ -629,26 +696,40 @@ class MQTTAutoDiscoveryService {
   async createAutoDevice(topic, topicData, analysis) {
     try {
       const topicParts = topic.split('/');
-      const deviceName = this.generateDeviceName(topicParts, analysis.deviceSubtype);
-      const deviceId = this.generateDeviceId(topicParts);
+      const samplePayload = analysis.payloadAnalysis.samplePayload;
       
-      console.log(`🤖 Creating auto-device: ${deviceName} (${analysis.deviceSubtype})`);
+      // Extraer IDs del payload si están disponibles
+      const deviceIdFromPayload = samplePayload.device_id || null;
+      const deviceTypeFromPayload = samplePayload.device_type || null;
       
-      // Detectar campo de payload principal
+      // Generar IDs usando la nueva estructura
+      const deviceId = deviceIdFromPayload || this.generateDeviceId(topicParts);
+      const deviceType = deviceTypeFromPayload || analysis.deviceSubtype;
+      const deviceName = this.generateDeviceNameWithIds(deviceId, deviceType, topicParts);
+      
+      console.log(`🤖 Creating auto-device: ${deviceName}`);
+      console.log(`   📋 Device ID: ${deviceId}`);
+      console.log(`   🏷️  Device Type: ${deviceType}`);
+      
+      // Detectar campo de payload principal y crear mapeo de variables
       const payloadKey = this.detectMainPayloadKey(analysis.payloadAnalysis);
+      const variableMapping = this.createDeviceVariableMapping(analysis.payloadAnalysis);
       
       // Crear dispositivo vía base de datos directa
       const deviceData = {
         device_id: deviceId,
         name: deviceName,
-        type: analysis.deviceSubtype,
-        location: 'Auto-detected',
+        type: deviceType,
         description: `Auto-created from MQTT topic: ${topic}`,
         configuration: {
           mqtt_topic: topic,
           mqtt_payload_key: payloadKey,
+          variable_mapping: variableMapping,
           auto_created: true,
-          created_from_analysis: analysis
+          created_from_analysis: analysis,
+          supports_dual_id: true,
+          original_device_id: deviceIdFromPayload,
+          original_device_type: deviceTypeFromPayload
         }
       };
       
@@ -665,6 +746,38 @@ class MQTTAutoDiscoveryService {
       console.error(`❌ Error creating auto-device for ${topic}:`, error);
       throw error;
     }
+  }
+
+  /**
+   * Crea mapeo de variables para compatibilidad legacy
+   */
+  createDeviceVariableMapping(payloadAnalysis) {
+    const mapping = {};
+    
+    // Mapeo de variables legacy a estándar
+    const legacyMappings = {
+      'bombaSw': 'estado',
+      'ventiladorSw': 'estado', 
+      'calefactorSw': 'estado',
+      'calefactorAguaSw': 'estado',
+      'ledSw': 'estado',
+      'lightSw': 'estado',
+      'pumpSw': 'estado',
+      'fanSw': 'estado',
+      'heaterSw': 'estado'
+    };
+    
+    // Crear mapeo basado en campos encontrados
+    for (const field of payloadAnalysis.fields) {
+      if (legacyMappings[field]) {
+        mapping[field] = legacyMappings[field];
+        console.log(`📝 Variable mapping: ${field} → ${legacyMappings[field]}`);
+      } else {
+        mapping[field] = field; // Mantener nombre original si no hay mapeo
+      }
+    }
+    
+    return mapping;
   }
 
   // Métodos auxiliares para generación de nombres e IDs...
@@ -703,6 +816,34 @@ class MQTTAutoDiscoveryService {
     };
     const typeName = typeMap[deviceType] || 'Dispositivo';
     return `${identifier} - ${typeName} (Auto)`;
+  }
+
+  generateDeviceNameWithIds(deviceId, deviceType, topicParts) {
+    // Mapeo de tipos a nombres en español
+    const typeMap = {
+      'water_pump': 'Bomba de Agua',
+      'fan': 'Ventilador',
+      'heater': 'Calefactor',
+      'water_heater': 'Calentador de Agua',
+      'led_light': 'Luz LED',
+      'valve': 'Válvula',
+      'actuator': 'Actuador',
+      'PUMP': 'Bomba',
+      'FAN': 'Ventilador',
+      'HEATER': 'Calefactor',
+      'LIGHT': 'Luz',
+      'VALVE': 'Válvula'
+    };
+    
+    const typeName = typeMap[deviceType] || deviceType;
+    
+    // Si tenemos un device_id específico, usarlo; si no, usar el tópico
+    if (deviceId && deviceId !== 'unknown') {
+      return `${typeName} - ${deviceId}`;
+    } else {
+      const identifier = topicParts[1] || 'Unknown';
+      return `${typeName} - ${identifier} (Auto)`;
+    }
   }
 
   generateDeviceId(topicParts) {
@@ -825,55 +966,24 @@ class MQTTAutoDiscoveryService {
   }
 
   async createDeviceInternal(deviceData) {
-    // First, check if location column exists in the database
-    let insertQuery, params;
+    // Use the correct table structure without location column
+    const insertQuery = `
+      INSERT INTO devices (device_id, name, type, room, description, status, configuration, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, 'offline', $6::jsonb, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      RETURNING *
+    `;
     
-    try {
-      // Try with location column first
-      insertQuery = `
-        INSERT INTO devices (device_id, name, type, location, description, status, configuration, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, 'UNKNOWN', $6::jsonb, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-        RETURNING *
-      `;
-      
-      params = [
-        deviceData.device_id,
-        deviceData.name,
-        deviceData.type,
-        deviceData.location || 'Unknown',
-        deviceData.description,
-        JSON.stringify(deviceData.configuration)
-      ];
-      
-      const result = await query(insertQuery, params);
-      return result.rows[0];
-      
-    } catch (error) {
-      // If location column doesn't exist, try without it
-      if (error.code === '42703') { // column does not exist
-        console.log('⚠️ Location column not found, creating device without location');
-        
-        insertQuery = `
-          INSERT INTO devices (device_id, name, type, description, status, configuration, created_at, updated_at)
-          VALUES ($1, $2, $3, $4, 'UNKNOWN', $5::jsonb, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-          RETURNING *
-        `;
-        
-        params = [
-          deviceData.device_id,
-          deviceData.name,
-          deviceData.type,
-          deviceData.description,
-          JSON.stringify(deviceData.configuration)
-        ];
-        
-        const result = await query(insertQuery, params);
-        return result.rows[0];
-      }
-      
-      // Re-throw other errors
-      throw error;
-    }
+    const params = [
+      deviceData.device_id,
+      deviceData.name,
+      deviceData.type,
+      deviceData.location || 'Auto-detected', // Use room instead of location
+      deviceData.description,
+      JSON.stringify(deviceData.configuration)
+    ];
+    
+    const result = await query(insertQuery, params);
+    return result.rows[0];
   }
 
   async logAutoCreation(entityType, entityId, topic, analysis) {

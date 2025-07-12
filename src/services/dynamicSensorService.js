@@ -763,16 +763,17 @@ class DynamicSensorService {
    */
   async updateSensorOnlineStatus(hardwareId, isOnline) {
     try {
+      // Use existing columns: is_active for online status and updated_at for last seen
       await query(
-        'UPDATE sensors SET is_online = $1, last_seen = NOW() WHERE hardware_id = $2',
+        'UPDATE sensors SET is_active = $1, updated_at = NOW() WHERE hardware_id = $2',
         [isOnline, hardwareId]
       );
 
       // Actualizar en mapa local
       const sensor = this.activeSensors.get(hardwareId);
       if (sensor) {
-        sensor.is_online = isOnline;
-        sensor.last_seen = new Date();
+        sensor.is_active = isOnline;
+        sensor.updated_at = new Date();
       }
 
     } catch (error) {
