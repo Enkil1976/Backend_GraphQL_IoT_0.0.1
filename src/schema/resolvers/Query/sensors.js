@@ -219,112 +219,93 @@ const sensorQueries = {
       }
 
       console.log(`🔍 Consultando lecturas del sensor ${sensorId} (${sensor.sensor_type})`);
+      console.log(`📊 Hardware ID: ${sensor.hardware_id}, Sensor Type: ${sensor.sensor_type}`);
 
       let readings = [];
 
-      // Consultar según el tipo de sensor
-      if (sensor.sensor_type === 'TEMP_PRESSURE') {
-        // Datos de temperatura y presión
-        let whereConditions = [`sensor_id = $1`];
-        let queryParams = [sensor.hardware_id || sensorId];
-        let paramIndex = 2;
+      // Todos los sensores usan sensor_data_generic (no temp_pressure_data separada)
+      console.log(`🔍 Consultando sensor_data_generic para sensor tipo: ${sensor.sensor_type}`);
+      
+      // Datos genéricos desde sensor_data_generic
+      // Usar ID numérico, no hardware_id string
+      let whereConditions = [`sensor_id = $1`];
+      let queryParams = [parseInt(sensorId)]; // Convertir a entero
+      let paramIndex = 2;
 
-        if (from) {
-          whereConditions.push(`received_at >= $${paramIndex}`);
-          queryParams.push(from);
-          paramIndex++;
-        }
-
-        if (to) {
-          whereConditions.push(`received_at <= $${paramIndex}`);
-          queryParams.push(to);
-          paramIndex++;
-        }
-
-        try {
-          const tempPressureQuery = `
-            SELECT id, sensor_id, temperatura, presion, altitude, received_at
-            FROM temp_pressure_data
-            WHERE ${whereConditions.join(' AND ')}
-            ORDER BY received_at DESC
-            LIMIT $${paramIndex}
-            OFFSET $${paramIndex + 1}
-          `;
-
-          queryParams.push(limit, offset);
-          const result = await query(tempPressureQuery, queryParams);
-
-          readings = result.rows.map(row => ({
-            id: `temp_pressure:${row.id}`,
-            sensor: sensor,
-            timestamp: row.received_at,
-            temperatura: row.temperatura,
-            presion: row.presion,
-            altitude: row.altitude,
-            rawData: {
-              temperatura: row.temperatura,
-              presion: row.presion,
-              altitude: row.altitude
-            }
-          }));
-
-        } catch (error) {
-          console.warn('⚠️ Error consultando temp_pressure_data:', error.message);
-        }
-      } else {
-        // Datos genéricos desde sensor_data_generic
-        let whereConditions = [`sensor_id = $1`];
-        let queryParams = [sensorId];
-        let paramIndex = 2;
-
-        if (from) {
-          whereConditions.push(`timestamp >= $${paramIndex}`);
-          queryParams.push(from);
-          paramIndex++;
-        }
-
-        if (to) {
-          whereConditions.push(`timestamp <= $${paramIndex}`);
-          queryParams.push(to);
-          paramIndex++;
-        }
-
-        try {
-          const genericQuery = `
-            SELECT id, sensor_id, data, timestamp
-            FROM sensor_data_generic
-            WHERE ${whereConditions.join(' AND ')}
-            ORDER BY timestamp DESC
-            LIMIT $${paramIndex}
-            OFFSET $${paramIndex + 1}
-          `;
-
-          queryParams.push(limit, offset);
-          const result = await query(genericQuery, queryParams);
-
-          readings = result.rows.map(row => {
-            const data = row.data || {};
-            return {
-              id: `generic:${row.id}`,
-              sensor: sensor,
-              timestamp: row.timestamp,
-              temperatura: data.temperatura,
-              humedad: data.humedad,
-              ph: data.ph,
-              ec: data.ec,
-              ppm: data.ppm,
-              light: data.light,
-              watts: data.watts,
-              voltage: data.voltage,
-              current: data.current,
-              rawData: data
-            };
-          });
-
-        } catch (error) {
-          console.warn('⚠️ Error consultando sensor_data_generic:', error.message);
-        }
+      if (from) {
+        whereConditions.push(`received_at >= $${paramIndex}`);
+        queryParams.push(from);
+        paramIndex++;
       }
+
+      if (to) {
+        whereConditions.push(`received_at <= $${paramIndex}`);
+        queryParams.push(to);
+        paramIndex++;
+      }
+
+      const genericQuery = `
+        SELECT id, sensor_id, payload, received_at as timestamp
+        FROM sensor_data_generic
+        WHERE ${whereConditions.join(' AND ')}
+        ORDER BY received_at DESC
+        LIMIT $${paramIndex}
+        OFFSET $${paramIndex + 1}
+      `;
+
+      queryParams.push(limit, offset);
+      
+      console.log(`🔍 Ejecutando consulta genérica:`, genericQuery);
+      console.log(`📝 Parámetros:`, queryParams);
+      
+      const result = await query(genericQuery, queryParams);
+      
+      console.log(`📊 Resultados genéricos: ${result.rows.length} filas`);
+      if (result.rows.length > 0) {
+        console.log(`📄 Primera fila:`, JSON.stringify(result.rows[0], null, 2));
+      }
+
+      readings = result.rows.map(row => {
+        console.log(`🔍 Raw row data:`, JSON.stringify(row, null, 2));
+        
+        // Extraer datos del payload según la estructura real
+        let temperature, humidity, pressure, light, white_light, raw_light, rssi;
+        let rawData = row.payload;
+        
+        try {
+          const payload = row.payload;
+          const sensorData = payload.data || {}; // Los datos están en payload.data
+          
+          // Extraer valores según la estructura real que mostraste
+          temperature = sensorData.temperature;
+          humidity = sensorData.humidity;
+          pressure = sensorData.pressure;
+          light = sensorData.light;
+          white_light = sensorData.white_light;
+          raw_light = sensorData.raw_light;
+          rssi = payload.rssi;
+          
+          console.log(`📊 Datos extraídos: temp=${temperature}, hum=${humidity}, pres=${pressure}, light=${light}`);
+          
+        } catch (parseError) {
+          console.warn('Error parsing payload:', parseError.message);
+        }
+        
+        return {
+          id: `generic:${row.id}`,
+          sensor: sensor,
+          timestamp: row.timestamp,
+          temperatura: temperature,
+          humedad: humidity,
+          presion: pressure,
+          altitude: null, // No vi este campo en los datos
+          light: light,
+          whiteLight: white_light,
+          rawLight: raw_light,
+          rssi: rssi,
+          rawData: rawData
+        };
+      });
 
       // Formatear para GraphQL Connection
       const edges = readings.map((reading, index) => ({
@@ -350,7 +331,7 @@ const sensorQueries = {
   },
 
   /**
-   * Obtiene los últimos datos de sensores
+   * Obtiene los últimos datos de sensores desde Redis cache
    */
   latestSensorData: async(_, { types }, { user }) => {
     if (!user) {
@@ -358,16 +339,47 @@ const sensorQueries = {
     }
 
     try {
-      const filters = {};
-      if (types && types.length > 0) {
-        filters.types = types;
+      const { cache } = require('../../../config/redis');
+      const sensors = await query('SELECT id, hardware_id, type FROM sensors WHERE is_active = true');
+      
+      const latestData = [];
+      
+      for (const sensor of sensors.rows) {
+        const cacheKey = `sensor_latest:${sensor.hardware_id.toLowerCase()}`;
+        
+        try {
+          const cachedData = await cache.hgetall(cacheKey);
+          
+          if (cachedData && Object.keys(cachedData).length > 0) {
+            // Filter by types if specified
+            if (types && types.length > 0 && !types.includes(sensor.type)) {
+              continue;
+            }
+            
+            latestData.push({
+              id: `${sensor.id}_${Date.now()}`,
+              sensorId: sensor.id,
+              hardwareId: sensor.hardware_id,
+              sensorType: sensor.type,
+              timestamp: cachedData.timestamp || new Date().toISOString(),
+              temperatura: parseFloat(cachedData.temperatura) || null,
+              humedad: parseFloat(cachedData.humedad) || null,
+              ph: parseFloat(cachedData.ph) || null,
+              ec: parseFloat(cachedData.ec) || null,
+              ppm: parseFloat(cachedData.ppm) || null,
+              light: parseFloat(cachedData.light) || null,
+              watts: parseFloat(cachedData.watts) || null,
+              rssi: parseInt(cachedData.rssi) || null,
+              rawData: cachedData
+            });
+          }
+        } catch (cacheError) {
+          console.warn(`Error reading cache for sensor ${sensor.hardware_id}:`, cacheError.message);
+        }
       }
-
-      const sensors = await dynamicSensorService.getAllSensors(filters);
-
-      // TODO: Implementar obtención de datos más recientes
-      // Por ahora retornamos array vacío
-      return [];
+      
+      console.log(`✅ Retrieved ${latestData.length} latest sensor readings from cache`);
+      return latestData;
 
     } catch (error) {
       console.error('❌ Error in latestSensorData query:', error);
@@ -497,6 +509,7 @@ const sensorQueries = {
 
     try {
       console.log('🔍 Consultando datos históricos de todos los sensores...');
+      console.log(`📊 Parámetros: limit=${limit}, offset=${offset}, from=${from}, to=${to}`);
       
       let whereConditions = [];
       let queryParams = [];
@@ -519,8 +532,7 @@ const sensorQueries = {
 
       // Consultar datos de todas las tablas de sensores (incluyendo legacy)
       const sensorTables = [
-        { table: 'temp_pressure_data', type: 'TEMP_PRESSURE', fields: 'sensor_id, temperatura, presion, altitude, received_at' },
-        { table: 'sensor_data_generic', type: 'GENERIC', fields: 'sensor_id, data, timestamp as received_at' },
+        { table: 'sensor_data_generic', type: 'GENERIC', fields: 'id, sensor_id, payload, received_at' },
         // Tablas legacy donde están los datos reales
         { table: 'sensor_data_temhum1', type: 'TEMHUM1', fields: "'temhum1' as sensor_id, temperature, humidity, timestamp as received_at" },
         { table: 'sensor_data_temhum2', type: 'TEMHUM2', fields: "'temhum2' as sensor_id, temperature, humidity, timestamp as received_at" },
@@ -532,16 +544,36 @@ const sensorQueries = {
 
       for (const tableInfo of sensorTables) {
         try {
-          const tableQuery = `
-            SELECT id, ${tableInfo.fields}, '${tableInfo.type}' as sensor_type
-            FROM ${tableInfo.table}
-            ${whereClause}
-            ORDER BY received_at DESC
-            LIMIT ${limit}
-            OFFSET ${offset}
-          `;
+          let tableQuery;
+          if (tableInfo.table === 'sensor_data_generic') {
+            tableQuery = `
+              SELECT ${tableInfo.fields}, '${tableInfo.type}' as sensor_type
+              FROM ${tableInfo.table}
+              ${whereClause}
+              ORDER BY received_at DESC
+              LIMIT ${limit}
+              OFFSET ${offset}
+            `;
+          } else {
+            tableQuery = `
+              SELECT id, ${tableInfo.fields}, '${tableInfo.type}' as sensor_type
+              FROM ${tableInfo.table}
+              ${whereClause}
+              ORDER BY received_at DESC
+              LIMIT ${limit}
+              OFFSET ${offset}
+            `;
+          }
+
+          console.log(`🔍 Ejecutando consulta en ${tableInfo.table}:`, tableQuery);
+          console.log(`📝 Parámetros:`, queryParams);
 
           const tableResults = await query(tableQuery, queryParams);
+          
+          console.log(`📊 Resultados de ${tableInfo.table}: ${tableResults.rows.length} filas`);
+          if (tableResults.rows.length > 0) {
+            console.log(`📄 Primera fila:`, JSON.stringify(tableResults.rows[0], null, 2));
+          }
           
           allResults = allResults.concat(
             tableResults.rows.map(row => ({
@@ -571,11 +603,47 @@ const sensorQueries = {
           sensorName: `Sensor ${row.sensor_id}`,
           sensorType: row.sensor_type,
           timestamp: row.received_at,
-          data: row.data || {
-            temperatura: row.temperatura,
-            presion: row.presion,
-            altitude: row.altitude
-          }
+          data: (() => {
+            // Manejar la estructura real con payload
+            if (row.sensor_type === 'GENERIC' && row.payload) {
+              try {
+                const payload = row.payload;
+                const sensorData = payload.data || {};
+                
+                return {
+                  temperatura: sensorData.temperature,
+                  humedad: sensorData.humidity,
+                  presion: sensorData.pressure,
+                  light: sensorData.light,
+                  white_light: sensorData.white_light,
+                  raw_light: sensorData.raw_light,
+                  dew_point: sensorData.dew_point,
+                  heat_index: sensorData.heat_index,
+                  rssi: payload.rssi,
+                  _metadata: payload._metadata,
+                  _original: payload
+                };
+              } catch (parseError) {
+                console.warn('Error parsing payload field:', parseError.message);
+                return { _raw: row.payload };
+              }
+            } else {
+              // Datos de tablas legacy o estructura directa
+              return {
+                temperatura: row.temperatura,
+                temperature: row.temperature,
+                humedad: row.humidity,
+                humidity: row.humidity,
+                presion: row.presion,
+                altitude: row.altitude,
+                ph: row.ph,
+                ec: row.ec,
+                tds: row.tds,
+                lux: row.lux,
+                light: row.light
+              };
+            }
+          })()
         }
       }));
 
@@ -1050,7 +1118,8 @@ const sensorQueries = {
       }
       throw error;
     }
-  }
+  },
+
 };
 
 module.exports = sensorQueries;
