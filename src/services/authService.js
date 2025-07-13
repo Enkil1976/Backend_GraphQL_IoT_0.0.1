@@ -14,8 +14,8 @@ class AuthService {
     if (!this.jwtSecret) {
       throw new Error('JWT_SECRET environment variable is required for security');
     }
-    this.jwtExpiresIn = process.env.JWT_EXPIRES_IN || '1h';
-    this.refreshTokenExpiresIn = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
+    this.jwtExpiresIn = process.env.JWT_EXPIRES_IN || '4h'; // Increased for dashboard usage
+    this.refreshTokenExpiresIn = process.env.REFRESH_TOKEN_EXPIRES_IN || '30d';
     this.saltRounds = 12;
   }
 

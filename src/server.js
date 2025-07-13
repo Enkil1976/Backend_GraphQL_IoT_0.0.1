@@ -273,10 +273,10 @@ class GraphQLServer {
         max: (req) => {
           // More lenient for private IPs
           if (isPrivateIP(req.ip)) {
-            return 2000; // Higher limit for internal network
+            return 5000; // Higher limit for internal network
           }
-          // Stricter for external IPs
-          return 500;
+          // More reasonable for external IPs with dashboard usage
+          return 2000;
         },
         message: {
           error: 'Too many requests from this IP',
