@@ -92,9 +92,9 @@ const notificationMutations = {
         throw new AuthenticationError('You must be logged in to mark notifications as read');
       }
 
-      // Mark all unread notifications as read for current user
+      // Mark all unread notifications as read for current user AND global notifications
       const result = await query(
-        'UPDATE notifications SET read_at = NOW() WHERE user_id = $1 AND read_at IS NULL',
+        'UPDATE notifications SET read_at = NOW() WHERE (user_id = $1 OR user_id IS NULL) AND read_at IS NULL',
         [context.user.id]
       );
 

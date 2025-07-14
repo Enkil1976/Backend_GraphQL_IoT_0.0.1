@@ -556,12 +556,22 @@ class NotificationService {
       status = null,
       priority = null,
       startDate = null,
-      endDate = null
+      endDate = null,
+      userId = null,
+      unread = null,
+      channel = null
     } = options;
 
     let sql = 'SELECT * FROM notifications WHERE 1=1';
     const params = [];
     let paramIndex = 1;
+
+    // Include notifications for specific user OR global notifications (user_id IS NULL)
+    if (userId) {
+      sql += ` AND (user_id = $${paramIndex} OR user_id IS NULL)`;
+      params.push(userId);
+      paramIndex++;
+    }
 
     if (status) {
       sql += ` AND status = $${paramIndex}`;
@@ -572,6 +582,20 @@ class NotificationService {
     if (priority) {
       sql += ` AND priority = $${paramIndex}`;
       params.push(priority);
+      paramIndex++;
+    }
+
+    if (unread !== null) {
+      if (unread) {
+        sql += ` AND read_at IS NULL`;
+      } else {
+        sql += ` AND read_at IS NOT NULL`;
+      }
+    }
+
+    if (channel) {
+      sql += ` AND channels ILIKE $${paramIndex}`;
+      params.push(`%${channel}%`);
       paramIndex++;
     }
 
@@ -592,10 +616,16 @@ class NotificationService {
 
     const result = await query(sql, params);
 
-    // Get total count
+    // Get total count with same filters
     let countSql = 'SELECT COUNT(*) as total FROM notifications WHERE 1=1';
     const countParams = [];
     let countParamIndex = 1;
+
+    if (userId) {
+      countSql += ` AND (user_id = $${countParamIndex} OR user_id IS NULL)`;
+      countParams.push(userId);
+      countParamIndex++;
+    }
 
     if (status) {
       countSql += ` AND status = $${countParamIndex}`;
@@ -606,6 +636,20 @@ class NotificationService {
     if (priority) {
       countSql += ` AND priority = $${countParamIndex}`;
       countParams.push(priority);
+      countParamIndex++;
+    }
+
+    if (unread !== null) {
+      if (unread) {
+        countSql += ` AND read_at IS NULL`;
+      } else {
+        countSql += ` AND read_at IS NOT NULL`;
+      }
+    }
+
+    if (channel) {
+      countSql += ` AND channels ILIKE $${countParamIndex}`;
+      countParams.push(`%${channel}%`);
       countParamIndex++;
     }
 
