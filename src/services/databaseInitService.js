@@ -644,6 +644,46 @@ class DatabaseInitService {
         }
       }
     }
+
+    // Apply device type correction migration
+    await this.applyDeviceTypeCorrections();
+  }
+
+  /**
+   * Apply device type corrections migration
+   */
+  async applyDeviceTypeCorrections() {
+    console.log('🔧 Applying device type corrections...');
+    
+    try {
+      // Read the migration file
+      const migrationPath = path.join(__dirname, '../../migrations/fix_device_types_classification.sql');
+      const migrationSQL = await fs.readFile(migrationPath, 'utf8');
+      
+      // Split SQL commands by semicolon and filter out empty ones
+      const sqlCommands = migrationSQL
+        .split(';')
+        .map(cmd => cmd.trim())
+        .filter(cmd => cmd.length > 0 && !cmd.startsWith('--') && !cmd.startsWith('/*'))
+        .map(cmd => cmd + ';'); // Re-add semicolons for individual commands
+      
+      // Apply the migration
+      await this.applyMigration(
+        2001, 
+        'Fix device type classification from autodiscovery',
+        sqlCommands.filter(cmd => cmd.trim() !== ';') // Remove lone semicolons
+      );
+      
+      console.log('✅ Device type corrections applied successfully');
+      
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        console.log('ℹ️ Device type correction migration file not found, skipping...');
+      } else {
+        console.error('❌ Error applying device type corrections:', error);
+        // Don't throw error to avoid breaking the initialization
+      }
+    }
   }
 
   /**
