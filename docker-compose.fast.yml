@@ -1,5 +1,5 @@
 services:
-  # PostgreSQL Database
+  # PostgreSQL Database - ya está corriendo
   postgres:
     image: postgres:14-alpine
     container_name: iot-postgres-local
@@ -19,7 +19,7 @@ services:
       start_period: 30s
     restart: unless-stopped
 
-  # Redis Cache
+  # Redis Cache - ya está corriendo
   redis:
     image: redis:7-alpine
     container_name: iot-redis-local
@@ -39,7 +39,7 @@ services:
   db-init:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.fast
     container_name: iot-db-init-local
     environment:
       NODE_ENV: development
@@ -48,13 +48,8 @@ services:
       PG_DATABASE: invernadero_iot
       PG_USER: postgres
       PG_PASSWORD: postgres123
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: redis123
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     command: ["node", "init-database.js"]
     restart: "no"
@@ -63,7 +58,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.fast
     container_name: iot-app-local
     ports:
       - "4001:4001"

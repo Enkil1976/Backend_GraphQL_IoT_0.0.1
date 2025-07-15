@@ -490,11 +490,14 @@ class DynamicSensorService {
         break;
 
       case 'WATER_QUALITY':
+      case 'WATER_QUALITY_FULL':
+      case 'WATER_PH':
+      case 'WATER_EC_PPM':
         normalized.data = {
-          ph: rawPayload.ph,
-          ec: rawPayload.ec,
-          ppm: rawPayload.ppm,
-          temperature: rawPayload.temperatura || rawPayload.temperature
+          ph: rawPayload.ph || rawPayload.pH || null,
+          ec: rawPayload.ec || rawPayload.EC || null,
+          ppm: rawPayload.ppm || rawPayload.PPM || null,
+          temperature: rawPayload.temperatura || rawPayload.temperature || null
         };
         break;
 
@@ -606,6 +609,12 @@ class DynamicSensorService {
         heatindex: normalizedPayload.data.heat_index || null,
         dewpoint: normalizedPayload.data.dew_point || null,
         
+        // Campos de calidad del agua
+        ph: normalizedPayload.data.ph || null,
+        ec: normalizedPayload.data.ec || null,
+        ppm: normalizedPayload.data.ppm || null,
+        temperaturaAgua: normalizedPayload.data.temperature || null,
+        
         // Campos adicionales
         rssi: normalizedPayload.rssi,
         boot: normalizedPayload.boot,
@@ -654,7 +663,10 @@ class DynamicSensorService {
       case 'LIGHT':
         return ['light', 'white_light', 'raw_light'];
       case 'WATER_QUALITY':
-        return ['ph', 'ec', 'ppm', 'temperatura'];
+      case 'WATER_QUALITY_FULL':
+      case 'WATER_PH':
+      case 'WATER_EC_PPM':
+        return ['ph', 'ec', 'ppm', 'temperatura', 'temperaturaAgua'];
       default:
         return ['temperatura', 'humedad']; // Fallback
     }

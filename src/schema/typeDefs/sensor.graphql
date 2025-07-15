@@ -80,6 +80,7 @@ extend type Query {
     from: DateTime
     to: DateTime
   ): [LegacyLightReading!]!
+  
 }
 
 extend type Subscription {
@@ -619,3 +620,4 @@ type LegacyLightReading {
   lux: Float!
   timestamp: DateTime!
 }
+

@@ -2,7 +2,7 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:14-alpine
-    container_name: iot-postgres-local
+    container_name: iot-postgres-prod
     environment:
       POSTGRES_DB: invernadero_iot
       POSTGRES_USER: postgres
@@ -10,39 +10,43 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data_local:/var/lib/postgresql/data
+      - postgres_data_prod:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 15s
-      timeout: 10s
+      interval: 10s
+      timeout: 5s
       retries: 5
       start_period: 30s
     restart: unless-stopped
+    networks:
+      - iot-network
 
   # Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: iot-redis-local
+    container_name: iot-redis-prod
     command: redis-server --requirepass redis123 --appendonly yes
     ports:
       - "6379:6379"
     volumes:
-      - redis_data_local:/data
+      - redis_data_prod:/data
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "redis123", "ping"]
-      interval: 15s
-      timeout: 10s
+      interval: 10s
+      timeout: 5s
       retries: 3
     restart: unless-stopped
+    networks:
+      - iot-network
 
-  # Database Initialization
+  # Database Initialization (runs once)
   db-init:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: iot-db-init-local
+      dockerfile: Dockerfile.optimized
+    container_name: iot-db-init-prod
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
       PG_HOST: postgres
       PG_PORT: 5432
       PG_DATABASE: invernadero_iot
@@ -56,19 +60,21 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: ["node", "init-database.js"]
+    command: ["node", "docker-init-simple.js"]
     restart: "no"
+    networks:
+      - iot-network
 
   # Main Application
   app:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: iot-app-local
+      dockerfile: Dockerfile.optimized
+    container_name: iot-app-prod
     ports:
       - "4001:4001"
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
       PORT: 4001
       PG_HOST: postgres
       PG_PORT: 5432
@@ -98,9 +104,41 @@ services:
         condition: service_healthy
       db-init:
         condition: service_completed_successfully
-    command: ["node", "src/server.js"]
     restart: unless-stopped
+    networks:
+      - iot-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Data Seeder (runs once to populate test data)
+  data-seeder:
+    build:
+      context: .
+      dockerfile: Dockerfile.optimized
+    container_name: iot-data-seeder-prod
+    environment:
+      NODE_ENV: production
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_DATABASE: invernadero_iot
+      PG_USER: postgres
+      PG_PASSWORD: postgres123
+    depends_on:
+      app:
+        condition: service_healthy
+    command: ["node", "insert-test-data.js"]
+    restart: "no"
+    networks:
+      - iot-network
 
 volumes:
-  postgres_data_local:
-  redis_data_local:
+  postgres_data_prod:
+  redis_data_prod:
+
+networks:
+  iot-network:
+    driver: bridge

@@ -106,6 +106,12 @@ class MQTTAutoDiscoveryService {
           optionalFields: ['temperatura', 'voltage', 'temp']
         },
         {
+          type: 'WATER_QUALITY_FULL',
+          patterns: [/agua\/data|water\/data/i],
+          requiredFields: [],
+          optionalFields: ['ph', 'ec', 'ppm', 'temperatura', 'voltage', 'temp']
+        },
+        {
           type: 'LIGHT',
           patterns: [/luz|light|lux/i],
           requiredFields: ['light'],
