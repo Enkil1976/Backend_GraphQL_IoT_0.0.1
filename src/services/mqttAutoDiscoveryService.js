@@ -593,16 +593,26 @@ class MQTTAutoDiscoveryService {
     // Si no hay device_type en payload, usar detección por patrones
     console.log(`🔍 [detectDeviceType] No device_type in payload, using pattern detection...`);
     
-    for (const deviceType of this.deviceDetectionRules.deviceTypes) {
+    // CORRECCIÓN: Ordenar los tipos por especificidad para evitar matches incorrectos
+    const sortedDeviceTypes = [...this.deviceDetectionRules.deviceTypes].sort((a, b) => {
+      // Priorizar tipos más específicos (más patrones = más específico)
+      return b.patterns.length - a.patterns.length;
+    });
+    
+    for (const deviceType of sortedDeviceTypes) {
       console.log(`🔍 [detectDeviceType] Testing device type: ${deviceType.type}`);
       
-      // Verificar patrón de tópico
-      const patternResults = deviceType.patterns.map(pattern => {
+      // Verificar patrón de tópico con mejor logging
+      let matchesPattern = false;
+      for (const pattern of deviceType.patterns) {
         const matches = pattern.test(topic);
         console.log(`   🔍 Pattern ${pattern} matches "${topic}": ${matches}`);
-        return matches;
-      });
-      const matchesPattern = patternResults.some(result => result);
+        if (matches) {
+          matchesPattern = true;
+          console.log(`   ✅ MATCH FOUND: Pattern ${pattern} matched topic "${topic}" for type ${deviceType.type}`);
+          break; // Salir del loop si encuentra match
+        }
+      }
       
       // Verificar campos de control en payloads
       const controlFieldResults = [];
@@ -620,9 +630,30 @@ class MQTTAutoDiscoveryService {
         console.log(`   📋 Control fields found: ${controlFieldResults.join('; ')}`);
       }
       
-      if (matchesPattern || hasControlFields) {
-        console.log(`✅ [detectDeviceType] Device type detected from pattern: ${deviceType.type}`);
-        console.log(`   📊 Match details: pattern=${matchesPattern}, controlFields=${hasControlFields}`);
+      // CORRECCIÓN: Si encontramos un match por patrón, retornar inmediatamente
+      if (matchesPattern) {
+        console.log(`✅ [detectDeviceType] Device type detected from PATTERN: ${deviceType.type}`);
+        console.log(`   📊 Match details: pattern=TRUE, controlFields=${hasControlFields}`);
+        return deviceType.type;
+      }
+      
+      // Si no hay match por patrón pero sí por campos de control, continuar buscando
+      if (hasControlFields) {
+        console.log(`⚠️ [detectDeviceType] Control fields match for ${deviceType.type}, but no pattern match. Continuing search...`);
+      }
+    }
+    
+    // Segundo pase: si no encuentra match por patrón, buscar por campos de control
+    console.log(`🔍 [detectDeviceType] No pattern matches found, trying control fields only...`);
+    for (const deviceType of sortedDeviceTypes) {
+      const hasControlFields = payloads.some(payload => {
+        return deviceType.controlFields.some(field => {
+          return Object.keys(payload).some(key => key.toLowerCase().includes(field.toLowerCase()));
+        });
+      });
+      
+      if (hasControlFields) {
+        console.log(`✅ [detectDeviceType] Device type detected from CONTROL FIELDS: ${deviceType.type}`);
         return deviceType.type;
       }
     }
