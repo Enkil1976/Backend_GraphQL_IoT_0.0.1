@@ -101,6 +101,17 @@ async function initializeDatabase() {
         console.warn('⚠️ Device type correction warning:', correctionError.message);
         // Don't fail the deployment if corrections have issues
       }
+
+      // Apply comprehensive sensor and device corrections
+      try {
+        console.log('\n🔧 Applying comprehensive sensor corrections...');
+        const sensorCorrections = require('./fix-sensors-comprehensive');
+        await sensorCorrections.main();
+        console.log('✅ Sensor corrections completed');
+      } catch (sensorError) {
+        console.warn('⚠️ Sensor correction warning:', sensorError.message);
+        // Don't fail the deployment if corrections have issues
+      }
       
       return true;
     } catch (serviceError) {
@@ -118,6 +129,17 @@ async function initializeDatabase() {
         console.log('✅ Device type corrections completed (fallback mode)');
       } catch (correctionError) {
         console.warn('⚠️ Device type correction warning (fallback):', correctionError.message);
+        // Don't fail the deployment if corrections have issues
+      }
+
+      // Apply comprehensive sensor corrections (fallback mode)
+      try {
+        console.log('\n🔧 Applying comprehensive sensor corrections (fallback mode)...');
+        const sensorCorrections = require('./fix-sensors-comprehensive');
+        await sensorCorrections.main();
+        console.log('✅ Sensor corrections completed (fallback mode)');
+      } catch (sensorError) {
+        console.warn('⚠️ Sensor correction warning (fallback):', sensorError.message);
         // Don't fail the deployment if corrections have issues
       }
       
