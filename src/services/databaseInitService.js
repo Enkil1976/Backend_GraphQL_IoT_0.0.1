@@ -645,45 +645,86 @@ class DatabaseInitService {
       }
     }
 
-    // Apply device type correction migration
-    await this.applyDeviceTypeCorrections();
+    // Apply all standard migrations from files
+    await this.applyStandardMigrations();
   }
 
   /**
-   * Apply device type corrections migration
+   * Apply standard migrations from migration files
    */
-  async applyDeviceTypeCorrections() {
-    console.log('🔧 Applying device type corrections...');
+  async applyStandardMigrations() {
+    console.log('🔧 Applying standard migrations...');
     
     try {
-      // Read the migration file
-      const migrationPath = path.join(__dirname, '../../migrations/fix_device_types_classification.sql');
-      const migrationSQL = await fs.readFile(migrationPath, 'utf8');
+      const migrationPath = path.join(__dirname, '../../migrations');
       
-      // Split SQL commands by semicolon and filter out empty ones
-      const sqlCommands = migrationSQL
-        .split(';')
-        .map(cmd => cmd.trim())
-        .filter(cmd => cmd.length > 0 && !cmd.startsWith('--') && !cmd.startsWith('/*'))
-        .map(cmd => cmd + ';'); // Re-add semicolons for individual commands
-      
-      // Apply the migration
+      // Migration 2001: Device type corrections
+      try {
+        const deviceTypeMigrationFile = path.join(migrationPath, 'fix_device_types_classification.sql');
+        const deviceTypeSQL = await fs.readFile(deviceTypeMigrationFile, 'utf8');
+        const deviceCommands = this.parseSQLFile(deviceTypeSQL);
+        
+        await this.applyMigration(
+          2001, 
+          'Fix device type classification from autodiscovery',
+          deviceCommands
+        );
+      } catch (error) {
+        if (error.code !== 'ENOENT') {
+          console.error('❌ Error applying device type migration:', error);
+        }
+      }
+
+      // Migration 2002: Sensor type corrections
       await this.applyMigration(
-        2001, 
-        'Fix device type classification from autodiscovery',
-        sqlCommands.filter(cmd => cmd.trim() !== ';') // Remove lone semicolons
+        2002, 
+        'Fix sensor type classification (BMP280 and Luxometer)',
+        [`
+          UPDATE sensors 
+          SET 
+            sensor_type = 'TEMP_PRESSURE',
+            name = 'BMP280 - Sensor de Presión y Temperatura',
+            configuration = COALESCE(configuration, '{}') || jsonb_build_object(
+              'sensor_corrected', true,
+              'correction_reason', 'BMP280 should be pressure/temperature sensor',
+              'correction_date', NOW()::text,
+              'migration_version', 2002
+            ),
+            updated_at = CURRENT_TIMESTAMP
+          WHERE name LIKE '%BMP280%' AND sensor_type = 'WATER_QUALITY'
+        `,
+        `
+          UPDATE sensors 
+          SET 
+            sensor_type = 'LIGHT',
+            name = 'Luxómetro - Sensor de Luz',
+            configuration = COALESCE(configuration, '{}') || jsonb_build_object(
+              'sensor_corrected', true,
+              'correction_reason', 'Luxometer should be light sensor',
+              'correction_date', NOW()::text,
+              'migration_version', 2002
+            ),
+            updated_at = CURRENT_TIMESTAMP
+          WHERE name LIKE '%Luxometro%' AND sensor_type = 'WATER_QUALITY'
+        `]
       );
       
-      console.log('✅ Device type corrections applied successfully');
+      console.log('✅ Standard migrations applied successfully');
       
     } catch (error) {
-      if (error.code === 'ENOENT') {
-        console.log('ℹ️ Device type correction migration file not found, skipping...');
-      } else {
-        console.error('❌ Error applying device type corrections:', error);
-        // Don't throw error to avoid breaking the initialization
-      }
+      console.error('❌ Error applying standard migrations:', error);
+      // Don't throw error to avoid breaking the initialization
     }
+  }
+
+  /**
+   * Parse SQL file into individual commands
+   */
+  parseSQLFile(sqlContent) {
+    return sqlContent
+      .split(';')
+      .map(cmd => cmd.trim())
+      .filter(cmd => cmd.length > 0 && !cmd.startsWith('--') && !cmd.startsWith('/*'));
   }
 
   /**

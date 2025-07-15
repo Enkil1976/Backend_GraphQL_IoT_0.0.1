@@ -91,27 +91,7 @@ async function initializeDatabase() {
         // Don't fail the deployment if sensor system has issues
       }
 
-      // Apply device type corrections
-      try {
-        console.log('\n🔧 Applying device type corrections...');
-        const deviceTypeCorrections = require('./fix-device-types-stable');
-        await deviceTypeCorrections.main();
-        console.log('✅ Device type corrections completed');
-      } catch (correctionError) {
-        console.warn('⚠️ Device type correction warning:', correctionError.message);
-        // Don't fail the deployment if corrections have issues
-      }
-
-      // Apply comprehensive sensor and device corrections
-      try {
-        console.log('\n🔧 Applying comprehensive sensor corrections...');
-        const sensorCorrections = require('./fix-sensors-comprehensive');
-        await sensorCorrections.main();
-        console.log('✅ Sensor corrections completed');
-      } catch (sensorError) {
-        console.warn('⚠️ Sensor correction warning:', sensorError.message);
-        // Don't fail the deployment if corrections have issues
-      }
+      // All corrections are now handled by databaseInitService migrations
       
       return true;
     } catch (serviceError) {
@@ -121,27 +101,7 @@ async function initializeDatabase() {
       // Basic initialization fallback
       await basicInitialization();
       
-      // Apply device type corrections (fallback mode)
-      try {
-        console.log('\n🔧 Applying device type corrections (fallback mode)...');
-        const deviceTypeCorrections = require('./fix-device-types-stable');
-        await deviceTypeCorrections.main();
-        console.log('✅ Device type corrections completed (fallback mode)');
-      } catch (correctionError) {
-        console.warn('⚠️ Device type correction warning (fallback):', correctionError.message);
-        // Don't fail the deployment if corrections have issues
-      }
-
-      // Apply comprehensive sensor corrections (fallback mode)
-      try {
-        console.log('\n🔧 Applying comprehensive sensor corrections (fallback mode)...');
-        const sensorCorrections = require('./fix-sensors-comprehensive');
-        await sensorCorrections.main();
-        console.log('✅ Sensor corrections completed (fallback mode)');
-      } catch (sensorError) {
-        console.warn('⚠️ Sensor correction warning (fallback):', sensorError.message);
-        // Don't fail the deployment if corrections have issues
-      }
+      // All corrections are handled by standard migration system
       
       return true;
     }
