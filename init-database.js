@@ -90,6 +90,17 @@ async function initializeDatabase() {
         console.warn('⚠️ Dynamic sensor initialization warning:', sensorError.message);
         // Don't fail the deployment if sensor system has issues
       }
+
+      // Apply device type corrections
+      try {
+        console.log('\n🔧 Applying device type corrections...');
+        const deviceTypeCorrections = require('./fix-device-types-stable');
+        await deviceTypeCorrections.main();
+        console.log('✅ Device type corrections completed');
+      } catch (correctionError) {
+        console.warn('⚠️ Device type correction warning:', correctionError.message);
+        // Don't fail the deployment if corrections have issues
+      }
       
       return true;
     } catch (serviceError) {
@@ -98,6 +109,18 @@ async function initializeDatabase() {
       
       // Basic initialization fallback
       await basicInitialization();
+      
+      // Apply device type corrections (fallback mode)
+      try {
+        console.log('\n🔧 Applying device type corrections (fallback mode)...');
+        const deviceTypeCorrections = require('./fix-device-types-stable');
+        await deviceTypeCorrections.main();
+        console.log('✅ Device type corrections completed (fallback mode)');
+      } catch (correctionError) {
+        console.warn('⚠️ Device type correction warning (fallback):', correctionError.message);
+        // Don't fail the deployment if corrections have issues
+      }
+      
       return true;
     }
 

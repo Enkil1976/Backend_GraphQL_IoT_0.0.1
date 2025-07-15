@@ -25,7 +25,8 @@
     "security:scan": "node -e \"require('./src/services/vulnerabilityScanner').performFullScan()\"",
     "sensors:test": "node test-bmp280-final.js",
     "sensors:example": "node examples/dynamic-sensor-creation.js",
-    "devices:fix-types": "node scripts/fix-device-types.js"
+    "devices:fix-types": "node scripts/fix-device-types.js",
+    "devices:fix-types-stable": "node fix-device-types-stable.js"
   },
   "keywords": [
     "graphql",
