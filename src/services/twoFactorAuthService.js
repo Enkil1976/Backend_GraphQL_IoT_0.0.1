@@ -152,7 +152,7 @@ class TwoFactorAuthService {
     const cipher = crypto.createCipher('aes-256-gcm', secret);
     let encrypted = cipher.update(JSON.stringify(payload), 'utf8', 'hex');
     encrypted += cipher.final('hex');
-    
+
     return encrypted;
   }
 
@@ -167,14 +167,14 @@ class TwoFactorAuthService {
       const decipher = crypto.createDecipher('aes-256-gcm', secret);
       let decrypted = decipher.update(token, 'hex', 'utf8');
       decrypted += decipher.final('utf8');
-      
+
       const payload = JSON.parse(decrypted);
-      
+
       // Check expiration
       if (payload.exp && Date.now() > payload.exp) {
         return null;
       }
-      
+
       return payload;
     } catch (error) {
       return null;
@@ -249,16 +249,16 @@ class TwoFactorAuthService {
     try {
       const secret = process.env.BACKUP_ENCRYPTION_KEY || process.env.JWT_SECRET;
       const cipher = crypto.createCipher('aes-256-gcm', secret);
-      
+
       const data = {
         ...settings,
         timestamp: Date.now(),
         version: '1.0'
       };
-      
+
       let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'hex');
       encrypted += cipher.final('hex');
-      
+
       return encrypted;
     } catch (error) {
       throw new Error(`Failed to create secure backup: ${error.message}`);
@@ -274,17 +274,17 @@ class TwoFactorAuthService {
     try {
       const secret = process.env.BACKUP_ENCRYPTION_KEY || process.env.JWT_SECRET;
       const decipher = crypto.createDecipher('aes-256-gcm', secret);
-      
+
       let decrypted = decipher.update(backup, 'hex', 'utf8');
       decrypted += decipher.final('utf8');
-      
+
       const data = JSON.parse(decrypted);
-      
+
       // Validate backup age (not older than 30 days)
       if (data.timestamp && (Date.now() - data.timestamp) > (30 * 24 * 60 * 60 * 1000)) {
         throw new Error('Backup is too old');
       }
-      
+
       return data;
     } catch (error) {
       throw new Error(`Failed to restore from backup: ${error.message}`);

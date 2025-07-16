@@ -1,0 +1,44 @@
+FROM node:20-alpine
+
+# Instalar dependencias del sistema necesarias
+RUN apk add --no-cache \
+    curl \
+    postgresql-client \
+    redis
+
+# Crear directorio de trabajo
+WORKDIR /usr/src/app
+
+# Crear usuario no root
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodeuser -u 1001
+
+# Copiar archivos de dependencias
+COPY package*.json ./
+
+# Instalar dependencias
+RUN npm ci --legacy-peer-deps --production
+
+# Copiar el código fuente
+COPY . .
+
+# Crear directorios necesarios
+RUN mkdir -p logs backups && \
+    chown nodeuser:nodejs logs backups && \
+    chmod 755 logs backups
+
+# Cambiar permisos del script de entrada
+RUN chmod +x docker-entrypoint.sh
+
+# Usar usuario no root
+USER nodeuser
+
+# Exponer puerto
+EXPOSE 4001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD curl -f http://localhost:4001/health || exit 1
+
+# Comando por defecto
+CMD ["node", "src/server.js"]

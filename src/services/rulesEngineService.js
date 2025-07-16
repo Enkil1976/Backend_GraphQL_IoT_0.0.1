@@ -15,11 +15,11 @@ class RulesEngineService {
     this.evaluationInterval = 30000; // 30 seconds
     this.intervalId = null;
     this.priorityCooldowns = {
-      1: 300000,  // 5 minutes for critical
-      2: 600000,  // 10 minutes for high
+      1: 300000, // 5 minutes for critical
+      2: 600000, // 10 minutes for high
       3: 1800000, // 30 minutes for medium
       4: 3600000, // 1 hour for low
-      5: 7200000  // 2 hours for very low
+      5: 7200000 // 2 hours for very low
     };
   }
 
@@ -34,12 +34,12 @@ class RulesEngineService {
 
     console.log('🚀 Starting rules engine...');
     this.isRunning = true;
-    
+
     // Initial evaluation
     await this.evaluateAllRules();
-    
+
     // Set up periodic evaluation
-    this.intervalId = setInterval(async () => {
+    this.intervalId = setInterval(async() => {
       try {
         await this.evaluateAllRules();
       } catch (error) {
@@ -61,7 +61,7 @@ class RulesEngineService {
 
     console.log('🛑 Stopping rules engine...');
     this.isRunning = false;
-    
+
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
@@ -99,11 +99,11 @@ class RulesEngineService {
       // Check cooldown
       const cooldownKey = `rule:${rule.id}:cooldown`;
       const lastTriggered = await cache.get(cooldownKey);
-      
+
       if (lastTriggered) {
         const timeSinceLastTrigger = Date.now() - parseInt(lastTriggered);
         const cooldownPeriod = this.priorityCooldowns[rule.priority] || 1800000;
-        
+
         if (timeSinceLastTrigger < cooldownPeriod) {
           return;
         }
@@ -111,16 +111,16 @@ class RulesEngineService {
 
       // Evaluate rule conditions
       const conditionsMet = await this.evaluateConditions(rule.conditions);
-      
+
       if (conditionsMet) {
         console.log(`🎯 Rule "${rule.name}" triggered`);
-        
+
         // Execute actions
         await this.executeActions(rule.actions, rule);
-        
+
         // Set cooldown
         await cache.set(cooldownKey, Date.now().toString());
-        
+
         // Update last triggered timestamp
         await query(
           'UPDATE rules SET last_triggered = NOW() WHERE id = $1',
@@ -153,7 +153,7 @@ class RulesEngineService {
     // Handle different condition formats
     let conditionList = [];
     let logicalOperator = 'AND';
-    
+
     if (Array.isArray(conditions)) {
       conditionList = conditions;
     } else if (conditions && conditions.rules && Array.isArray(conditions.rules)) {
@@ -162,13 +162,13 @@ class RulesEngineService {
     } else {
       return false;
     }
-    
+
     if (conditionList.length === 0) {
       return false;
     }
 
     const results = [];
-    
+
     for (const condition of conditionList) {
       const result = await this.evaluateCondition(condition);
       results.push(result);
@@ -177,9 +177,9 @@ class RulesEngineService {
     // Apply logical operator
     if (logicalOperator === 'OR') {
       return results.some(result => result === true);
-    } else { // Default to AND
-      return results.every(result => result === true);
-    }
+    } // Default to AND
+    return results.every(result => result === true);
+
   }
 
   /**
@@ -188,41 +188,41 @@ class RulesEngineService {
    * @returns {boolean} Whether condition is met
    */
   async evaluateCondition(condition) {
-    const { type, sensor, sensorType, field, operator, value, device_id, deviceId, time_window } = condition;
-    
-    // Handle both sensor and sensorType field names
-    const sensorName = sensor || sensorType;
+    const { type, sensorId, field, operator, value, device_id, deviceId, time_window } = condition;
+
+    // Use sensorId for sensor conditions
+    const sensorIdentifier = sensorId;
     const deviceIdValue = device_id || deviceId;
 
     switch (type) {
-      case 'SENSOR':
-      case 'sensor':
-        return await this.evaluateSensorCondition(sensorName, field, operator, value);
-      
-      case 'DEVICE':
-      case 'device':
-        return await this.evaluateDeviceCondition(deviceIdValue, operator, value);
-      
-      case 'TIME':
-      case 'time':
-        return await this.evaluateTimeCondition(condition);
-      
-      case 'HISTORY':
-      case 'sensor_history':
-        return await this.evaluateSensorHistoryCondition(sensorName, field, operator, value, time_window);
-      
-      case 'sensor_trend':
-        return await this.evaluateSensorTrendCondition(sensor, field, condition.trend_type, time_window);
-      
-      case 'sensor_heartbeat':
-        return await this.evaluateSensorHeartbeatCondition(sensor, condition.timeout_minutes);
-      
-      case 'sustained_state':
-        return await this.evaluateSustainedStateCondition(condition);
-      
-      default:
-        console.warn(`Unknown condition type: ${type}`);
-        return false;
+    case 'SENSOR':
+    case 'sensor':
+      return await this.evaluateSensorCondition(sensorIdentifier, field, operator, value);
+
+    case 'DEVICE':
+    case 'device':
+      return await this.evaluateDeviceCondition(deviceIdValue, operator, value);
+
+    case 'TIME':
+    case 'time':
+      return await this.evaluateTimeCondition(condition);
+
+    case 'HISTORY':
+    case 'sensor_history':
+      return await this.evaluateSensorHistoryCondition(sensorName, field, operator, value, time_window);
+
+    case 'sensor_trend':
+      return await this.evaluateSensorTrendCondition(sensor, field, condition.trend_type, time_window);
+
+    case 'sensor_heartbeat':
+      return await this.evaluateSensorHeartbeatCondition(sensor, condition.timeout_minutes);
+
+    case 'sustained_state':
+      return await this.evaluateSustainedStateCondition(condition);
+
+    default:
+      console.warn(`Unknown condition type: ${type}`);
+      return false;
     }
   }
 
@@ -236,7 +236,7 @@ class RulesEngineService {
    */
   async evaluateSensorCondition(sensor, field, operator, value) {
     const sensorData = await this.getLatestSensorData(sensor);
-    
+
     if (!sensorData) {
       console.log(`🔍 No sensor data found for sensor: ${sensor}`);
       return false;
@@ -253,7 +253,7 @@ class RulesEngineService {
 
     // Use mapped field name if available, otherwise use original field name
     const actualField = fieldMapping[field] || field;
-    
+
     if (sensorData[actualField] === undefined) {
       console.log(`🔍 Field "${field}" (mapped to "${actualField}") not found in sensor data:`, Object.keys(sensorData));
       return false;
@@ -261,28 +261,28 @@ class RulesEngineService {
 
     const currentValue = sensorData[actualField];
     console.log(`🔍 Rule evaluation: ${sensor}.${actualField} = ${currentValue} ${operator} ${value}`);
-    
+
     switch (operator) {
-      case 'GT':
-      case '>':
-        return currentValue > value;
-      case 'LT':
-      case '<':
-        return currentValue < value;
-      case 'GTE':
-      case '>=':
-        return currentValue >= value;
-      case 'LTE':
-      case '<=':
-        return currentValue <= value;
-      case 'EQ':
-      case '==':
-        return currentValue === value;
-      case 'NEQ':
-      case '!=':
-        return currentValue !== value;
-      default:
-        return false;
+    case 'GT':
+    case '>':
+      return currentValue > value;
+    case 'LT':
+    case '<':
+      return currentValue < value;
+    case 'GTE':
+    case '>=':
+      return currentValue >= value;
+    case 'LTE':
+    case '<=':
+      return currentValue <= value;
+    case 'EQ':
+    case '==':
+      return currentValue === value;
+    case 'NEQ':
+    case '!=':
+      return currentValue !== value;
+    default:
+      return false;
     }
   }
 
@@ -296,20 +296,20 @@ class RulesEngineService {
   async evaluateDeviceCondition(deviceId, operator, value) {
     try {
       const device = await deviceService.getDeviceById(deviceId);
-      
+
       if (!device) {
         return false;
       }
 
       const currentStatus = device.status;
-      
+
       switch (operator) {
-        case '==':
-          return currentStatus === value;
-        case '!=':
-          return currentStatus !== value;
-        default:
-          return false;
+      case '==':
+        return currentStatus === value;
+      case '!=':
+        return currentStatus !== value;
+      default:
+        return false;
       }
     } catch (error) {
       return false;
@@ -331,41 +331,41 @@ class RulesEngineService {
     }
 
     switch (time_type) {
-      case 'daily_window':
-        const currentTime = now.toTimeString().slice(0, 5); // HH:MM
-        return currentTime >= start_time && currentTime <= end_time;
-      
-      case 'day_of_week':
-        const currentDay = now.getDay(); // 0 = Sunday, 6 = Saturday
-        return days_of_week.includes(currentDay);
-      
-      case 'datetime_range':
-        const startDateTime = new Date(datetime.start);
-        const endDateTime = new Date(datetime.end);
-        return now >= startDateTime && now <= endDateTime;
-      
-      default:
-        return false;
+    case 'daily_window':
+      const currentTime = now.toTimeString().slice(0, 5); // HH:MM
+      return currentTime >= start_time && currentTime <= end_time;
+
+    case 'day_of_week':
+      const currentDay = now.getDay(); // 0 = Sunday, 6 = Saturday
+      return days_of_week.includes(currentDay);
+
+    case 'datetime_range':
+      const startDateTime = new Date(datetime.start);
+      const endDateTime = new Date(datetime.end);
+      return now >= startDateTime && now <= endDateTime;
+
+    default:
+      return false;
     }
   }
 
   /**
    * Evaluate time window for pump cycling and recurring schedules
    * @param {string} timeStart - Start time in HH:MM format
-   * @param {string} timeEnd - End time in HH:MM format  
+   * @param {string} timeEnd - End time in HH:MM format
    * @param {Date} now - Current datetime
    * @returns {boolean} Whether current time is within window
    */
   evaluateTimeWindow(timeStart, timeEnd, now) {
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
-    
+
     // Parse start and end times
     const [startHour, startMin] = timeStart.split(':').map(Number);
     const [endHour, endMin] = timeEnd.split(':').map(Number);
-    
+
     const startMinutes = startHour * 60 + startMin;
     const endMinutes = endHour * 60 + endMin;
-    
+
     // Handle different time window patterns
     if (timeStart === '00:00' && timeEnd === '00:15') {
       // Pattern: 00:00-00:15 (every 30 minutes)
@@ -373,36 +373,36 @@ class RulesEngineService {
       const minuteOfHour = now.getMinutes();
       return (minuteOfHour >= 0 && minuteOfHour < 15) || (minuteOfHour >= 30 && minuteOfHour < 45);
     }
-    
+
     if (timeStart === '00:15' && timeEnd === '00:30') {
-      // Pattern: 00:15-00:30 (every 30 minutes)  
+      // Pattern: 00:15-00:30 (every 30 minutes)
       // This should trigger at minutes 15-30 and 45-60 of every hour
       const minuteOfHour = now.getMinutes();
       return (minuteOfHour >= 15 && minuteOfHour < 30) || (minuteOfHour >= 45 && minuteOfHour < 60);
     }
-    
+
     if (timeStart === '00:30' && timeEnd === '00:45') {
       // Pattern: 00:30-00:45 (every 30 minutes)
       // This should trigger at minutes 30-45 of every hour
       const minuteOfHour = now.getMinutes();
       return (minuteOfHour >= 30 && minuteOfHour < 45);
     }
-    
+
     if (timeStart === '00:45' && timeEnd === '23:59') {
       // Pattern: 00:45-23:59 (special case for wrap-around)
       // This should trigger at minutes 45-60 of every hour
       const minuteOfHour = now.getMinutes();
       return (minuteOfHour >= 45 && minuteOfHour < 60);
     }
-    
+
     // Standard time window evaluation
     if (endMinutes > startMinutes) {
       // Normal case: start and end on same day
       return currentMinutes >= startMinutes && currentMinutes < endMinutes;
-    } else {
-      // Wrap-around case: end time is next day
-      return currentMinutes >= startMinutes || currentMinutes < endMinutes;
     }
+    // Wrap-around case: end time is next day
+    return currentMinutes >= startMinutes || currentMinutes < endMinutes;
+
   }
 
   /**
@@ -417,51 +417,51 @@ class RulesEngineService {
   async evaluateSensorHistoryCondition(sensor, field, operator, value, timeWindow) {
     const { duration, aggregation } = timeWindow;
     const historicalData = await this.getSensorHistoryData(sensor, duration);
-    
+
     if (!historicalData || historicalData.length === 0) {
       return false;
     }
 
     const values = historicalData.map(data => data[field]).filter(val => val !== undefined);
-    
+
     if (values.length === 0) {
       return false;
     }
 
     let aggregatedValue;
-    
+
     switch (aggregation) {
-      case 'avg':
-        aggregatedValue = values.reduce((sum, val) => sum + val, 0) / values.length;
-        break;
-      case 'min':
-        aggregatedValue = Math.min(...values);
-        break;
-      case 'max':
-        aggregatedValue = Math.max(...values);
-        break;
-      case 'sum':
-        aggregatedValue = values.reduce((sum, val) => sum + val, 0);
-        break;
-      default:
-        return false;
+    case 'avg':
+      aggregatedValue = values.reduce((sum, val) => sum + val, 0) / values.length;
+      break;
+    case 'min':
+      aggregatedValue = Math.min(...values);
+      break;
+    case 'max':
+      aggregatedValue = Math.max(...values);
+      break;
+    case 'sum':
+      aggregatedValue = values.reduce((sum, val) => sum + val, 0);
+      break;
+    default:
+      return false;
     }
 
     switch (operator) {
-      case '>':
-        return aggregatedValue > value;
-      case '<':
-        return aggregatedValue < value;
-      case '>=':
-        return aggregatedValue >= value;
-      case '<=':
-        return aggregatedValue <= value;
-      case '==':
-        return aggregatedValue === value;
-      case '!=':
-        return aggregatedValue !== value;
-      default:
-        return false;
+    case '>':
+      return aggregatedValue > value;
+    case '<':
+      return aggregatedValue < value;
+    case '>=':
+      return aggregatedValue >= value;
+    case '<=':
+      return aggregatedValue <= value;
+    case '==':
+      return aggregatedValue === value;
+    case '!=':
+      return aggregatedValue !== value;
+    default:
+      return false;
     }
   }
 
@@ -476,13 +476,13 @@ class RulesEngineService {
   async evaluateSensorTrendCondition(sensor, field, trendType, timeWindow) {
     const { duration } = timeWindow;
     const historicalData = await this.getSensorHistoryData(sensor, duration);
-    
+
     if (!historicalData || historicalData.length < 2) {
       return false;
     }
 
     const values = historicalData.map(data => data[field]).filter(val => val !== undefined);
-    
+
     if (values.length < 2) {
       return false;
     }
@@ -490,26 +490,26 @@ class RulesEngineService {
     // Calculate trend using linear regression
     const n = values.length;
     let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
-    
+
     for (let i = 0; i < n; i++) {
       sumX += i;
       sumY += values[i];
       sumXY += i * values[i];
       sumX2 += i * i;
     }
-    
+
     const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
     const threshold = 0.01; // Minimum slope to consider as trend
-    
+
     switch (trendType) {
-      case 'rising':
-        return slope > threshold;
-      case 'falling':
-        return slope < -threshold;
-      case 'stable':
-        return Math.abs(slope) <= threshold;
-      default:
-        return false;
+    case 'rising':
+      return slope > threshold;
+    case 'falling':
+      return slope < -threshold;
+    case 'stable':
+      return Math.abs(slope) <= threshold;
+    default:
+      return false;
     }
   }
 
@@ -521,7 +521,7 @@ class RulesEngineService {
    */
   async evaluateSensorHeartbeatCondition(sensor, timeoutMinutes) {
     const sensorData = await this.getLatestSensorData(sensor);
-    
+
     if (!sensorData || !sensorData.timestamp) {
       return true; // No data means heartbeat failed
     }
@@ -530,7 +530,7 @@ class RulesEngineService {
     const now = new Date();
     const timeSinceLastUpdate = now - lastUpdate;
     const timeoutMs = timeoutMinutes * 60 * 1000;
-    
+
     return timeSinceLastUpdate > timeoutMs;
   }
 
@@ -542,10 +542,10 @@ class RulesEngineService {
   async evaluateSustainedStateCondition(condition) {
     const { sensor, field, operator, value, duration_minutes } = condition;
     const stateKey = `sustained_state:${sensor}:${field}:${operator}:${value}`;
-    
+
     // Check if condition is currently met
     const currentlyMet = await this.evaluateSensorCondition(sensor, field, operator, value);
-    
+
     if (!currentlyMet) {
       // Clear the state if condition is not met
       await cache.del(stateKey);
@@ -554,7 +554,7 @@ class RulesEngineService {
 
     // Get the start time of the sustained state
     const startTime = await cache.get(stateKey);
-    
+
     if (!startTime) {
       // First time condition is met, record the start time
       await cache.set(stateKey, Date.now().toString());
@@ -564,7 +564,7 @@ class RulesEngineService {
     // Check if the duration has been exceeded
     const sustainedDuration = Date.now() - parseInt(startTime);
     const requiredDuration = duration_minutes * 60 * 1000;
-    
+
     return sustainedDuration >= requiredDuration;
   }
 
@@ -582,7 +582,7 @@ class RulesEngineService {
       try {
         await this.executeAction(action, rule);
       } catch (error) {
-        console.error(`❌ Error executing action:`, error);
+        console.error('❌ Error executing action:', error);
       }
     }
   }
@@ -596,27 +596,27 @@ class RulesEngineService {
     const { type, device_id, status, configuration, notification, operation } = action;
 
     switch (type?.toLowerCase()) {
-      case 'device_status':
-      case 'device_control':
-        // Translate TURN_ON/TURN_OFF to 'on'/'off'
-        const translatedStatus = action.action === 'TURN_ON' ? 'on' : (action.action === 'TURN_OFF' ? 'off' : status);
-        await this.executeDeviceStatusAction(device_id || action.deviceId, translatedStatus, action);
-        break;
-      
-      case 'device_configuration':
-        await this.executeDeviceConfigurationAction(device_id, configuration);
-        break;
-      
-      case 'notification':
-        await this.executeNotificationAction(action, rule);
-        break;
-      
-      case 'operation':
-        await this.executeOperationAction(operation, rule);
-        break;
-      
-      default:
-        console.warn(`Unknown action type: ${type}`);
+    case 'device_status':
+    case 'device_control':
+      // Translate TURN_ON/TURN_OFF to 'on'/'off'
+      const translatedStatus = action.action === 'TURN_ON' ? 'on' : (action.action === 'TURN_OFF' ? 'off' : status);
+      await this.executeDeviceStatusAction(device_id || action.deviceId, translatedStatus, action);
+      break;
+
+    case 'device_configuration':
+      await this.executeDeviceConfigurationAction(device_id, configuration);
+      break;
+
+    case 'notification':
+      await this.executeNotificationAction(action, rule);
+      break;
+
+    case 'operation':
+      await this.executeOperationAction(operation, rule);
+      break;
+
+    default:
+      console.warn(`Unknown action type: ${type}`);
     }
   }
 
@@ -627,7 +627,7 @@ class RulesEngineService {
    */
   async executeDeviceStatusAction(deviceId, status) {
     console.log(`🔧 Executing device status action directly: ${deviceId} -> ${status}`);
-    
+
     // Bypassing queue and calling deviceService directly to fix MQTT issue
     try {
       await deviceService.updateDeviceStatus(deviceId, status);
@@ -644,7 +644,7 @@ class RulesEngineService {
    */
   async executeDeviceConfigurationAction(deviceId, configuration) {
     console.log(`⚙️ Executing device configuration action: ${deviceId}`);
-    
+
     // Queue critical action
     await queueService.publishAction({
       type: 'device_configuration',
@@ -662,21 +662,26 @@ class RulesEngineService {
    */
   async executeNotificationAction(action, rule) {
     console.log(`📧 Executing notification action for rule: ${rule.name}`);
-    
-    const { 
-      title, 
-      message, 
-      template, 
-      priority = 'medium', 
-      channels = ['webhook'], 
-      canal = 'whatsapp',
-      targetChannel = 'webhook',
-      variables = {} 
+
+    const {
+      title,
+      message,
+      template,
+      priority = 'medium',
+      channels = ['webhook'],
+      canal,
+      targetChannel,
+      variables = {}
     } = action;
-    
-    // Get current sensor data for template variables
-    const latestSensorData = await this.getLatestSensorData('temhum1');
-    
+
+    // Si canal es null, usar 'telegram' como default
+    const effectiveCanal = canal || 'telegram';
+    const effectiveTargetChannel = targetChannel || 'webhook';
+
+    // Get current sensor data for template variables - dynamically from rule conditions
+    const sensorType = this.extractSensorFromRule(rule);
+    const latestSensorData = await this.getLatestSensorData(sensorType);
+
     // Add rule context and sensor data to variables
     const enrichedVariables = {
       ...variables,
@@ -691,18 +696,26 @@ class RulesEngineService {
 
     // Map canal to appropriate channel for backwards compatibility
     let effectiveChannels = channels;
-    if (canal && targetChannel) {
-      // If canal and targetChannel are specified, use canal as the channel type
-      effectiveChannels = [canal];
+    if (effectiveCanal && effectiveTargetChannel) {
+      // If canal and targetChannel are specified, route through webhook for delivery
+      effectiveChannels = ['webhook'];
     }
+
+    console.log(`🔔 Sending notification for rule ${rule.name}:`, {
+      originalCanal: canal,
+      originalTargetChannel: targetChannel,
+      effectiveCanal: effectiveCanal,
+      effectiveTargetChannel: effectiveTargetChannel,
+      channels: effectiveChannels
+    });
 
     await notificationService.sendNotification({
       title: title || `Rule: ${rule.name}`,
       message: finalMessage,
       priority,
       channels: effectiveChannels,
-      canal: canal,
-      targetChannel: targetChannel,
+      canal: effectiveCanal,
+      targetChannel: effectiveTargetChannel,
       variables: enrichedVariables,
       templateId: null,
       metadata: {
@@ -710,8 +723,8 @@ class RulesEngineService {
         rule_name: rule.name,
         triggered_by: 'rules_engine',
         usuario: 'sistema',
-        canal: canal,
-        targetChannel: targetChannel
+        canal: effectiveCanal,
+        targetChannel: effectiveTargetChannel
       }
     });
   }
@@ -723,7 +736,7 @@ class RulesEngineService {
    */
   async executeOperationAction(operation, rule) {
     console.log(`⚡ Executing operation action for rule: ${rule.name}`);
-    
+
     // Queue operation
     await queueService.publishAction({
       type: 'operation',
@@ -743,13 +756,19 @@ class RulesEngineService {
    * @returns {Object} Latest sensor data
    */
   async getLatestSensorData(sensor) {
-    const key = `sensor_latest:${sensor.toLowerCase()}`;
-    const data = await cache.hgetall(key);
-    
-    if (!data || Object.keys(data).length === 0) {
+    if (!sensor) {
+      console.warn("Attempted to get latest sensor data with null or undefined sensor ID.");
       return null;
     }
     
+    const key = `sensor_latest:${sensor.toLowerCase()}`;
+    const data = await cache.hgetall(key);
+
+    if (!data || Object.keys(data).length === 0) {
+      console.log(`🔍 No cache data for ${sensor}, trying PostgreSQL fallback...`);
+      return await this.getLatestSensorDataFromDB(sensor);
+    }
+
     // Convert string values to numbers where appropriate
     const convertedData = {};
     for (const [field, value] of Object.entries(data)) {
@@ -761,13 +780,90 @@ class RulesEngineService {
         convertedData[field] = value;
       }
     }
-    
+
     // Add timestamp if not present (use current time)
     if (!convertedData.timestamp) {
       convertedData.timestamp = new Date();
     }
-    
+
+    console.log(`✅ Got sensor data from cache for ${sensor}:`, Object.keys(convertedData));
     return convertedData;
+  }
+
+  /**
+   * Get latest sensor data from PostgreSQL (fallback)
+   * @param {string} sensorHardwareId - Sensor hardware ID
+   * @returns {Object} Latest sensor data
+   */
+  async getLatestSensorDataFromDB(sensorHardwareId) {
+    try {
+      // Get sensor info and latest data
+      const sensorQuery = `
+        SELECT s.id, s.hardware_id, s.sensor_type, s.name
+        FROM sensors s 
+        WHERE s.hardware_id = $1 AND s.is_active = true
+      `;
+      
+      const sensorResult = await query(sensorQuery, [sensorHardwareId]);
+      
+      if (sensorResult.rows.length === 0) {
+        console.log(`⚠️ Sensor not found in database: ${sensorHardwareId}`);
+        return null;
+      }
+      
+      const sensor = sensorResult.rows[0];
+      
+      // Get latest sensor data
+      const dataQuery = `
+        SELECT payload, received_at
+        FROM sensor_data_generic 
+        WHERE sensor_id = $1 
+        ORDER BY received_at DESC 
+        LIMIT 1
+      `;
+      
+      const dataResult = await query(dataQuery, [sensor.id]);
+      
+      if (dataResult.rows.length === 0) {
+        console.log(`⚠️ No data found for sensor: ${sensorHardwareId}`);
+        return null;
+      }
+      
+      const latestData = dataResult.rows[0];
+      const payload = typeof latestData.payload === 'string' 
+        ? JSON.parse(latestData.payload) 
+        : latestData.payload;
+      
+      // Extract normalized data for rules engine
+      const normalizedData = {
+        timestamp: new Date(latestData.received_at),
+        sensor_id: sensor.id,
+        hardware_id: sensor.hardware_id,
+        sensor_type: sensor.sensor_type,
+        
+        // Extract data fields for rule evaluation
+        temperatura: payload.data?.temperature || payload.temperatura || null,
+        humedad: payload.data?.humidity || payload.humedad || null,
+        presion: payload.data?.pressure || payload.presion || null,
+        light: payload.data?.light || payload.light || null,
+        white_light: payload.data?.white_light || payload.white_light || null,
+        raw_light: payload.data?.raw_light || payload.raw_light || null,
+        heatindex: payload.data?.heat_index || payload.heatindex || null,
+        dewpoint: payload.data?.dew_point || payload.dewpoint || null,
+        
+        // Additional fields
+        rssi: payload.rssi || null,
+        boot: payload.boot || null,
+        mem: payload.mem || null
+      };
+      
+      console.log(`✅ Got sensor data from PostgreSQL for ${sensorHardwareId}:`, Object.keys(normalizedData));
+      return normalizedData;
+      
+    } catch (error) {
+      console.error('❌ Error getting sensor data from PostgreSQL:', error);
+      return null;
+    }
   }
 
   /**
@@ -779,14 +875,14 @@ class RulesEngineService {
   async getSensorHistoryData(sensor, duration) {
     const key = `sensor_history:${sensor.toLowerCase()}`;
     const data = await cache.lrange(key, 0, -1);
-    
+
     if (!data || data.length === 0) {
       return [];
     }
 
     const now = new Date();
     const cutoffTime = new Date(now.getTime() - duration * 60 * 1000);
-    
+
     return data
       .filter(item => item && item.timestamp && new Date(item.timestamp) >= cutoffTime);
   }
@@ -815,7 +911,7 @@ class RulesEngineService {
    */
   async getRuleStats(ruleId, timeRange) {
     const { startDate, endDate } = timeRange;
-    
+
     const result = await query(
       `SELECT 
         COUNT(*) as total_executions,
@@ -839,7 +935,7 @@ class RulesEngineService {
    */
   async testRuleConditions(conditions) {
     const results = [];
-    
+
     for (const condition of conditions) {
       try {
         const result = await this.evaluateCondition(condition);
@@ -861,6 +957,38 @@ class RulesEngineService {
       allConditionsMet: results.every(r => r.result === true),
       individualResults: results
     };
+  }
+
+  /**
+   * Extract sensor type from rule conditions
+   * @param {Object} rule - Rule data
+   * @returns {string} Sensor type
+   */
+  extractSensorFromRule(rule) {
+    try {
+      // Handle different condition formats
+      let conditions = rule.conditions;
+      
+      // If conditions is a string, parse it
+      if (typeof conditions === 'string') {
+        conditions = JSON.parse(conditions);
+      }
+      
+      // Extract sensor from conditions
+      if (conditions && conditions.rules && Array.isArray(conditions.rules)) {
+        const sensorCondition = conditions.rules.find(cond => cond.type === 'SENSOR' && cond.sensorId);
+        if (sensorCondition) {
+          return sensorCondition.sensorId.toLowerCase();
+        }
+      }
+      
+      // If no sensorId found, return null
+      console.warn(`No sensorId found in rule conditions for rule: ${rule.name}. Returning null.`);
+      return null;
+    } catch (error) {
+      console.error('Error extracting sensor from rule:', error);
+      return 'temhum1';
+    }
   }
 
   /**

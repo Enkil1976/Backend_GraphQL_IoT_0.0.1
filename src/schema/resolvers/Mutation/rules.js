@@ -11,10 +11,10 @@ const ruleMutations = {
   /**
    * Create a new rule
    */
-  createRule: async (parent, { input }, context) => {
+  createRule: async(parent, { input }, context) => {
     try {
       console.log('[RuleMutation] Creating rule', { input, user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to create rules');
@@ -25,14 +25,14 @@ const ruleMutations = {
         throw new ForbiddenError('Insufficient permissions to create rules');
       }
 
-      const { 
-        name, 
-        description, 
-        enabled = true, 
-        priority = 5, 
-        cooldownMinutes = 15, 
-        conditions, 
-        actions 
+      const {
+        name,
+        description,
+        enabled = true,
+        priority = 5,
+        cooldownMinutes = 15,
+        conditions,
+        actions
       } = input;
 
       // Insert rule into database
@@ -53,9 +53,9 @@ const ruleMutations = {
       );
 
       const rule = result.rows[0];
-      
+
       console.log(`[RuleMutation] Created rule: ${rule.name} (ID: ${rule.id})`);
-      
+
       // Publish rule creation event
       await pubsub.publish(SENSOR_EVENTS.DEVICE_CREATED, {
         ruleCreated: rule
@@ -71,10 +71,10 @@ const ruleMutations = {
   /**
    * Update rule properties
    */
-  updateRule: async (parent, { id, input }, context) => {
+  updateRule: async(parent, { id, input }, context) => {
     try {
       console.log(`[RuleMutation] Updating rule ${id}`, { input, user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to update rules');
@@ -125,7 +125,7 @@ const ruleMutations = {
         values.push(JSON.stringify(input.actions));
       }
 
-      updates.push(`updated_at = NOW()`);
+      updates.push('updated_at = NOW()');
       values.push(id);
 
       const result = await query(
@@ -138,9 +138,9 @@ const ruleMutations = {
       }
 
       const rule = result.rows[0];
-      
+
       console.log(`[RuleMutation] Updated rule: ${rule.name}`);
-      
+
       // Publish rule update event
       await pubsub.publish(SENSOR_EVENTS.DEVICE_UPDATED, {
         ruleUpdated: rule
@@ -156,10 +156,10 @@ const ruleMutations = {
   /**
    * Delete a rule
    */
-  deleteRule: async (parent, { id }, context) => {
+  deleteRule: async(parent, { id }, context) => {
     try {
       console.log(`[RuleMutation] Deleting rule ${id}`, { user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to delete rules');
@@ -180,7 +180,7 @@ const ruleMutations = {
       }
 
       console.log(`[RuleMutation] Deleted rule ${id}: ${result.rows[0].name}`);
-      
+
       // Publish rule deletion event
       await pubsub.publish(SENSOR_EVENTS.DEVICE_DELETED, {
         ruleDeleted: { id, deletedAt: new Date().toISOString() }
@@ -196,10 +196,10 @@ const ruleMutations = {
   /**
    * Enable a rule
    */
-  enableRule: async (parent, { id }, context) => {
+  enableRule: async(parent, { id }, context) => {
     try {
       console.log(`[RuleMutation] Enabling rule ${id}`, { user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to enable rules');
@@ -220,9 +220,9 @@ const ruleMutations = {
       }
 
       const rule = result.rows[0];
-      
+
       console.log(`[RuleMutation] Enabled rule: ${rule.name}`);
-      
+
       // Publish rule update event
       await pubsub.publish(SENSOR_EVENTS.DEVICE_UPDATED, {
         ruleUpdated: rule
@@ -238,10 +238,10 @@ const ruleMutations = {
   /**
    * Disable a rule
    */
-  disableRule: async (parent, { id }, context) => {
+  disableRule: async(parent, { id }, context) => {
     try {
       console.log(`[RuleMutation] Disabling rule ${id}`, { user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to disable rules');
@@ -262,9 +262,9 @@ const ruleMutations = {
       }
 
       const rule = result.rows[0];
-      
+
       console.log(`[RuleMutation] Disabled rule: ${rule.name}`);
-      
+
       // Publish rule update event
       await pubsub.publish(SENSOR_EVENTS.DEVICE_UPDATED, {
         ruleUpdated: rule
@@ -280,10 +280,10 @@ const ruleMutations = {
   /**
    * Manually trigger a rule
    */
-  triggerRule: async (parent, { id, mockData }, context) => {
+  triggerRule: async(parent, { id, mockData }, context) => {
     try {
       console.log(`[RuleMutation] Triggering rule ${id}`, { mockData, user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to trigger rules');
@@ -296,7 +296,7 @@ const ruleMutations = {
 
       // Get the rule
       const ruleResult = await query('SELECT * FROM rules WHERE id = $1', [id]);
-      
+
       if (ruleResult.rows.length === 0) {
         throw new Error('Rule not found');
       }
@@ -324,7 +324,7 @@ const ruleMutations = {
         );
 
         console.log(`[RuleMutation] Rule ${id} triggered successfully in ${executionTime}ms`);
-        
+
         return {
           id: executionResult.rows[0].id,
           rule,
@@ -360,7 +360,7 @@ const ruleMutations = {
         );
 
         console.error(`[RuleMutation] Rule ${id} trigger failed in ${executionTime}ms:`, execError);
-        
+
         return {
           id: executionResult.rows[0].id,
           rule,
@@ -388,10 +388,10 @@ const ruleMutations = {
   /**
    * Enable multiple rules
    */
-  enableRules: async (parent, { ids }, context) => {
+  enableRules: async(parent, { ids }, context) => {
     try {
-      console.log(`[RuleMutation] Enabling multiple rules`, { ids, user: context.user?.username });
-      
+      console.log('[RuleMutation] Enabling multiple rules', { ids, user: context.user?.username });
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to enable rules');
@@ -418,10 +418,10 @@ const ruleMutations = {
   /**
    * Disable multiple rules
    */
-  disableRules: async (parent, { ids }, context) => {
+  disableRules: async(parent, { ids }, context) => {
     try {
-      console.log(`[RuleMutation] Disabling multiple rules`, { ids, user: context.user?.username });
-      
+      console.log('[RuleMutation] Disabling multiple rules', { ids, user: context.user?.username });
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to disable rules');
@@ -448,10 +448,10 @@ const ruleMutations = {
   /**
    * Delete multiple rules
    */
-  deleteRules: async (parent, { ids }, context) => {
+  deleteRules: async(parent, { ids }, context) => {
     try {
-      console.log(`[RuleMutation] Deleting multiple rules`, { ids, user: context.user?.username });
-      
+      console.log('[RuleMutation] Deleting multiple rules', { ids, user: context.user?.username });
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to delete rules');
@@ -478,12 +478,12 @@ const ruleMutations = {
   /**
    * Create rule from template
    */
-  createRuleFromTemplate: async (parent, { templateId, variables }, context) => {
+  createRuleFromTemplate: async(parent, { templateId, variables }, context) => {
     try {
-      console.log(`[RuleMutation] Creating rule from template ${templateId}`, { 
-        variables, user: context.user?.username 
+      console.log(`[RuleMutation] Creating rule from template ${templateId}`, {
+        variables, user: context.user?.username
       });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to create rules');
@@ -503,7 +503,7 @@ const ruleMutations = {
             operator: 'AND',
             rules: [{
               type: 'SENSOR',
-              sensorType: 'TEMHUM1',
+              sensorId: variables.sensorId,
               field: 'temperatura',
               operator: 'GT',
               value: variables.threshold || 30
@@ -522,7 +522,7 @@ const ruleMutations = {
             operator: 'AND',
             rules: [{
               type: 'SENSOR',
-              sensorType: 'TEMHUM1',
+              sensorId: variables.sensorId,
               field: 'humedad',
               operator: 'GT',
               value: variables.humidity_threshold || 80
@@ -559,9 +559,9 @@ const ruleMutations = {
       );
 
       const rule = result.rows[0];
-      
+
       console.log(`[RuleMutation] Created rule from template: ${rule.name} (ID: ${rule.id})`);
-      
+
       return rule;
     } catch (error) {
       console.error(`[RuleMutation] Error creating rule from template ${templateId}:`, error);

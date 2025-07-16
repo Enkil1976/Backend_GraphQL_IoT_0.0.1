@@ -36,7 +36,7 @@ class NotificationService {
     // Process template if provided
     let processedTitle = title;
     let processedMessage = message;
-    
+
     if (templateId) {
       const template = await this.getNotificationTemplate(templateId);
       if (template) {
@@ -60,42 +60,42 @@ class NotificationService {
     });
 
     const sendResults = {};
-    
+
     // Send through each channel
     for (const channel of channels) {
       try {
         let result;
-        
+
         // Add canal and target channel to metadata for webhook payload
-        const enrichedMetadata = { 
-          ...metadata, 
+        const enrichedMetadata = {
+          ...metadata,
           canal: canal || channel.toLowerCase(),
           targetChannel: targetChannel || 'webhook'
         };
-        
+
         // Use canal if specified, otherwise use channel
         const effectiveChannel = canal || channel;
-        
+
         switch (effectiveChannel.toLowerCase()) {
-          case 'email':
-            result = await this.sendEmail(processedTitle, processedMessage, enrichedMetadata);
-            break;
-          case 'telegram':
-            result = await this.sendTelegram(processedTitle, processedMessage, enrichedMetadata);
-            break;
-          case 'whatsapp':
-            result = await this.sendWhatsApp(processedTitle, processedMessage, enrichedMetadata);
-            break;
-          case 'webhook':
-            result = await this.sendWebhook(processedTitle, processedMessage, enrichedMetadata, priority);
-            break;
-          case 'push':
-            result = await this.sendPushNotification(processedTitle, processedMessage, enrichedMetadata);
-            break;
-          default:
-            result = { success: false, error: `Unknown channel: ${channel}` };
+        case 'email':
+          result = await this.sendEmail(processedTitle, processedMessage, enrichedMetadata);
+          break;
+        case 'telegram':
+          result = await this.sendTelegram(processedTitle, processedMessage, enrichedMetadata);
+          break;
+        case 'whatsapp':
+          result = await this.sendWhatsApp(processedTitle, processedMessage, enrichedMetadata);
+          break;
+        case 'webhook':
+          result = await this.sendWebhook(processedTitle, processedMessage, enrichedMetadata, priority);
+          break;
+        case 'push':
+          result = await this.sendPushNotification(processedTitle, processedMessage, enrichedMetadata);
+          break;
+        default:
+          result = { success: false, error: `Unknown channel: ${channel}` };
         }
-        
+
         sendResults[channel] = result;
       } catch (error) {
         sendResults[channel] = { success: false, error: error.message };
@@ -142,10 +142,10 @@ class NotificationService {
 
     // Generate JWT token
     const token = jwt.sign(
-      { 
+      {
         sub: 'iot-backend',
         iat: Math.floor(Date.now() / 1000)
-      }, 
+      },
       this.webhookSecret,
       { expiresIn: this.jwtExpiresIn }
     );
@@ -168,14 +168,14 @@ class NotificationService {
       };
 
       console.log('📧 Sending email notification:', { title, to: payload.destinatario });
-      
+
       const response = await axios.post(this.webhookUrl, payload, {
         headers,
         timeout: 10000 // 10 seconds timeout
       });
-      
+
       console.log('✅ Email notification sent successfully');
-      
+
       return {
         success: true,
         provider: 'email',
@@ -191,7 +191,7 @@ class NotificationService {
         response: error.response?.data,
         status: error.response?.status
       });
-      
+
       return {
         success: false,
         provider: 'email',
@@ -223,10 +223,10 @@ class NotificationService {
 
     // Generate JWT token
     const token = jwt.sign(
-      { 
+      {
         sub: 'iot-backend',
         iat: Math.floor(Date.now() / 1000)
-      }, 
+      },
       this.webhookSecret,
       { expiresIn: this.jwtExpiresIn }
     );
@@ -251,14 +251,14 @@ class NotificationService {
       };
 
       console.log('📱 Sending Telegram notification to chat:', payload.chatId || 'default');
-      
+
       const response = await axios.post(this.webhookUrl, payload, {
         headers,
         timeout: 10000 // 10 seconds timeout
       });
-      
+
       console.log('✅ Telegram notification sent successfully');
-      
+
       return {
         success: true,
         provider: 'telegram',
@@ -274,7 +274,7 @@ class NotificationService {
         response: error.response?.data,
         status: error.response?.status
       });
-      
+
       return {
         success: false,
         provider: 'telegram',
@@ -306,10 +306,10 @@ class NotificationService {
 
     // Generate JWT token
     const token = jwt.sign(
-      { 
+      {
         sub: 'iot-backend',
         iat: Math.floor(Date.now() / 1000)
-      }, 
+      },
       this.webhookSecret,
       { expiresIn: this.jwtExpiresIn }
     );
@@ -330,14 +330,14 @@ class NotificationService {
       };
 
       console.log('📱 Sending WhatsApp notification:', payload);
-      
+
       const response = await axios.post(this.webhookUrl, payload, {
         headers,
         timeout: 10000 // 10 seconds timeout
       });
-      
+
       console.log('✅ WhatsApp notification sent successfully');
-      
+
       return {
         success: true,
         provider: 'whatsapp',
@@ -353,7 +353,7 @@ class NotificationService {
         response: error.response?.data,
         status: error.response?.status
       });
-      
+
       return {
         success: false,
         provider: 'whatsapp',
@@ -386,10 +386,10 @@ class NotificationService {
 
     // Generar token JWT
     const token = jwt.sign(
-      { 
+      {
         user: 'iot-greenhouse',
         timestamp: new Date().toISOString()
-      }, 
+      },
       this.webhookSecret,
       { expiresIn: this.jwtExpiresIn }
     );
@@ -397,7 +397,7 @@ class NotificationService {
     // Format payload for n8n webhook (expected format)
     const payload = {
       usuario: metadata.usuario || 'sistema',
-      canal: metadata.canal || 'whatsapp', // Primary channel (whatsapp, email, telegram)
+      canal: metadata.canal || 'telegram', // Primary channel (whatsapp, email, telegram)
       targetChannel: metadata.targetChannel || 'webhook', // Target delivery method
       mensaje: title ? `${title}\n\n${message}` : message,
       timestamp: new Date().toISOString(),
@@ -414,6 +414,7 @@ class NotificationService {
       };
 
       console.log('🔗 Sending webhook notification to n8n');
+      console.log('📦 Webhook payload:', JSON.stringify(payload, null, 2));
 
       const response = await axios.post(this.webhookUrl, payload, {
         headers,
@@ -421,7 +422,7 @@ class NotificationService {
       });
 
       console.log('✅ Webhook notification sent successfully');
-      
+
       return {
         success: true,
         provider: 'webhook',
@@ -438,7 +439,7 @@ class NotificationService {
         response: error.response?.data,
         status: error.response?.status
       });
-      
+
       return {
         success: false,
         provider: 'webhook',
@@ -463,7 +464,7 @@ class NotificationService {
     // Push notification implementation would go here
     // For now, we'll simulate success
     console.log('📱 Push notification:', { title, message, metadata });
-    
+
     return {
       success: true,
       provider: 'push',
@@ -479,7 +480,7 @@ class NotificationService {
    */
   processTemplate(template, variables = {}) {
     if (!template) return '';
-    
+
     return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
       return variables[key] !== undefined ? variables[key] : match;
     });
@@ -555,12 +556,22 @@ class NotificationService {
       status = null,
       priority = null,
       startDate = null,
-      endDate = null
+      endDate = null,
+      userId = null,
+      unread = null,
+      channel = null
     } = options;
 
     let sql = 'SELECT * FROM notifications WHERE 1=1';
     const params = [];
     let paramIndex = 1;
+
+    // Include notifications for specific user OR global notifications (user_id IS NULL)
+    if (userId) {
+      sql += ` AND (user_id = $${paramIndex} OR user_id IS NULL)`;
+      params.push(userId);
+      paramIndex++;
+    }
 
     if (status) {
       sql += ` AND status = $${paramIndex}`;
@@ -571,6 +582,20 @@ class NotificationService {
     if (priority) {
       sql += ` AND priority = $${paramIndex}`;
       params.push(priority);
+      paramIndex++;
+    }
+
+    if (unread !== null) {
+      if (unread) {
+        sql += ` AND read_at IS NULL`;
+      } else {
+        sql += ` AND read_at IS NOT NULL`;
+      }
+    }
+
+    if (channel) {
+      sql += ` AND channels ILIKE $${paramIndex}`;
+      params.push(`%${channel}%`);
       paramIndex++;
     }
 
@@ -591,10 +616,16 @@ class NotificationService {
 
     const result = await query(sql, params);
 
-    // Get total count
+    // Get total count with same filters
     let countSql = 'SELECT COUNT(*) as total FROM notifications WHERE 1=1';
     const countParams = [];
     let countParamIndex = 1;
+
+    if (userId) {
+      countSql += ` AND (user_id = $${countParamIndex} OR user_id IS NULL)`;
+      countParams.push(userId);
+      countParamIndex++;
+    }
 
     if (status) {
       countSql += ` AND status = $${countParamIndex}`;
@@ -605,6 +636,20 @@ class NotificationService {
     if (priority) {
       countSql += ` AND priority = $${countParamIndex}`;
       countParams.push(priority);
+      countParamIndex++;
+    }
+
+    if (unread !== null) {
+      if (unread) {
+        countSql += ` AND read_at IS NULL`;
+      } else {
+        countSql += ` AND read_at IS NOT NULL`;
+      }
+    }
+
+    if (channel) {
+      countSql += ` AND channels ILIKE $${countParamIndex}`;
+      countParams.push(`%${channel}%`);
       countParamIndex++;
     }
 
@@ -737,7 +782,7 @@ class NotificationService {
       throw new Error('No fields to update');
     }
 
-    updateFields.push(`updated_at = NOW()`);
+    updateFields.push('updated_at = NOW()');
     params.push(id);
 
     const sql = `

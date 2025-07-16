@@ -1,0 +1,107 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:14-alpine
+    container_name: iot-postgres-test
+    environment:
+      - POSTGRES_DB=invernadero_iot
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres123
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - iot-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d invernadero_iot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    container_name: iot-redis-test
+    command: ["redis-server", "--requirepass", "redis_password", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_test_data:/data
+    networks:
+      - iot-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis_password", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Database initialization
+  db-init:
+    build:
+      context: .
+      dockerfile: Dockerfile.fixed
+    environment:
+      - NODE_ENV=development
+      - PG_HOST=postgres
+      - PG_PORT=5432
+      - PG_DATABASE=invernadero_iot
+      - PG_USER=postgres
+      - PG_PASSWORD=postgres123
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/usr/src/app
+    command: ["node", "init-database.js"]
+    networks:
+      - iot-network
+    restart: "no"
+
+  # Backend application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.fixed
+    ports:
+      - "4001:4001"
+    environment:
+      - NODE_ENV=development
+      - PORT=4001
+      - PG_HOST=postgres
+      - PG_PORT=5432
+      - PG_DATABASE=invernadero_iot
+      - PG_USER=postgres
+      - PG_PASSWORD=postgres123
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=redis_password
+      - JWT_SECRET=super_secret_jwt_key_for_local_development_only_32_chars
+      - ACCESS_TOKEN_SECRET=access_token_secret_for_local_dev_different_from_jwt
+      - REFRESH_TOKEN_SECRET=refresh_token_secret_for_local_dev_unique_value
+      - MQTT_BROKER_URL=mqtts://Backend:11211121@sdb201a6.ala.us-east-1.emqxsl.com:8883
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+    volumes:
+      - .:/usr/src/app
+    command: ["node", "src/server.js"]
+    networks:
+      - iot-network
+    restart: always
+
+volumes:
+  postgres_test_data:
+  redis_test_data:
+
+networks:
+  iot-network:
+    driver: bridge

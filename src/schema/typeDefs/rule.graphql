@@ -97,7 +97,7 @@ type ConditionRule {
   type: ConditionType!
   
   # Sensor Conditions
-  sensorType: SensorType
+  sensorId: ID
   field: String
   operator: ComparisonOperator
   value: Float
@@ -125,6 +125,8 @@ type RuleAction {
   channels: [NotificationChannel!]
   template: String
   variables: JSON
+  canal: Canal
+  targetChannel: TargetChannel
   
   # Device Control Actions
   deviceId: ID
@@ -266,7 +268,7 @@ input ConditionRuleInput {
   type: ConditionType!
   
   # Sensor fields
-  sensorType: SensorType
+  sensorId: ID
   field: String
   operator: ComparisonOperator
   value: Float
@@ -294,6 +296,8 @@ input RuleActionInput {
   channels: [NotificationChannel!]
   template: String
   variables: JSON
+  canal: Canal
+  targetChannel: TargetChannel
   
   # Device control fields
   deviceId: ID

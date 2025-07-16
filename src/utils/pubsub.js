@@ -8,7 +8,7 @@ const subscriberRedis = redis.duplicate();
 // Create GraphQL Redis PubSub instance
 const pubsub = new RedisPubSub({
   publisher: publisherRedis,
-  subscriber: subscriberRedis,
+  subscriber: subscriberRedis
 });
 
 // Event types constants for type safety
@@ -16,28 +16,28 @@ const EVENTS = {
   // Sensor events
   SENSOR_DATA_UPDATED: 'SENSOR_DATA_UPDATED',
   SENSOR_STATUS_CHANGED: 'SENSOR_STATUS_CHANGED',
-  
+
   // Device events
   DEVICE_STATUS_CHANGED: 'DEVICE_STATUS_CHANGED',
   DEVICE_VALUE_CHANGED: 'DEVICE_VALUE_CHANGED',
-  
+
   // Rule events
   RULE_TRIGGERED: 'RULE_TRIGGERED',
   RULE_UPDATED: 'RULE_UPDATED',
   RULE_ENGINE_STATUS: 'RULE_ENGINE_STATUS',
   RULE_EXECUTION_STREAM: 'RULE_EXECUTION_STREAM',
-  
+
   // Notification events
   NEW_NOTIFICATION: 'NEW_NOTIFICATION',
   NOTIFICATION_UPDATED: 'NOTIFICATION_UPDATED',
-  
+
   // User events
   USER_UPDATED: 'USER_UPDATED',
-  
+
   // Weather events
   WEATHER_DATA_UPDATED: 'WEATHER_DATA_UPDATED',
   WEATHER_CONFIG_CHANGED: 'WEATHER_CONFIG_CHANGED',
-  
+
   // System events
   SYSTEM_STATUS: 'SYSTEM_STATUS',
   HEALTH_CHECK: 'HEALTH_CHECK'
@@ -57,17 +57,17 @@ const QUEUE_EVENTS = {
 const SENSOR_EVENTS = {
   // Temperature/Humidity sensors
   TEMHUM_DATA: 'TEMHUM_DATA',
-  
+
   // Water quality sensors
   WATER_QUALITY_DATA: 'WATER_QUALITY_DATA',
   WATER_TEMPERATURE_DATA: 'WATER_TEMPERATURE_DATA',
-  
+
   // Light sensors
   LIGHT_DATA: 'LIGHT_DATA',
-  
+
   // Power monitoring
   POWER_DATA: 'POWER_DATA',
-  
+
   // Device events (compatible with existing system)
   DEVICE_CREATED: 'DEVICE_CREATED',
   DEVICE_UPDATED: 'DEVICE_UPDATED',
@@ -152,11 +152,11 @@ const publishSystemStatus = (status) => {
 // Subscription helper with filtering
 const createFilteredSubscription = (eventName, filter) => {
   return {
-    subscribe: filter 
+    subscribe: filter
       ? require('graphql-subscriptions').withFilter(
-          () => pubsub.asyncIterator([eventName]),
-          filter
-        )
+        () => pubsub.asyncIterator([eventName]),
+        filter
+      )
       : () => pubsub.asyncIterator([eventName])
   };
 };
@@ -171,23 +171,23 @@ subscriberRedis.on('error', (error) => {
 });
 
 // Health check for PubSub
-const healthCheck = async () => {
+const healthCheck = async() => {
   try {
     // Test publish/subscribe functionality
     const testChannel = 'health_check_test';
     const testMessage = { timestamp: Date.now() };
-    
+
     await pubsub.publish(testChannel, testMessage);
-    
-    return { 
-      status: 'OK', 
+
+    return {
+      status: 'OK',
       message: 'PubSub system healthy',
       publisherStatus: publisherRedis.status,
       subscriberStatus: subscriberRedis.status
     };
   } catch (error) {
-    return { 
-      status: 'ERROR', 
+    return {
+      status: 'ERROR',
       message: error.message,
       publisherStatus: publisherRedis.status,
       subscriberStatus: subscriberRedis.status
@@ -196,7 +196,7 @@ const healthCheck = async () => {
 };
 
 // Graceful shutdown
-const close = async () => {
+const close = async() => {
   try {
     await publisherRedis.quit();
     await subscriberRedis.quit();
@@ -211,7 +211,7 @@ module.exports = {
   EVENTS,
   SENSOR_EVENTS,
   QUEUE_EVENTS,
-  
+
   // Publisher helpers
   publishSensorData,
   publishSensorStatus,
@@ -225,10 +225,10 @@ module.exports = {
   publishNotificationUpdated,
   publishUserUpdated,
   publishSystemStatus,
-  
+
   // Subscription helpers
   createFilteredSubscription,
-  
+
   // Utilities
   healthCheck,
   close

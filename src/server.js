@@ -49,7 +49,7 @@ try {
   console.log('✅ Database initialization service loaded');
 } catch (error) {
   console.warn('⚠️  Database init service failed to load:', error.message);
-  databaseInitService = { initialize: async () => {}, getStatus: async () => ({}) }; // Mock service
+  databaseInitService = { initialize: async() => {}, getStatus: async() => ({}) }; // Mock service
 }
 
 // Import GraphQL type definitions and resolvers
@@ -108,14 +108,14 @@ class GraphQLServer {
           if (connection) {
             return {
               user: connection.context.user,
-              isAuthenticated: !!connection.context.user
+              isAuthenticated: Boolean(connection.context.user)
             };
           }
 
           // Handle HTTP requests
           return {
             user: req.user,
-            isAuthenticated: !!req.user
+            isAuthenticated: Boolean(req.user)
           };
         },
         // Security: Use secure error formatting
@@ -145,7 +145,9 @@ class GraphQLServer {
         path: '/graphql',
         cors: {
           origin: [
-            process.env.FRONTEND_URL || 'http://localhost:5173',
+            ...(process.env.CORS_ORIGINS 
+              ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim())
+              : ['http://localhost:5173', 'http://localhost:3000']),
             ...(process.env.APOLLO_STUDIO_ENABLED === 'true' ? ['https://studio.apollographql.com'] : [])
           ],
           credentials: true,
@@ -235,24 +237,24 @@ class GraphQLServer {
     this.app.use(expressRateLimit);
 
     // CORS with validation
-    const baseOrigins = process.env.CORS_ORIGINS 
+    const baseOrigins = process.env.CORS_ORIGINS
       ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim())
       : ['http://localhost:5173', 'http://localhost:3000'];
-    
+
     const allowedOrigins = [
       ...baseOrigins,
       ...(process.env.APOLLO_STUDIO_ENABLED === 'true' ? ['https://studio.apollographql.com'] : [])
     ];
-    
+
     this.app.use(cors({
       origin: (origin, callback) => {
         // Allow requests with no origin (mobile apps, etc.)
         if (!origin) return callback(null, true);
-        
+
         if (allowedOrigins.includes(origin)) {
           return callback(null, true);
         }
-        
+
         console.warn(`🚫 CORS blocked origin: ${origin}`);
         callback(new Error('Not allowed by CORS'));
       },
@@ -271,10 +273,10 @@ class GraphQLServer {
         max: (req) => {
           // More lenient for private IPs
           if (isPrivateIP(req.ip)) {
-            return 2000; // Higher limit for internal network
+            return 5000; // Higher limit for internal network
           }
-          // Stricter for external IPs
-          return 500;
+          // More reasonable for external IPs with dashboard usage
+          return 2000;
         },
         message: {
           error: 'Too many requests from this IP',
@@ -287,15 +289,15 @@ class GraphQLServer {
           // Log rate limit violations
           auditLogService.logSecurityViolation(
             'RATE_LIMIT_EXCEEDED',
-            { 
-              ip: req.ip, 
+            {
+              ip: req.ip,
               userAgent: req.get('User-Agent'),
               path: req.path
             },
             req.user || null,
             req.ip
           );
-          
+
           res.status(429).json({
             error: 'Too many requests from this IP',
             retryAfter: '15 minutes',
@@ -304,7 +306,7 @@ class GraphQLServer {
         }
       });
     };
-    
+
     this.app.use('/graphql', createAdvancedLimiter());
 
     // Body parsing with secure limits
@@ -313,16 +315,16 @@ class GraphQLServer {
     this.app.use(express.urlencoded({ extended: true, limit: payloadLimit }));
 
     // Enhanced authentication middleware with audit logging
-    this.app.use(async (req, res, next) => {
+    this.app.use(async(req, res, next) => {
       const token = req.headers.authorization?.replace('Bearer ', '');
       const clientIP = req.ip;
       const userAgent = req.get('User-Agent');
-      
+
       if (token) {
         try {
           const user = await authService.verifyToken(token);
           req.user = user;
-          
+
           // Log successful token verification for high-value operations
           if (req.path.includes('graphql') && req.method === 'POST') {
             auditLogService.logDataAccess(
@@ -335,11 +337,11 @@ class GraphQLServer {
           }
         } catch (error) {
           console.warn('Invalid token:', error.message);
-          
+
           // Log failed token verification
           auditLogService.logSecurityViolation(
             'INVALID_TOKEN',
-            { 
+            {
               error: error.message,
               token_prefix: token.substring(0, 10) + '...'
             },
@@ -348,12 +350,12 @@ class GraphQLServer {
           );
         }
       }
-      
+
       next();
     });
 
     // Enhanced health check endpoint with limited public info
-    this.app.get('/health', async (req, res) => {
+    this.app.get('/health', async(req, res) => {
       // Log health check access from external IPs
       if (!isPrivateIP(req.ip)) {
         auditLogService.logSystemEvent(
@@ -363,22 +365,22 @@ class GraphQLServer {
           req.ip
         );
       }
-      
+
       // Basic health response for public access
       const basicResponse = {
         status: 'healthy',
         timestamp: new Date().toISOString()
       };
-      
+
       // Detailed info only for authenticated users or internal IPs
       if (req.user || isPrivateIP(req.ip)) {
         const services = { graphql: true };
-        
+
         // Safely check services
         try { services.mqtt = mqttService.getStatus?.().isConnected || false; } catch { services.mqtt = false; }
         try { services.rules = rulesEngineService.getStatus?.().isRunning || false; } catch { services.rules = false; }
         try { services.queue = queueService.isProcessing || false; } catch { services.queue = false; }
-        
+
         // Add security status
         const security = {
           audit_logging: true,
@@ -386,12 +388,12 @@ class GraphQLServer {
           two_factor_auth: true,
           helmet_protection: true
         };
-        
+
         basicResponse.services = services;
         basicResponse.security = security;
         basicResponse.version = '2.0.0';
       }
-      
+
       res.json(basicResponse);
     });
 
@@ -422,17 +424,17 @@ class GraphQLServer {
         schema: this.apolloServer.schema,
         execute,
         subscribe,
-        onConnect: async (ctx) => {
+        onConnect: async(ctx) => {
           console.log('🔌 GraphQL WebSocket connection attempt');
-          
+
           try {
             // Extract token from connection params
-            const token = ctx.connectionParams?.authorization?.replace('Bearer ', '') || 
+            const token = ctx.connectionParams?.authorization?.replace('Bearer ', '') ||
                          ctx.connectionParams?.token;
-            
+
             if (!token) {
               console.warn('⚠️ No token provided for WebSocket connection');
-              
+
               // Log unauthorized WebSocket attempt
               auditLogService.logSecurityViolation(
                 'WEBSOCKET_NO_TOKEN',
@@ -440,14 +442,14 @@ class GraphQLServer {
                 null,
                 ctx.extra?.request?.connection?.remoteAddress
               );
-              
+
               return { user: null };
             }
 
             // Verify token
             const user = await authService.verifyToken(token);
             console.log(`✅ WebSocket authenticated for user: ${user.username}`);
-            
+
             // Log successful WebSocket authentication
             auditLogService.logAuthentication(
               user.username,
@@ -456,11 +458,11 @@ class GraphQLServer {
               ctx.extra?.request?.headers?.['user-agent'],
               'websocket'
             );
-            
+
             return { user };
           } catch (error) {
             console.error('❌ WebSocket authentication failed:', error.message);
-            
+
             // Log failed WebSocket authentication
             auditLogService.logSecurityViolation(
               'WEBSOCKET_AUTH_FAILED',
@@ -468,7 +470,7 @@ class GraphQLServer {
               null,
               ctx.extra?.request?.connection?.remoteAddress
             );
-            
+
             throw new Error('Authentication failed');
           }
         },
@@ -497,6 +499,21 @@ class GraphQLServer {
       console.log('🔒 Initializing secure database...');
       await databaseInitService.initialize();
       console.log('✅ Database service initialized');
+      
+      // Initialize dynamic sensor system after database is ready
+      try {
+        console.log('🌡️ Initializing dynamic sensor system...');
+        const dynamicSensorService = require('./services/dynamicSensorService');
+        await dynamicSensorService.initializeService();
+        
+        const sensorTypeService = require('./services/sensorTypeService');
+        const sensorTypes = sensorTypeService.getAllSensorTypes();
+        console.log(`✅ Dynamic sensor system initialized with ${sensorTypes.length} sensor types`);
+      } catch (sensorError) {
+        console.warn('⚠️ Dynamic sensor system initialization warning:', sensorError.message);
+        // Don't fail server startup if sensor system has issues
+      }
+      
     } catch (error) {
       console.error('❌ Database initialization failed:', error.message);
       throw error; // Database is critical - fail startup if it fails
@@ -602,13 +619,13 @@ class GraphQLServer {
 const server = new GraphQLServer();
 
 // Handle graceful shutdown
-process.on('SIGTERM', async () => {
+process.on('SIGTERM', async() => {
   console.log('📡 SIGTERM received, shutting down gracefully...');
   await server.shutdown();
   process.exit(0);
 });
 
-process.on('SIGINT', async () => {
+process.on('SIGINT', async() => {
   console.log('📡 SIGINT received, shutting down gracefully...');
   await server.shutdown();
   process.exit(0);

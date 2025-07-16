@@ -12,25 +12,25 @@ const weather = require('./weather');
 const Query = {
   // Health check
   ...health,
-  
+
   // Sensor queries
   ...sensors,
-  
+
   // Device queries
   ...devices,
-  
+
   // User queries
   ...users,
-  
+
   // Rule queries
   ...rules,
-  
+
   // Notification queries
   ...notifications,
-  
+
   // Weather queries
-  ...weather,
-  
+  ...weather
+
   // Pump cycle queries - Temporarily disabled for schema fix
   // ...pumpCycles,
 };

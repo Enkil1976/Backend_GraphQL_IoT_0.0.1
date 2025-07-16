@@ -1,0 +1,49 @@
+# Crear sensor de calidad del agua via GraphQL
+# Tópico: Invernadero/Agua/data
+# Datos: {"ph": 5, "ec":1000, "ppm": 1000, "temp": 18}
+
+mutation CreateWaterQualitySensor {
+  createSensor(input: {
+    name: "Sensor Calidad Agua Principal"
+    hardware_id: "agua-quality-01"
+    sensor_type: WATER_QUALITY
+    location: "Sistema de Riego Principal"
+    is_active: true
+    configuration: {
+      mqtt_topic: "Invernadero/Agua/data"
+      fields: ["ph", "ec", "ppm", "temp"]
+      cache_key: "sensor_latest:agua-quality-01"
+      metrics_fields: ["ph", "ec", "ppm", "temp"]
+      data_format: "json"
+      update_frequency: 30
+      alert_thresholds: {
+        ph: { min: 5.5, max: 8.5 }
+        ec: { min: 800, max: 2000 }
+        ppm: { min: 400, max: 1500 }
+        temp: { min: 15, max: 30 }
+      }
+    }
+  }) {
+    id
+    name
+    hardware_id
+    sensor_type
+    location
+    is_active
+    configuration
+  }
+}
+
+# Comando curl equivalente (usar cuando Docker esté corriendo):
+# 
+# # 1. Login
+# TOKEN=$(curl -s -X POST http://localhost:4001/graphql \
+#   -H "Content-Type: application/json" \
+#   -d '{"query":"mutation { login(username: \"admin\", password: \"admin123\") { token } }"}' | \
+#   jq -r '.data.login.token')
+#
+# # 2. Crear sensor
+# curl -X POST http://localhost:4001/graphql \
+#   -H "Content-Type: application/json" \
+#   -H "Authorization: Bearer $TOKEN" \
+#   -d '{"query":"mutation { createSensor(input: { name: \"Sensor Calidad Agua Principal\", hardware_id: \"agua-quality-01\", sensor_type: WATER_QUALITY, location: \"Sistema de Riego Principal\", is_active: true, configuration: { mqtt_topic: \"Invernadero/Agua/data\", fields: [\"ph\", \"ec\", \"ppm\", \"temp\"] } }) { id name hardware_id sensor_type location is_active configuration } }"}'

@@ -1,0 +1,40 @@
+# Dockerfile optimizado para desarrollo local rápido
+FROM node:20-alpine
+
+WORKDIR /usr/src/app
+
+# Instalar solo dependencias esenciales
+RUN apk add --no-cache postgresql-client redis
+
+# Copiar archivos de configuración
+COPY package*.json ./
+
+# Instalar dependencias (usar cache si es posible)
+RUN npm ci --only=production --legacy-peer-deps
+
+# Crear usuario no root
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodeuser -u 1001
+
+# Copiar código fuente
+COPY . .
+
+# Hacer ejecutable el entrypoint
+RUN chmod +x docker-entrypoint.sh
+
+# Crear directorios necesarios
+RUN mkdir -p logs && chown -R nodeuser:nodejs logs
+
+# Cambiar a usuario no root
+USER nodeuser
+
+# Exponer puerto
+EXPOSE 4001
+
+# Health check simple
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:4001/health || exit 1
+
+# Entrypoint
+ENTRYPOINT ["./docker-entrypoint.sh"]
+CMD ["start"]

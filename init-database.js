@@ -75,6 +75,24 @@ async function initializeDatabase() {
       console.log(`🔢 Schema Version: ${status.schema_version}`);
       console.log(`🔒 Security Tables: ${status.security_tables_ready ? 'Ready' : 'Not Ready'}`);
       
+      // Initialize dynamic sensor system
+      try {
+        console.log('\n🌡️ Initializing dynamic sensor system...');
+        const dynamicSensorService = require('./src/services/dynamicSensorService');
+        await dynamicSensorService.initializeService();
+        console.log('✅ Dynamic sensor system initialized');
+        
+        const sensorTypeService = require('./src/services/sensorTypeService');
+        const sensorTypes = sensorTypeService.getAllSensorTypes();
+        console.log(`✅ ${sensorTypes.length} sensor types loaded (including BMP280 support)`);
+        
+      } catch (sensorError) {
+        console.warn('⚠️ Dynamic sensor initialization warning:', sensorError.message);
+        // Don't fail the deployment if sensor system has issues
+      }
+
+      // All corrections are now handled by databaseInitService migrations
+      
       return true;
     } catch (serviceError) {
       console.log('⚠️  Enhanced service not available, using basic initialization');
@@ -82,6 +100,9 @@ async function initializeDatabase() {
       
       // Basic initialization fallback
       await basicInitialization();
+      
+      // All corrections are handled by standard migration system
+      
       return true;
     }
 

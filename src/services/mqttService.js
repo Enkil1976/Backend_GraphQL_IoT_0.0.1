@@ -3,6 +3,8 @@ const { query } = require('../config/database');
 const { cache } = require('../config/redis');
 const { pubsub, SENSOR_EVENTS } = require('../utils/pubsub');
 const EventEmitter = require('events');
+const dynamicSensorService = require('./dynamicSensorService');
+const mqttAutoDiscoveryService = require('./mqttAutoDiscoveryService');
 
 /**
  * MQTT Service for GraphQL Backend
@@ -18,7 +20,7 @@ class MqttService extends EventEmitter {
     this.maxReconnectAttempts = 10;
     this.reconnectDelay = 5000;
     this.sensorHistoryMaxLength = parseInt(process.env.SENSOR_HISTORY_MAX_LENGTH, 10) || 100;
-    
+
     // MQTT Configuration
     this.brokerUrl = process.env.MQTT_BROKER_URL || 'mqtt://broker.emqx.io';
     this.clientId = `mqtt_client_graphql_${Math.random().toString(16).slice(3)}`;
@@ -36,14 +38,14 @@ class MqttService extends EventEmitter {
         connectTimeout: 4000,
         username: process.env.MQTT_USERNAME,
         password: process.env.MQTT_PASSWORD,
-        reconnectPeriod: this.reconnectDelay,
+        reconnectPeriod: this.reconnectDelay
       };
 
       console.log('🔌 Connecting to MQTT broker...', {
         url: this.brokerUrl,
         clientId: this.clientId,
         username: process.env.MQTT_USERNAME || 'N/A',
-        passwordSet: !!process.env.MQTT_PASSWORD
+        passwordSet: Boolean(process.env.MQTT_PASSWORD)
       });
 
       if (!this.brokerUrl || typeof this.brokerUrl !== 'string' || this.brokerUrl.trim() === '') {
@@ -78,7 +80,7 @@ class MqttService extends EventEmitter {
       this.client.on('reconnect', () => {
         this.reconnectAttempts++;
         console.log(`🔄 MQTT reconnecting... (attempt ${this.reconnectAttempts})`);
-        
+
         if (this.reconnectAttempts > this.maxReconnectAttempts) {
           console.error('❌ Max reconnection attempts reached');
           this.client.end();
@@ -128,12 +130,55 @@ class MqttService extends EventEmitter {
     const processingStartTime = Date.now();
     const rawPayload = message.toString();
     const receivedAt = new Date(); // Use standard Date for GraphQL
-    
-    console.log(`🚀 MQTT MESSAGE PROCESSING STARTED`);
+
+    console.log('🚀 MQTT MESSAGE PROCESSING STARTED');
     console.log(`   🕰️ Timestamp: ${receivedAt.toISOString()}`);
     console.log(`   📡 Topic: ${topic}`);
     console.log(`   📄 Payload: ${rawPayload.substring(0, 200)}${rawPayload.length > 200 ? '...' : ''}`);
 
+    // Try to process with dynamic sensor service first
+    try {
+      const parsedPayload = JSON.parse(rawPayload);
+      const processed = await dynamicSensorService.processSensorData(topic, parsedPayload);
+      
+      // If no sensor found, try auto-discovery
+      if (!processed) {
+        console.log(`🔍 No sensor found for topic ${topic}, attempting auto-discovery...`);
+        const autoCreated = await mqttAutoDiscoveryService.processUnknownMessage(topic, parsedPayload);
+        
+        if (autoCreated) {
+          console.log(`🤖 Auto-discovery initiated for topic: ${topic}`);
+        } else {
+          console.log(`⚠️ Auto-discovery skipped for topic: ${topic}`);
+        }
+      }
+      
+    } catch (error) {
+      console.log(`⚠️ Dynamic sensor processing failed, trying auto-discovery and legacy: ${error.message}`);
+
+      // Try auto-discovery for unknown topics
+      try {
+        const parsedPayload = JSON.parse(rawPayload);
+        const autoCreated = await mqttAutoDiscoveryService.processUnknownMessage(topic, parsedPayload);
+        
+        if (!autoCreated) {
+          // Fall back to legacy processing
+          await this.processLegacyMessage(topic, rawPayload, receivedAt);
+        }
+      } catch (parseError) {
+        console.error(`❌ JSON parsing failed: ${parseError.message}`);
+        await this.processLegacyMessage(topic, rawPayload, receivedAt);
+      }
+    }
+  }
+
+  /**
+   * Process legacy MQTT messages (original implementation)
+   * @param {string} topic - MQTT topic
+   * @param {string} rawPayload - Raw message payload
+   * @param {Date} receivedAt - Timestamp when message was received
+   */
+  async processLegacyMessage(topic, rawPayload, receivedAt) {
     const topicParts = topic.split('/');
     let queryStr;
     let values;
@@ -149,17 +194,17 @@ class MqttService extends EventEmitter {
       if ((idOrGroup === 'TemHum1' || idOrGroup === 'TemHum2') && dataType === 'data') {
         tableName = idOrGroup.toLowerCase();
         console.log(`🌡️ Processing TemHum data for table: ${tableName}`);
-        
+
         try {
           data = JSON.parse(rawPayload);
-          console.log(`✅ JSON parsing successful:`, data);
+          console.log('✅ JSON parsing successful:', data);
         } catch (error) {
           console.error(`❌ JSON parsing failed: ${error.message}`);
           return;
         }
 
         if (data.temperatura === undefined || data.humedad === undefined) {
-          console.error(`❌ Missing required fields: temperatura, humedad`);
+          console.error('❌ Missing required fields: temperatura, humedad');
           return;
         }
 
@@ -171,21 +216,21 @@ class MqttService extends EventEmitter {
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
         `;
         values = [
-          data.temperatura, 
-          data.humedad, 
-          data.heatindex || null, 
-          data.dewpoint || null, 
-          data.rssi || null, 
-          data.boot || 0, 
+          data.temperatura,
+          data.humedad,
+          data.heatindex || null,
+          data.dewpoint || null,
+          data.rssi || null,
+          data.boot || 0,
           data.mem || null,
-          data.stats?.tmin || null, 
-          data.stats?.tmax || null, 
-          data.stats?.tavg || null, 
-          data.stats?.hmin || null, 
-          data.stats?.hmax || null, 
+          data.stats?.tmin || null,
+          data.stats?.tmax || null,
+          data.stats?.tavg || null,
+          data.stats?.hmin || null,
+          data.stats?.hmax || null,
           data.stats?.havg || null,
-          data.stats?.total || 0, 
-          data.stats?.errors || 0, 
+          data.stats?.total || 0,
+          data.stats?.errors || 0,
           receivedAt
         ];
 
@@ -239,14 +284,14 @@ class MqttService extends EventEmitter {
         if (dataType === 'data') {
           try {
             data = JSON.parse(rawPayload);
-            console.log(`✅ Water data JSON parsed:`, data);
+            console.log('✅ Water data JSON parsed:', data);
           } catch (error) {
             console.error(`❌ Water data JSON parsing failed: ${error.message}`);
             return;
           }
 
           if (data.ph === undefined || data.ec === undefined || data.ppm === undefined) {
-            console.error(`❌ Missing required water quality fields: ph, ec, ppm`);
+            console.error('❌ Missing required water quality fields: ph, ec, ppm');
             return;
           }
 
@@ -255,7 +300,7 @@ class MqttService extends EventEmitter {
           values = [data.ph, data.ec, data.ppm, data.temp || null, data.rssi, data.boot, data.mem, receivedAt];
 
           // Cache in Redis
-          const sensorKeyAgua = `sensor_latest:calidad_agua`;
+          const sensorKeyAgua = 'sensor_latest:calidad_agua';
           const aguaData = {
             ph: data.ph,
             ec: data.ec,
@@ -268,14 +313,14 @@ class MqttService extends EventEmitter {
 
           try {
             await cache.hset(sensorKeyAgua, aguaData);
-            console.log(`✅ Water quality data cached`);
+            console.log('✅ Water quality data cached');
 
             // Store historical data
             const waterParams = ['ph', 'ec', 'ppm'];
             if (data.temp !== undefined) waterParams.push('temperatura_agua');
 
             for (const param of waterParams) {
-              let valueToLog = param === 'temperatura_agua' ? data.temp : data[param];
+              const valueToLog = param === 'temperatura_agua' ? data.temp : data[param];
               if (valueToLog !== undefined) {
                 const listKey = `sensor_history:calidad_agua:${param}`;
                 const dataPoint = JSON.stringify({ ts: receivedAt.toISOString(), val: valueToLog });
@@ -296,7 +341,7 @@ class MqttService extends EventEmitter {
             });
 
           } catch (redisError) {
-            console.error(`❌ Water quality Redis operation failed:`, redisError);
+            console.error('❌ Water quality Redis operation failed:', redisError);
           }
 
         } else if (dataType === 'Temperatura') {
@@ -313,7 +358,7 @@ class MqttService extends EventEmitter {
 
           // Cache temperature update
           try {
-            const sensorKeyTemp = `sensor_latest:calidad_agua`;
+            const sensorKeyTemp = 'sensor_latest:calidad_agua';
             const tempUpdate = {
               temperatura_agua: waterTemp,
               last_updated_temp_agua: receivedAt.toISOString()
@@ -321,7 +366,7 @@ class MqttService extends EventEmitter {
             await cache.hset(sensorKeyTemp, tempUpdate);
 
             // Store historical data
-            const tempListKey = `sensor_history:calidad_agua:temperatura_agua`;
+            const tempListKey = 'sensor_history:calidad_agua:temperatura_agua';
             const tempDataPoint = JSON.stringify({ ts: receivedAt.toISOString(), val: waterTemp });
             await cache.lpush(tempListKey, tempDataPoint);
             await cache.ltrim(tempListKey, 0, this.sensorHistoryMaxLength - 1);
@@ -335,24 +380,24 @@ class MqttService extends EventEmitter {
             });
 
           } catch (redisError) {
-            console.error(`❌ Water temperature Redis operation failed:`, redisError);
+            console.error('❌ Water temperature Redis operation failed:', redisError);
           }
         }
 
       } else if (idOrGroup === 'Luxometro' && dataType === 'data') {
         tableName = 'luxometro';
         console.log(`💡 Processing light sensor data for table: ${tableName}`);
-        
+
         try {
           data = JSON.parse(rawPayload);
-          console.log(`✅ Light sensor JSON parsed:`, data);
+          console.log('✅ Light sensor JSON parsed:', data);
         } catch (error) {
           console.error(`❌ Light sensor JSON parsing failed: ${error.message}`);
           return;
         }
 
         if (data.light === undefined) {
-          console.error(`❌ Missing required light field`);
+          console.error('❌ Missing required light field');
           return;
         }
 
@@ -366,7 +411,7 @@ class MqttService extends EventEmitter {
         ];
 
         // Cache in Redis
-        const sensorKeyLux = `sensor_latest:luxometro`;
+        const sensorKeyLux = 'sensor_latest:luxometro';
         const luxData = {
           light: data.light,
           white_light: data.white_light,
@@ -377,7 +422,7 @@ class MqttService extends EventEmitter {
 
         try {
           await cache.hset(sensorKeyLux, luxData);
-          console.log(`✅ Light sensor data cached`);
+          console.log('✅ Light sensor data cached');
 
           // Store historical data
           const lightMetrics = ['light', 'white_light', 'raw_light'];
@@ -402,7 +447,7 @@ class MqttService extends EventEmitter {
           });
 
         } catch (redisError) {
-          console.error(`❌ Light sensor Redis operation failed:`, redisError);
+          console.error('❌ Light sensor Redis operation failed:', redisError);
         }
 
       } else if (dataType === 'data') {
@@ -413,21 +458,21 @@ class MqttService extends EventEmitter {
 
         try {
           data = JSON.parse(rawPayload);
-          console.log(`✅ Power sensor JSON parsed:`, data);
+          console.log('✅ Power sensor JSON parsed:', data);
         } catch (error) {
           console.error(`❌ Power sensor JSON parsing failed: ${error.message}`);
           return;
         }
 
         if (data.voltage === undefined || data.current === undefined || data.watts === undefined) {
-          console.error(`❌ Missing required power fields: voltage, current, watts`);
+          console.error('❌ Missing required power fields: voltage, current, watts');
           return;
         }
 
         try {
           // Find device in database
           const deviceResult = await query(
-            "SELECT id, configuration FROM devices WHERE device_id = $1 AND type = 'power_sensor'",
+            'SELECT id, configuration FROM devices WHERE device_id = $1 AND type = \'power_sensor\'',
             [powerSensorHardwareId]
           );
 
@@ -489,7 +534,7 @@ class MqttService extends EventEmitter {
           });
 
         } catch (dbError) {
-          console.error(`❌ Power sensor database error:`, dbError);
+          console.error('❌ Power sensor database error:', dbError);
           return;
         }
       }
@@ -516,7 +561,7 @@ class MqttService extends EventEmitter {
    */
   async getLatestData(sensorType, deviceId = null) {
     let key;
-    
+
     if (sensorType === 'power' && deviceId) {
       key = `sensor_latest:power:${deviceId}`;
     } else {
@@ -537,7 +582,7 @@ class MqttService extends EventEmitter {
    */
   async getHistoricalData(sensorType, metric, limit = 100, deviceId = null) {
     let key;
-    
+
     if (sensorType === 'power' && deviceId) {
       key = `sensor_history:power:${deviceId}:${metric}`;
     } else {
@@ -562,7 +607,7 @@ class MqttService extends EventEmitter {
     }
 
     const message = JSON.stringify(data);
-    
+
     return new Promise((resolve, reject) => {
       this.client.publish(topic, message, (err) => {
         if (err) {
@@ -603,85 +648,85 @@ class MqttService extends EventEmitter {
    */
   async simulateData(sensorType) {
     let topic, data;
-    
+
     switch (sensorType) {
-      case 'temhum1':
-        topic = 'Invernadero/TemHum1/data';
-        data = {
-          temperatura: +(20 + Math.random() * 15).toFixed(2),
-          humedad: Math.floor(40 + Math.random() * 40),
-          heatindex: +(22 + Math.random() * 10).toFixed(2),
-          dewpoint: +(15 + Math.random() * 8).toFixed(2),
-          rssi: -Math.floor(30 + Math.random() * 40),
-          boot: 1,
-          mem: Math.floor(40000 + Math.random() * 10000),
-          stats: {
-            tmin: +(18 + Math.random() * 5).toFixed(2),
-            tmax: +(25 + Math.random() * 10).toFixed(2),
-            tavg: +(22 + Math.random() * 8).toFixed(2),
-            hmin: Math.floor(35 + Math.random() * 15),
-            hmax: Math.floor(60 + Math.random() * 30),
-            havg: Math.floor(50 + Math.random() * 20),
-            total: Math.floor(90 + Math.random() * 20),
-            errors: Math.floor(Math.random() * 3)
-          }
-        };
-        break;
-      case 'temhum2':
-        topic = 'Invernadero/TemHum2/data';
-        data = {
-          temperatura: +(18 + Math.random() * 12).toFixed(2),
-          humedad: Math.floor(35 + Math.random() * 45),
-          heatindex: +(20 + Math.random() * 8).toFixed(2),
-          dewpoint: +(13 + Math.random() * 7).toFixed(2),
-          rssi: -Math.floor(25 + Math.random() * 35),
-          boot: 1,
-          mem: Math.floor(35000 + Math.random() * 15000),
-          stats: {
-            tmin: +(16 + Math.random() * 4).toFixed(2),
-            tmax: +(23 + Math.random() * 8).toFixed(2),
-            tavg: +(20 + Math.random() * 6).toFixed(2),
-            hmin: Math.floor(30 + Math.random() * 20),
-            hmax: Math.floor(55 + Math.random() * 35),
-            havg: Math.floor(45 + Math.random() * 25),
-            total: Math.floor(85 + Math.random() * 25),
-            errors: Math.floor(Math.random() * 2)
-          }
-        };
-        break;
-      case 'agua':
-        topic = 'Invernadero/Agua/data';
-        data = {
-          ph: +(6.5 + Math.random() * 2).toFixed(2),
-          ec: +(1000 + Math.random() * 500).toFixed(2),
-          ppm: +(500 + Math.random() * 300).toFixed(2),
-          temp: +(20 + Math.random() * 10).toFixed(2),
-          rssi: -Math.floor(20 + Math.random() * 30),
-          boot: 1,
-          mem: Math.floor(30000 + Math.random() * 20000)
-        };
-        break;
-      case 'luxometro':
-        topic = 'Invernadero/Luxometro/data';
-        data = {
-          light: +(100 + Math.random() * 900).toFixed(2),
-          white_light: +(80 + Math.random() * 700).toFixed(2),
-          raw_light: +(50 + Math.random() * 400).toFixed(2),
-          rssi: -Math.floor(25 + Math.random() * 35),
-          boot: 1,
-          mem: Math.floor(32000 + Math.random() * 18000),
-          stats: {
-            lmin: +(50 + Math.random() * 100).toFixed(2),
-            lmax: +(800 + Math.random() * 200).toFixed(2),
-            lavg: +(400 + Math.random() * 200).toFixed(2),
-            wmin: +(40 + Math.random() * 80).toFixed(2),
-            wmax: +(600 + Math.random() * 180).toFixed(2),
-            wavg: +(300 + Math.random() * 150).toFixed(2),
-            total: Math.floor(95 + Math.random() * 15),
-            errors: Math.floor(Math.random() * 2)
-          }
-        };
-        break;
+    case 'temhum1':
+      topic = 'Invernadero/TemHum1/data';
+      data = {
+        temperatura: +(20 + Math.random() * 15).toFixed(2),
+        humedad: Math.floor(40 + Math.random() * 40),
+        heatindex: +(22 + Math.random() * 10).toFixed(2),
+        dewpoint: +(15 + Math.random() * 8).toFixed(2),
+        rssi: -Math.floor(30 + Math.random() * 40),
+        boot: 1,
+        mem: Math.floor(40000 + Math.random() * 10000),
+        stats: {
+          tmin: +(18 + Math.random() * 5).toFixed(2),
+          tmax: +(25 + Math.random() * 10).toFixed(2),
+          tavg: +(22 + Math.random() * 8).toFixed(2),
+          hmin: Math.floor(35 + Math.random() * 15),
+          hmax: Math.floor(60 + Math.random() * 30),
+          havg: Math.floor(50 + Math.random() * 20),
+          total: Math.floor(90 + Math.random() * 20),
+          errors: Math.floor(Math.random() * 3)
+        }
+      };
+      break;
+    case 'temhum2':
+      topic = 'Invernadero/TemHum2/data';
+      data = {
+        temperatura: +(18 + Math.random() * 12).toFixed(2),
+        humedad: Math.floor(35 + Math.random() * 45),
+        heatindex: +(20 + Math.random() * 8).toFixed(2),
+        dewpoint: +(13 + Math.random() * 7).toFixed(2),
+        rssi: -Math.floor(25 + Math.random() * 35),
+        boot: 1,
+        mem: Math.floor(35000 + Math.random() * 15000),
+        stats: {
+          tmin: +(16 + Math.random() * 4).toFixed(2),
+          tmax: +(23 + Math.random() * 8).toFixed(2),
+          tavg: +(20 + Math.random() * 6).toFixed(2),
+          hmin: Math.floor(30 + Math.random() * 20),
+          hmax: Math.floor(55 + Math.random() * 35),
+          havg: Math.floor(45 + Math.random() * 25),
+          total: Math.floor(85 + Math.random() * 25),
+          errors: Math.floor(Math.random() * 2)
+        }
+      };
+      break;
+    case 'agua':
+      topic = 'Invernadero/Agua/data';
+      data = {
+        ph: +(6.5 + Math.random() * 2).toFixed(2),
+        ec: +(1000 + Math.random() * 500).toFixed(2),
+        ppm: +(500 + Math.random() * 300).toFixed(2),
+        temp: +(20 + Math.random() * 10).toFixed(2),
+        rssi: -Math.floor(20 + Math.random() * 30),
+        boot: 1,
+        mem: Math.floor(30000 + Math.random() * 20000)
+      };
+      break;
+    case 'luxometro':
+      topic = 'Invernadero/Luxometro/data';
+      data = {
+        light: +(100 + Math.random() * 900).toFixed(2),
+        white_light: +(80 + Math.random() * 700).toFixed(2),
+        raw_light: +(50 + Math.random() * 400).toFixed(2),
+        rssi: -Math.floor(25 + Math.random() * 35),
+        boot: 1,
+        mem: Math.floor(32000 + Math.random() * 18000),
+        stats: {
+          lmin: +(50 + Math.random() * 100).toFixed(2),
+          lmax: +(800 + Math.random() * 200).toFixed(2),
+          lavg: +(400 + Math.random() * 200).toFixed(2),
+          wmin: +(40 + Math.random() * 80).toFixed(2),
+          wmax: +(600 + Math.random() * 180).toFixed(2),
+          wavg: +(300 + Math.random() * 150).toFixed(2),
+          total: Math.floor(95 + Math.random() * 15),
+          errors: Math.floor(Math.random() * 2)
+        }
+      };
+      break;
     }
 
     if (topic && data) {

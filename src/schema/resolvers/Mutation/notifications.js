@@ -11,10 +11,10 @@ const notificationMutations = {
   /**
    * Mark notification as read
    */
-  markNotificationRead: async (parent, { id }, context) => {
+  markNotificationRead: async(parent, { id }, context) => {
     try {
       console.log(`[NotificationMutation] Marking notification ${id} as read`, { user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to mark notifications as read');
@@ -22,7 +22,7 @@ const notificationMutations = {
 
       // Get the notification first
       const notification = await notificationService.getNotificationById(id);
-      
+
       if (!notification) {
         throw new Error('Notification not found');
       }
@@ -43,9 +43,9 @@ const notificationMutations = {
 
       // Get updated notification
       const updatedNotification = await notificationService.getNotificationById(id);
-      
+
       console.log(`[NotificationMutation] Marked notification ${id} as read`);
-      
+
       // Publish notification update event
       await pubsub.publish(SENSOR_EVENTS.DEVICE_UPDATED, {
         notificationUpdated: {
@@ -83,23 +83,23 @@ const notificationMutations = {
   /**
    * Mark all notifications as read for current user
    */
-  markAllNotificationsRead: async (parent, args, context) => {
+  markAllNotificationsRead: async(parent, args, context) => {
     try {
       console.log('[NotificationMutation] Marking all notifications as read', { user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to mark notifications as read');
       }
 
-      // Mark all unread notifications as read for current user
+      // Mark all unread notifications as read for current user AND global notifications
       const result = await query(
-        'UPDATE notifications SET read_at = NOW() WHERE user_id = $1 AND read_at IS NULL',
+        'UPDATE notifications SET read_at = NOW() WHERE (user_id = $1 OR user_id IS NULL) AND read_at IS NULL',
         [context.user.id]
       );
 
       console.log(`[NotificationMutation] Marked ${result.rowCount} notifications as read`);
-      
+
       return true;
     } catch (error) {
       console.error('[NotificationMutation] Error marking all notifications as read:', error);
@@ -110,10 +110,10 @@ const notificationMutations = {
   /**
    * Delete a notification
    */
-  deleteNotification: async (parent, { id }, context) => {
+  deleteNotification: async(parent, { id }, context) => {
     try {
       console.log(`[NotificationMutation] Deleting notification ${id}`, { user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to delete notifications');
@@ -121,7 +121,7 @@ const notificationMutations = {
 
       // Get the notification first
       const notification = await notificationService.getNotificationById(id);
-      
+
       if (!notification) {
         throw new Error('Notification not found');
       }
@@ -144,7 +144,7 @@ const notificationMutations = {
       }
 
       console.log(`[NotificationMutation] Deleted notification ${id}`);
-      
+
       return true;
     } catch (error) {
       console.error(`[NotificationMutation] Error deleting notification ${id}:`, error);
@@ -155,10 +155,10 @@ const notificationMutations = {
   /**
    * Send custom notification
    */
-  sendNotification: async (parent, { input }, context) => {
+  sendNotification: async(parent, { input }, context) => {
     try {
       console.log('[NotificationMutation] Sending custom notification', { input, user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to send notifications');
@@ -209,7 +209,7 @@ const notificationMutations = {
 
       // Send notification
       const result = await notificationService.sendNotification(notificationData);
-      
+
       // Create user-specific notification record if userId specified
       let userNotification = null;
       if (userId) {
@@ -237,7 +237,7 @@ const notificationMutations = {
       }
 
       console.log(`[NotificationMutation] Sent custom notification: ${title}`);
-      
+
       return {
         ...(userNotification || {}),
         id: userNotification?.id || result.id,
@@ -265,10 +265,10 @@ const notificationMutations = {
   /**
    * Create notification template
    */
-  createNotificationTemplate: async (parent, { input }, context) => {
+  createNotificationTemplate: async(parent, { input }, context) => {
     try {
       console.log('[NotificationMutation] Creating notification template', { input, user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to create notification templates');
@@ -299,17 +299,17 @@ const notificationMutations = {
       };
 
       const template = await notificationService.createNotificationTemplate(templateData);
-      
+
       console.log(`[NotificationMutation] Created template: ${template.name} (ID: ${template.id})`);
-      
+
       return {
         ...template,
         type: type,
         titleTemplate: template.title,
         messageTemplate: template.content,
         supportedChannels: template.channels ? template.channels.split(',') : supportedChannels,
-        variables: typeof template.variables === 'string' 
-          ? JSON.parse(template.variables) 
+        variables: typeof template.variables === 'string'
+          ? JSON.parse(template.variables)
           : (template.variables || []),
         channelConfigs: channelConfigs || [],
         createdBy: { id: context.user.id }
@@ -323,10 +323,10 @@ const notificationMutations = {
   /**
    * Update notification template
    */
-  updateNotificationTemplate: async (parent, { id, input }, context) => {
+  updateNotificationTemplate: async(parent, { id, input }, context) => {
     try {
       console.log(`[NotificationMutation] Updating notification template ${id}`, { input, user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to update notification templates');
@@ -338,7 +338,7 @@ const notificationMutations = {
       }
 
       const updateData = {};
-      
+
       if (input.name !== undefined) updateData.name = input.name;
       if (input.titleTemplate !== undefined) updateData.title = input.titleTemplate;
       if (input.messageTemplate !== undefined) updateData.content = input.messageTemplate;
@@ -346,17 +346,17 @@ const notificationMutations = {
       if (input.supportedChannels !== undefined) updateData.channels = input.supportedChannels;
 
       const template = await notificationService.updateNotificationTemplate(id, updateData);
-      
+
       console.log(`[NotificationMutation] Updated template: ${template.name}`);
-      
+
       return {
         ...template,
         type: template.type || 'INFO_MESSAGE',
         titleTemplate: template.title,
         messageTemplate: template.content,
         supportedChannels: template.channels ? template.channels.split(',') : ['EMAIL'],
-        variables: typeof template.variables === 'string' 
-          ? JSON.parse(template.variables) 
+        variables: typeof template.variables === 'string'
+          ? JSON.parse(template.variables)
           : (template.variables || []),
         channelConfigs: input.channelConfigs || [],
         createdBy: { id: template.created_by }
@@ -370,10 +370,10 @@ const notificationMutations = {
   /**
    * Delete notification template
    */
-  deleteNotificationTemplate: async (parent, { id }, context) => {
+  deleteNotificationTemplate: async(parent, { id }, context) => {
     try {
       console.log(`[NotificationMutation] Deleting notification template ${id}`, { user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to delete notification templates');
@@ -385,13 +385,13 @@ const notificationMutations = {
       }
 
       const result = await notificationService.deleteNotificationTemplate(id);
-      
+
       if (!result) {
         throw new Error('Template not found');
       }
 
       console.log(`[NotificationMutation] Deleted notification template ${id}`);
-      
+
       return true;
     } catch (error) {
       console.error(`[NotificationMutation] Error deleting notification template ${id}:`, error);

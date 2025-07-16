@@ -2,26 +2,30 @@ const { Pool } = require('pg');
 require('dotenv').config();
 
 // Database connection configuration
-const dbConfig = process.env.PG_URI ? {
+const dbConfig = process.env.DATABASE_URL ? {
+  connectionString: process.env.DATABASE_URL,
+  // Usar SSL siempre para Supabase
+  ssl: { rejectUnauthorized: false }
+} : process.env.PG_URI ? {
   connectionString: process.env.PG_URI,
   // Solo usar SSL en producción
-  ssl: process.env.NODE_ENV === 'production' 
-    ? { rejectUnauthorized: false } 
+  ssl: process.env.NODE_ENV === 'production'
+    ? { rejectUnauthorized: false }
     : false
 } : {
-  host: process.env.PG_HOST || 'postgres',  // Usa el nombre del servicio de Docker
+  host: process.env.PG_HOST || 'postgres', // Usa el nombre del servicio de Docker
   port: parseInt(process.env.PG_PORT, 10) || 5432,
   database: process.env.PG_DATABASE || 'invernadero_iot',
   user: process.env.PG_USER || 'postgres',
   password: process.env.PG_PASSWORD || 'postgres',
   // Deshabilitar SSL para desarrollo
-  ssl: false,
+  ssl: false
 };
 
 // Configuración adicional del pool
 dbConfig.max = 20; // Maximum number of clients in the pool
 dbConfig.idleTimeoutMillis = 30000; // Close clients after 30 seconds of inactivity
-dbConfig.connectionTimeoutMillis = 2000; // Return an error after 2 seconds if connection could not be established
+dbConfig.connectionTimeoutMillis = 30000; // Return an error after 30 seconds if connection could not be established
 
 // Create PostgreSQL connection pool
 const pool = new Pool(dbConfig);
@@ -33,15 +37,15 @@ pool.on('error', (err) => {
 });
 
 // Test database connection
-const testConnection = async () => {
+const testConnection = async() => {
   try {
     const client = await pool.connect();
     console.log('✅ PostgreSQL connected successfully');
-    
+
     // Test query
     const result = await client.query('SELECT NOW() as current_time');
     console.log(`📅 Database time: ${result.rows[0].current_time}`);
-    
+
     client.release();
     return true;
   } catch (error) {
@@ -51,7 +55,7 @@ const testConnection = async () => {
 };
 
 // Graceful shutdown
-const closePool = async () => {
+const closePool = async() => {
   try {
     await pool.end();
     console.log('📛 Database connection pool closed');
@@ -61,7 +65,7 @@ const closePool = async () => {
 };
 
 // Health check function
-const healthCheck = async () => {
+const healthCheck = async() => {
   try {
     const client = await pool.connect();
     await client.query('SELECT 1');
@@ -73,17 +77,17 @@ const healthCheck = async () => {
 };
 
 // Query helper with error handling
-const query = async (text, params) => {
+const query = async(text, params) => {
   const start = Date.now();
   try {
     const result = await pool.query(text, params);
     const duration = Date.now() - start;
-    
+
     // Log slow queries (>1000ms)
     if (duration > 1000) {
       console.warn(`🐌 Slow query detected (${duration}ms):`, text);
     }
-    
+
     return result;
   } catch (error) {
     console.error('Database query error:', error);
@@ -92,9 +96,9 @@ const query = async (text, params) => {
 };
 
 // Transaction helper
-const withTransaction = async (callback) => {
+const withTransaction = async(callback) => {
   const client = await pool.connect();
-  
+
   try {
     await client.query('BEGIN');
     const result = await callback(client);

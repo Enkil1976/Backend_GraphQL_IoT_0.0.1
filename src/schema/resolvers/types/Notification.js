@@ -9,26 +9,26 @@ const Notification = {
   /**
    * Resolve user field for notification
    */
-  user: async (parent, args, context) => {
+  user: async(parent, args, context) => {
     if (parent.user && typeof parent.user === 'object') {
       return parent.user;
     }
-    
+
     const userId = parent.user_id || parent.user?.id;
     if (!userId) {
       return null;
     }
-    
+
     try {
       const result = await query(
         'SELECT id, username, email, first_name, last_name, role FROM users WHERE id = $1',
         [userId]
       );
-      
+
       if (result.rows.length === 0) {
         return null;
       }
-      
+
       const user = result.rows[0];
       return {
         id: user.id,
@@ -47,25 +47,25 @@ const Notification = {
   /**
    * Resolve template field for notification
    */
-  template: async (parent, args, context) => {
+  template: async(parent, args, context) => {
     if (!parent.template_id) {
       return null;
     }
-    
+
     try {
       const template = await notificationService.getNotificationTemplate(parent.template_id);
       if (!template) {
         return null;
       }
-      
+
       return {
         ...template,
         type: template.type || 'INFO_MESSAGE',
         titleTemplate: template.title,
         messageTemplate: template.content,
         supportedChannels: template.channels ? template.channels.split(',') : ['EMAIL'],
-        variables: typeof template.variables === 'string' 
-          ? JSON.parse(template.variables) 
+        variables: typeof template.variables === 'string'
+          ? JSON.parse(template.variables)
           : (template.variables || []),
         channelConfigs: [],
         createdBy: { id: template.created_by }
@@ -83,7 +83,7 @@ const Notification = {
     if (!parent.metadata) {
       return null;
     }
-    
+
     if (typeof parent.metadata === 'string') {
       try {
         return JSON.parse(parent.metadata);
@@ -92,7 +92,7 @@ const Notification = {
         return null;
       }
     }
-    
+
     return parent.metadata;
   },
 
@@ -103,7 +103,7 @@ const Notification = {
     if (!parent.actions) {
       return [];
     }
-    
+
     if (typeof parent.actions === 'string') {
       try {
         const actions = JSON.parse(parent.actions);
@@ -113,11 +113,11 @@ const Notification = {
         return [];
       }
     }
-    
+
     if (Array.isArray(parent.actions)) {
       return parent.actions;
     }
-    
+
     return [];
   },
 
@@ -128,7 +128,7 @@ const Notification = {
     if (parent.deliveryStatus) {
       return parent.deliveryStatus;
     }
-    
+
     const status = parent.status || 'PENDING';
     return status.toUpperCase();
   },
@@ -140,7 +140,7 @@ const Notification = {
     if (parent.source) {
       return parent.source.toUpperCase();
     }
-    
+
     return 'SYSTEM';
   },
 
@@ -151,7 +151,7 @@ const Notification = {
     if (parent.type) {
       return parent.type.toUpperCase();
     }
-    
+
     return 'INFO_MESSAGE';
   },
 
@@ -162,11 +162,11 @@ const Notification = {
     if (parent.severity) {
       return parent.severity;
     }
-    
+
     if (parent.priority) {
       return parent.priority.toUpperCase();
     }
-    
+
     return 'MEDIUM';
   },
 
@@ -177,12 +177,12 @@ const Notification = {
     if (parent.channel) {
       return parent.channel.toUpperCase();
     }
-    
+
     if (parent.channels) {
       const channels = parent.channels.split(',');
       return channels[0]?.toUpperCase() || 'EMAIL';
     }
-    
+
     return 'EMAIL';
   },
 
@@ -193,7 +193,7 @@ const Notification = {
     if (parent.isRead !== undefined) {
       return parent.isRead;
     }
-    
+
     return parent.read_at !== null;
   },
 
@@ -224,26 +224,26 @@ const NotificationTemplate = {
   /**
    * Resolve createdBy field for template
    */
-  createdBy: async (parent, args, context) => {
+  createdBy: async(parent, args, context) => {
     if (parent.createdBy && typeof parent.createdBy === 'object') {
       return parent.createdBy;
     }
-    
+
     const userId = parent.created_by || parent.createdBy?.id;
     if (!userId) {
       return null;
     }
-    
+
     try {
       const result = await query(
         'SELECT id, username, email, first_name, last_name, role FROM users WHERE id = $1',
         [userId]
       );
-      
+
       if (result.rows.length === 0) {
         return null;
       }
-      
+
       const user = result.rows[0];
       return {
         id: user.id,
@@ -266,7 +266,7 @@ const NotificationTemplate = {
     if (!parent.variables) {
       return [];
     }
-    
+
     if (typeof parent.variables === 'string') {
       try {
         const variables = JSON.parse(parent.variables);
@@ -276,11 +276,11 @@ const NotificationTemplate = {
         return [];
       }
     }
-    
+
     if (Array.isArray(parent.variables)) {
       return parent.variables;
     }
-    
+
     return [];
   },
 
@@ -291,17 +291,17 @@ const NotificationTemplate = {
     if (parent.supportedChannels && Array.isArray(parent.supportedChannels)) {
       return parent.supportedChannels;
     }
-    
+
     if (parent.channels) {
       if (typeof parent.channels === 'string') {
         return parent.channels.split(',').map(channel => channel.trim().toUpperCase());
       }
-      
+
       if (Array.isArray(parent.channels)) {
         return parent.channels.map(channel => channel.toUpperCase());
       }
     }
-    
+
     return ['EMAIL'];
   },
 
@@ -312,7 +312,7 @@ const NotificationTemplate = {
     if (parent.channelConfigs && Array.isArray(parent.channelConfigs)) {
       return parent.channelConfigs;
     }
-    
+
     if (parent.channel_configs) {
       if (typeof parent.channel_configs === 'string') {
         try {
@@ -323,12 +323,12 @@ const NotificationTemplate = {
           return [];
         }
       }
-      
+
       if (Array.isArray(parent.channel_configs)) {
         return parent.channel_configs;
       }
     }
-    
+
     return [];
   },
 
@@ -339,7 +339,7 @@ const NotificationTemplate = {
     if (parent.type) {
       return parent.type.toUpperCase();
     }
-    
+
     return 'INFO_MESSAGE';
   },
 
@@ -366,11 +366,11 @@ const TemplateVariable = {
     if (parent.defaultValue !== undefined) {
       return parent.defaultValue;
     }
-    
+
     if (parent.default_value !== undefined) {
       return parent.default_value;
     }
-    
+
     return null;
   }
 };
@@ -386,7 +386,7 @@ const NotificationAction = {
     if (parent.style) {
       return parent.style.toUpperCase();
     }
-    
+
     return 'PRIMARY';
   }
 };

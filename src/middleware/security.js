@@ -52,7 +52,7 @@ const validationSchemas = {
   deviceInput: Joi.object({
     name: Joi.string().min(1).max(100).required(),
     type: Joi.string().valid(
-      'LIGHTS', 'WATER_PUMP', 'VENTILATOR', 'HEATER', 'COOLER', 
+      'LIGHTS', 'WATER_PUMP', 'VENTILATOR', 'HEATER', 'COOLER',
       'VALVE', 'MOTOR', 'SENSOR', 'DIMMER', 'SWITCH'
     ).required(),
     description: Joi.string().max(500).optional(),
@@ -69,17 +69,17 @@ const validateInput = (input, schemaName) => {
   if (!schema) {
     throw new Error(`Validation schema '${schemaName}' not found`);
   }
-  
-  const { error, value } = schema.validate(input, { 
+
+  const { error, value } = schema.validate(input, {
     abortEarly: false,
-    stripUnknown: true 
+    stripUnknown: true
   });
-  
+
   if (error) {
     const errorMessages = error.details.map(detail => detail.message);
     throw new Error(`Validation error: ${errorMessages.join(', ')}`);
   }
-  
+
   return value;
 };
 
@@ -88,7 +88,7 @@ const validateInput = (input, schemaName) => {
  */
 const sanitizeString = (str) => {
   if (typeof str !== 'string') return str;
-  
+
   return str
     .replace(/[<>\"']/g, '') // Remove potentially dangerous characters
     .trim()
@@ -102,11 +102,11 @@ const sanitizeInput = (input) => {
   if (typeof input === 'string') {
     return sanitizeString(input);
   }
-  
+
   if (Array.isArray(input)) {
     return input.map(item => sanitizeInput(item));
   }
-  
+
   if (typeof input === 'object' && input !== null) {
     const sanitized = {};
     for (const [key, value] of Object.entries(input)) {
@@ -116,7 +116,7 @@ const sanitizeInput = (input) => {
     }
     return sanitized;
   }
-  
+
   return input;
 };
 
@@ -130,18 +130,18 @@ const verifyTokenSecure = (token, secret) => {
       maxAge: '1h', // Maximum token age
       clockTolerance: 10 // Allow 10 seconds clock drift
     });
-    
+
     // Additional security checks
     if (!decoded.userId || !decoded.username) {
       throw new Error('Invalid token payload');
     }
-    
+
     // Check if token is too old (additional to maxAge)
     const tokenAge = Date.now() - (decoded.iat * 1000);
     if (tokenAge > 60 * 60 * 1000) { // 1 hour
       throw new Error('Token expired');
     }
-    
+
     return decoded;
   } catch (error) {
     throw new Error('Invalid or expired token');
@@ -158,7 +158,7 @@ const createRateLimiter = (redisClient) => {
     keyPrefix: 'api_general',
     points: 100, // Number of requests
     duration: 900, // Per 15 minutes
-    blockDuration: 900, // Block for 15 minutes if exceeded
+    blockDuration: 900 // Block for 15 minutes if exceeded
   });
 
   // Authentication rate limiter (stricter)
@@ -167,7 +167,7 @@ const createRateLimiter = (redisClient) => {
     keyPrefix: 'api_auth',
     points: 5, // Number of auth attempts
     duration: 900, // Per 15 minutes
-    blockDuration: 3600, // Block for 1 hour if exceeded
+    blockDuration: 3600 // Block for 1 hour if exceeded
   });
 
   // User-specific rate limiter
@@ -176,7 +176,7 @@ const createRateLimiter = (redisClient) => {
     keyPrefix: 'api_user',
     points: 1000, // Number of requests per user
     duration: 3600, // Per hour
-    blockDuration: 3600,
+    blockDuration: 3600
   });
 
   return { generalLimiter, authLimiter, userLimiter };
@@ -187,13 +187,13 @@ const createRateLimiter = (redisClient) => {
  */
 const expressRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: 2000, // Increased limit for dashboard apps with real-time data
   message: {
     error: 'Too many requests from this IP, please try again later.',
     retryAfter: '15 minutes'
   },
   standardHeaders: true,
-  legacyHeaders: false,
+  legacyHeaders: false
 });
 
 /**
@@ -202,21 +202,21 @@ const expressRateLimit = rateLimit({
 const securityHeaders = {
   contentSecurityPolicy: {
     directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: process.env.NODE_ENV === 'development' 
-        ? ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net"] 
-        : ["'self'"],
-      scriptSrcAttr: process.env.NODE_ENV === 'development' 
-        ? ["'unsafe-inline'"]
-        : ["'none'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net"],
-      imgSrc: ["'self'", "data:", "https:", "cdn.jsdelivr.net"],
-      connectSrc: ["'self'", "wss:", "ws:"],
-      fontSrc: ["'self'", "cdn.jsdelivr.net"],
-      objectSrc: ["'none'"],
-      mediaSrc: ["'self'"],
-      frameSrc: ["'none'"],
-    },
+      defaultSrc: ['\'self\''],
+      scriptSrc: process.env.NODE_ENV === 'development'
+        ? ['\'self\'', '\'unsafe-inline\'', 'cdn.jsdelivr.net']
+        : ['\'self\''],
+      scriptSrcAttr: process.env.NODE_ENV === 'development'
+        ? ['\'unsafe-inline\'']
+        : ['\'none\''],
+      styleSrc: ['\'self\'', '\'unsafe-inline\'', 'cdn.jsdelivr.net'],
+      imgSrc: ['\'self\'', 'data:', 'https:', 'cdn.jsdelivr.net'],
+      connectSrc: ['\'self\'', 'wss:', 'ws:'],
+      fontSrc: ['\'self\'', 'cdn.jsdelivr.net'],
+      objectSrc: ['\'none\''],
+      mediaSrc: ['\'self\''],
+      frameSrc: ['\'none\'']
+    }
   },
   crossOriginEmbedderPolicy: false, // Disable if causing issues with GraphQL Playground
   hsts: {
@@ -241,17 +241,17 @@ const formatErrorSecure = (err) => {
     timestamp: new Date().toISOString(),
     stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined
   });
-  
+
   // In production, sanitize error messages
   if (process.env.NODE_ENV === 'production') {
     // Handle authentication/authorization errors
-    if (err.message.includes('authentication') || 
+    if (err.message.includes('authentication') ||
         err.message.includes('authorization') ||
         err.message.includes('Forbidden') ||
         err.message.includes('Unauthorized')) {
       return new Error('Authentication required');
     }
-    
+
     // Handle validation errors (keep these as they're user-actionable)
     if (err.message.includes('Validation error') ||
         err.message.includes('Invalid input')) {
@@ -260,7 +260,7 @@ const formatErrorSecure = (err) => {
         code: 'VALIDATION_ERROR'
       };
     }
-    
+
     // Hide internal errors
     if (err.extensions?.code === 'INTERNAL_ERROR' ||
         err.message.includes('database') ||
@@ -269,7 +269,7 @@ const formatErrorSecure = (err) => {
       return new Error('Internal server error');
     }
   }
-  
+
   // Return sanitized error
   return {
     message: err.message,
@@ -339,15 +339,15 @@ const auditLog = {
       risk,
       userAgent: details.userAgent || null
     };
-    
+
     // Log to console (in production, this should go to a proper logging service)
     console.log(`🔒 AUDIT [${risk.toUpperCase()}]: ${action}`, logEntry);
-    
+
     // Store in database for security monitoring
     // TODO: Implement audit log storage in database
     return logEntry;
   },
-  
+
   loginAttempt: (username, success, ip, userAgent) => {
     return auditLog.log(
       success ? 'LOGIN_SUCCESS' : 'LOGIN_FAILED',
@@ -357,7 +357,7 @@ const auditLog = {
       success ? 'low' : 'medium'
     );
   },
-  
+
   deviceControl: (action, deviceId, user, ip) => {
     return auditLog.log(
       'DEVICE_CONTROL',
@@ -367,7 +367,7 @@ const auditLog = {
       'medium'
     );
   },
-  
+
   ruleModification: (action, ruleId, user, ip) => {
     return auditLog.log(
       'RULE_MODIFICATION',
@@ -377,7 +377,7 @@ const auditLog = {
       'high'
     );
   },
-  
+
   suspiciousActivity: (activity, details, user, ip) => {
     return auditLog.log(
       'SUSPICIOUS_ACTIVITY',
@@ -394,24 +394,24 @@ const auditLog = {
  */
 const getCSPDirectives = () => {
   const base = {
-    defaultSrc: ["'self'"],
-    scriptSrc: ["'self'"],
-    styleSrc: ["'self'", "'unsafe-inline'"],
-    imgSrc: ["'self'", "data:", "https:"],
-    connectSrc: ["'self'"],
-    fontSrc: ["'self'"],
-    objectSrc: ["'none'"],
-    mediaSrc: ["'self'"],
-    frameSrc: ["'none'"],
-    baseUri: ["'self'"],
-    formAction: ["'self'"]
+    defaultSrc: ['\'self\''],
+    scriptSrc: ['\'self\''],
+    styleSrc: ['\'self\'', '\'unsafe-inline\''],
+    imgSrc: ['\'self\'', 'data:', 'https:'],
+    connectSrc: ['\'self\''],
+    fontSrc: ['\'self\''],
+    objectSrc: ['\'none\''],
+    mediaSrc: ['\'self\''],
+    frameSrc: ['\'none\''],
+    baseUri: ['\'self\''],
+    formAction: ['\'self\'']
   };
-  
+
   if (process.env.NODE_ENV === 'development') {
-    base.scriptSrc.push("'unsafe-inline'", "cdn.jsdelivr.net");
-    base.connectSrc.push("wss:", "ws:", "http://localhost:*", "https://studio.apollographql.com");
+    base.scriptSrc.push('\'unsafe-inline\'', 'cdn.jsdelivr.net');
+    base.connectSrc.push('wss:', 'ws:', 'http://localhost:*', 'https://studio.apollographql.com');
   }
-  
+
   return base;
 };
 

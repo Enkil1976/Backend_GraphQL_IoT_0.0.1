@@ -9,12 +9,12 @@ const notificationQueries = {
   /**
    * Get notifications with pagination and filtering
    */
-  notifications: async (parent, { unread, channel, limit, offset }, context) => {
+  notifications: async(parent, { unread, channel, limit, offset }, context) => {
     try {
-      console.log('[NotificationResolver] Getting notifications', { 
-        unread, channel, limit, offset, user: context.user?.username 
+      console.log('[NotificationResolver] Getting notifications', {
+        unread, channel, limit, offset, user: context.user?.username
       });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to view notifications');
@@ -36,7 +36,7 @@ const notificationQueries = {
       }
 
       const result = await notificationService.getNotifications(options);
-      
+
       // Build GraphQL connection response
       const edges = result.notifications.map((notification, index) => ({
         cursor: Buffer.from(`${offset + index}`).toString('base64'),
@@ -45,7 +45,9 @@ const notificationQueries = {
           // Map database fields to GraphQL schema
           type: notification.type || 'INFO_MESSAGE',
           severity: notification.priority?.toUpperCase() || 'MEDIUM',
-          channel: notification.channels?.split(',')[0] || 'EMAIL',
+          channel: typeof notification.channels === 'string'
+            ? notification.channels.split(',')[0]
+            : (Array.isArray(notification.channels) ? notification.channels[0] : 'WEBHOOK'),
           isRead: notification.read_at !== null,
           readAt: notification.read_at,
           user: { id: context.user.id }, // Will be resolved by type resolver
@@ -68,7 +70,7 @@ const notificationQueries = {
       });
 
       console.log(`[NotificationResolver] Found ${result.notifications.length} notifications (${unreadResult.totalCount} unread)`);
-      
+
       return {
         edges,
         pageInfo: {
@@ -89,17 +91,17 @@ const notificationQueries = {
   /**
    * Get notification by ID
    */
-  notification: async (parent, { id }, context) => {
+  notification: async(parent, { id }, context) => {
     try {
       console.log(`[NotificationResolver] Getting notification ${id}`, { user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to view notification details');
       }
 
       const notification = await notificationService.getNotificationById(id);
-      
+
       if (!notification) {
         return null;
       }
@@ -113,12 +115,14 @@ const notificationQueries = {
       }
 
       console.log(`[NotificationResolver] Found notification: ${notification.title}`);
-      
+
       return {
         ...notification,
         type: notification.type || 'INFO_MESSAGE',
         severity: notification.priority?.toUpperCase() || 'MEDIUM',
-        channel: notification.channels?.split(',')[0] || 'EMAIL',
+        channel: typeof notification.channels === 'string'
+          ? notification.channels.split(',')[0]
+          : (Array.isArray(notification.channels) ? notification.channels[0] : 'WEBHOOK'),
         isRead: notification.read_at !== null,
         readAt: notification.read_at,
         user: { id: notification.user_id || context.user.id },
@@ -140,10 +144,10 @@ const notificationQueries = {
   /**
    * Get all notification templates
    */
-  notificationTemplates: async (parent, args, context) => {
+  notificationTemplates: async(parent, args, context) => {
     try {
       console.log('[NotificationResolver] Getting notification templates', { user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to view notification templates');
@@ -155,17 +159,17 @@ const notificationQueries = {
       }
 
       const templates = await notificationService.getNotificationTemplates();
-      
+
       console.log(`[NotificationResolver] Found ${templates.length} templates`);
-      
+
       return templates.map(template => ({
         ...template,
         type: template.type || 'INFO_MESSAGE',
         titleTemplate: template.title,
         messageTemplate: template.content,
         supportedChannels: template.channels ? template.channels.split(',') : ['EMAIL'],
-        variables: typeof template.variables === 'string' 
-          ? JSON.parse(template.variables) 
+        variables: typeof template.variables === 'string'
+          ? JSON.parse(template.variables)
           : (template.variables || []),
         channelConfigs: [],
         createdBy: { id: template.created_by }
@@ -179,10 +183,10 @@ const notificationQueries = {
   /**
    * Get notification template by ID
    */
-  notificationTemplate: async (parent, { id }, context) => {
+  notificationTemplate: async(parent, { id }, context) => {
     try {
       console.log(`[NotificationResolver] Getting notification template ${id}`, { user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to view notification template details');
@@ -194,21 +198,21 @@ const notificationQueries = {
       }
 
       const template = await notificationService.getNotificationTemplate(id);
-      
+
       if (!template) {
         return null;
       }
 
       console.log(`[NotificationResolver] Found template: ${template.name}`);
-      
+
       return {
         ...template,
         type: template.type || 'INFO_MESSAGE',
         titleTemplate: template.title,
         messageTemplate: template.content,
         supportedChannels: template.channels ? template.channels.split(',') : ['EMAIL'],
-        variables: typeof template.variables === 'string' 
-          ? JSON.parse(template.variables) 
+        variables: typeof template.variables === 'string'
+          ? JSON.parse(template.variables)
           : (template.variables || []),
         channelConfigs: [],
         createdBy: { id: template.created_by }

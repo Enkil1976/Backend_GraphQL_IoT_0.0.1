@@ -28,15 +28,15 @@ class DeviceService {
    * @returns {Object} Created device
    */
   async createDevice(deviceData) {
-    const { 
-      name, 
-      device_id, 
-      type, 
-      description, 
-      status = 'offline', 
-      config = {}, 
-      room_id, 
-      owner_user_id 
+    const {
+      name,
+      device_id,
+      type,
+      description,
+      status = 'offline',
+      config = {},
+      room_id,
+      owner_user_id
     } = deviceData;
 
     if (!name || !device_id || !type) {
@@ -71,7 +71,7 @@ class DeviceService {
       return newDevice;
     } catch (err) {
       console.error(`Error in createDevice (device_id: ${device_id}): ${err.message}`);
-      
+
       if (err.code === '23505') { // Unique violation
         throw new Error(`Device with this name or device_id already exists. (${err.constraint})`);
       }
@@ -95,35 +95,35 @@ class DeviceService {
     const values = [];
     let paramCount = 1;
 
-    if (params.type) { 
-      conditions.push(`d.type = $${paramCount++}`); 
-      values.push(params.type); 
+    if (params.type) {
+      conditions.push(`d.type = $${paramCount++}`);
+      values.push(params.type);
     }
-    if (params.status) { 
-      conditions.push(`d.status = $${paramCount++}`); 
-      values.push(params.status); 
+    if (params.status) {
+      conditions.push(`d.status = $${paramCount++}`);
+      values.push(params.status);
     }
-    if (params.room_id) { 
-      conditions.push(`d.room = $${paramCount++}`); 
-      values.push(params.room_id); 
+    if (params.room_id) {
+      conditions.push(`d.room = $${paramCount++}`);
+      values.push(params.room_id);
     }
-    if (params.owner_user_id) { 
-      conditions.push(`d.owner_user_id = $${paramCount++}`); 
-      values.push(params.owner_user_id); 
+    if (params.owner_user_id) {
+      conditions.push(`d.owner_user_id = $${paramCount++}`);
+      values.push(params.owner_user_id);
     }
 
-    if (conditions.length > 0) { 
-      queryStr += ' AND ' + conditions.join(' AND '); 
+    if (conditions.length > 0) {
+      queryStr += ' AND ' + conditions.join(' AND ');
     }
     queryStr += ' ORDER BY d.created_at DESC';
 
     try {
       const result = await query(queryStr, values);
-      
+
       // Cache results in Redis for 5 minutes
       const cacheKey = `devices:list:${JSON.stringify(params)}`;
       await cache.set(cacheKey, result.rows, 300);
-      
+
       return result.rows;
     } catch (err) {
       console.error('Error in getDevices:', err);
@@ -162,10 +162,10 @@ class DeviceService {
       }
 
       const device = result.rows[0];
-      
+
       // Cache for 1 hour
       await cache.set(`device:${deviceIdInt}`, device, 3600);
-      
+
       return device;
     } catch (err) {
       console.error(`Error in getDeviceById (ID: ${id}):`, err);
@@ -193,13 +193,13 @@ class DeviceService {
     if (name !== undefined) { fields.push(`name = $${paramCount++}`); values.push(name); }
     if (type !== undefined) { fields.push(`type = $${paramCount++}`); values.push(type); }
     if (description !== undefined) { fields.push(`description = $${paramCount++}`); values.push(description); }
-    if (status !== undefined) { 
+    if (status !== undefined) {
       // Validate status
       if (!this.allowedStatuses.includes(status)) {
         throw new Error(`Invalid status. Allowed values: ${this.allowedStatuses.join(', ')}`);
       }
-      fields.push(`status = $${paramCount++}`); 
-      values.push(status); 
+      fields.push(`status = $${paramCount++}`);
+      values.push(status);
     }
     if (config !== undefined) { fields.push(`configuration = $${paramCount++}`); values.push(JSON.stringify(config)); }
     if (room_id !== undefined) { fields.push(`room = $${paramCount++}`); values.push(room_id); }
@@ -214,7 +214,7 @@ class DeviceService {
     try {
       const queryStr = `UPDATE devices SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${paramCount} RETURNING *`;
       const result = await query(queryStr, values);
-      
+
       if (result.rows.length === 0) {
         throw new Error('Device not found for update.');
       }
@@ -239,7 +239,7 @@ class DeviceService {
       return updatedDevice;
     } catch (err) {
       console.error(`Error in updateDevice (ID: ${id}): ${err.message}`);
-      
+
       if (err.code === '23505') {
         throw new Error(`Update failed: Another device with this name or device_id might exist. (${err.constraint})`);
       }
@@ -264,7 +264,7 @@ class DeviceService {
       const deviceToNotify = deviceDataResult.rows[0];
 
       const result = await query('DELETE FROM devices WHERE id = $1 RETURNING *', [deviceIdInt]);
-      
+
       if (result.rows.length === 0) {
         throw new Error('Device not found for deletion.');
       }
@@ -282,10 +282,10 @@ class DeviceService {
         deviceDeleted: { id: deletedDeviceData.id, name: deletedDeviceData.name }
       });
 
-      return { 
-        message: 'Device deleted successfully', 
-        id: deletedDeviceData.id, 
-        name: deletedDeviceData.name 
+      return {
+        message: 'Device deleted successfully',
+        id: deletedDeviceData.id,
+        name: deletedDeviceData.name
       };
     } catch (err) {
       console.error(`Error in deleteDevice (ID: ${id}): ${err.message}`);
@@ -360,7 +360,7 @@ class DeviceService {
    */
   async setDeviceConfiguration(dbDeviceId, newConfig) {
     console.log(`Attempting to set configuration for device ID ${dbDeviceId}:`, newConfig);
-    
+
     const deviceIdInt = parseInt(dbDeviceId, 10);
     if (isNaN(deviceIdInt) || deviceIdInt <= 0) {
       throw new Error('Invalid device database ID provided for setDeviceConfiguration.');
@@ -413,7 +413,7 @@ class DeviceService {
    */
   async getDeviceConsumptionHistory(monitoredDeviceId, queryParams = {}) {
     console.log(`Fetching consumption history for monitored device ID ${monitoredDeviceId} with params: ${JSON.stringify(queryParams)}`);
-    
+
     const deviceIdInt = parseInt(monitoredDeviceId, 10);
     if (isNaN(deviceIdInt) || deviceIdInt <= 0) {
       throw new Error('Invalid monitored_device_id provided.');
@@ -423,13 +423,13 @@ class DeviceService {
     const values = [deviceIdInt];
     let paramCount = 2;
 
-    if (queryParams.startDate) { 
-      conditions.push(`pml.received_at >= $${paramCount++}`); 
-      values.push(queryParams.startDate); 
+    if (queryParams.startDate) {
+      conditions.push(`pml.received_at >= $${paramCount++}`);
+      values.push(queryParams.startDate);
     }
-    if (queryParams.endDate) { 
-      conditions.push(`pml.received_at <= $${paramCount++}`); 
-      values.push(queryParams.endDate); 
+    if (queryParams.endDate) {
+      conditions.push(`pml.received_at <= $${paramCount++}`);
+      values.push(queryParams.endDate);
     }
     if (queryParams.lastHours && !queryParams.startDate && !queryParams.endDate) {
       const hours = parseInt(queryParams.lastHours, 10);
@@ -527,10 +527,10 @@ class DeviceService {
       `);
 
       const stats = result.rows[0];
-      
+
       // Cache for 5 minutes
       await cache.set('device:stats', stats, 300);
-      
+
       return stats;
     } catch (err) {
       console.error('Error in getDeviceStats:', err);
@@ -569,12 +569,12 @@ class DeviceService {
    */
   async getDeviceHistory(deviceId, options = {}) {
     const { limit = 50 } = options;
-    
+
     try {
       // For now, we'll create mock history based on device operations
       // In a real system, this would query a device_events table
       const device = await this.getDeviceById(deviceId);
-      
+
       if (!device) {
         throw new Error('Device not found');
       }
@@ -609,7 +609,7 @@ class DeviceService {
   async toggleDevice(id) {
     try {
       const device = await this.getDeviceById(id);
-      
+
       if (!device) {
         throw new Error('Device not found');
       }
@@ -661,7 +661,7 @@ class DeviceService {
 
       // Get the updated device
       const updatedDevice = await this.getDeviceById(id);
-      
+
       // Add the value to the device object
       updatedDevice.value = value;
 
@@ -699,7 +699,7 @@ class DeviceService {
       };
 
       await this.setDeviceConfiguration(deviceIdInt, defaultConfig);
-      
+
       // Set device to offline status
       const updatedDevice = await this.updateDeviceStatus(id, 'offline');
 
@@ -730,43 +730,43 @@ class DeviceService {
 
       // Map device types to MQTT topics and payloads
       switch (device.type?.toLowerCase()) {
-        case 'fan':
-        case 'ventilator':
-          topic = 'Invernadero/Ventilador/sw';
-          payload = { ventiladorSw: action === 'on' || action === 'toggle' };
-          break;
-          
-        case 'water_pump':
-        case 'pump':
-          topic = 'Invernadero/Bomba/sw';
-          payload = { bombaSw: action === 'on' || action === 'toggle' };
-          break;
-          
-        case 'heater':
-          topic = 'Invernadero/Calefactor/sw';
-          payload = { calefactorSw: action === 'on' || action === 'toggle' };
-          break;
-          
-        case 'water_heater':
-          topic = 'Invernadero/CalefactorAgua/sw';
-          payload = { calefactorAguaSw: action === 'on' || action === 'toggle' };
-          break;
-          
-        case 'lights':
-        case 'led':
-          topic = `Invernadero/${deviceIdentifier}/sw`;
-          if (value !== null) {
-            payload = { brightness: value, power: action === 'on' };
-          } else {
-            payload = { power: action === 'on' || action === 'toggle' };
-          }
-          break;
-          
-        default:
-          // Generic device control
-          topic = `Invernadero/${deviceIdentifier}/sw`;
-          payload = { state: action === 'on' || action === 'toggle' };
-          break;
+      case 'fan':
+      case 'ventilator':
+        topic = 'Invernadero/Ventilador/sw';
+        payload = { ventiladorSw: action === 'on' || action === 'toggle' };
+        break;
+
+      case 'water_pump':
+      case 'pump':
+        topic = 'Invernadero/Bomba/sw';
+        payload = { bombaSw: action === 'on' || action === 'toggle' };
+        break;
+
+      case 'heater':
+        topic = 'Invernadero/Calefactor/sw';
+        payload = { calefactorSw: action === 'on' || action === 'toggle' };
+        break;
+
+      case 'water_heater':
+        topic = 'Invernadero/CalefactorAgua/sw';
+        payload = { calefactorAguaSw: action === 'on' || action === 'toggle' };
+        break;
+
+      case 'lights':
+      case 'led':
+        topic = `Invernadero/${deviceIdentifier}/sw`;
+        if (value !== null) {
+          payload = { brightness: value, power: action === 'on' };
+        } else {
+          payload = { power: action === 'on' || action === 'toggle' };
+        }
+        break;
+
+      default:
+        // Generic device control
+        topic = `Invernadero/${deviceIdentifier}/sw`;
+        payload = { state: action === 'on' || action === 'toggle' };
+        break;
       }
 
       if (topic && payload) {

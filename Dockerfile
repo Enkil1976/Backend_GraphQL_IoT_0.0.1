@@ -18,7 +18,7 @@ RUN apk update && apk add --no-cache \
 COPY package*.json .npmrc ./
 
 # Install all dependencies (production + security packages)
-RUN npm ci --silent
+RUN npm ci --legacy-peer-deps
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \

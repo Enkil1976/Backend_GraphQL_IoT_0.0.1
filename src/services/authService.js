@@ -14,8 +14,8 @@ class AuthService {
     if (!this.jwtSecret) {
       throw new Error('JWT_SECRET environment variable is required for security');
     }
-    this.jwtExpiresIn = process.env.JWT_EXPIRES_IN || '1h';
-    this.refreshTokenExpiresIn = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
+    this.jwtExpiresIn = process.env.JWT_EXPIRES_IN || '4h'; // Increased for dashboard usage
+    this.refreshTokenExpiresIn = process.env.REFRESH_TOKEN_EXPIRES_IN || '30d';
     this.saltRounds = 12;
   }
 
@@ -26,13 +26,13 @@ class AuthService {
    */
   async register(userData) {
     const { username, email, password, role = 'viewer' } = userData;
-    
+
     // Check if user already exists
     const existingUser = await query(
       'SELECT id FROM users WHERE username = $1 OR email = $2',
       [username, email]
     );
-    
+
     if (existingUser.rows.length > 0) {
       throw new Error('Username or email already exists');
     }
@@ -151,11 +151,11 @@ class AuthService {
       const decoded = jwt.verify(refreshToken, this.jwtSecret, {
         algorithms: ['HS256']
       });
-      
+
       // Check if refresh token exists in Redis
       const refreshTokenKey = `refresh_token:${decoded.id}`;
       const storedRefreshToken = await cache.get(refreshTokenKey);
-      
+
       if (!storedRefreshToken || storedRefreshToken !== refreshToken) {
         throw new Error('Invalid refresh token');
       }
@@ -208,7 +208,7 @@ class AuthService {
       const decoded = jwt.verify(token, this.jwtSecret, {
         algorithms: ['HS256']
       });
-      
+
       // Get user from database to ensure role is up to date
       const result = await query(
         'SELECT id, username, email, role, created_at FROM users WHERE id = $1',
@@ -253,7 +253,7 @@ class AuthService {
     const roles = ['viewer', 'operator', 'editor', 'admin'];
     const userRoleIndex = roles.indexOf(userRole.toLowerCase());
     const requiredRoleIndex = roles.indexOf(requiredRole.toLowerCase());
-    
+
     return userRoleIndex >= requiredRoleIndex;
   }
 
@@ -265,16 +265,16 @@ class AuthService {
   getExpirationSeconds(timeString) {
     const match = timeString.match(/^(\d+)([smhd])$/);
     if (!match) return 3600; // Default 1 hour
-    
+
     const value = parseInt(match[1]);
     const unit = match[2];
-    
+
     switch (unit) {
-      case 's': return value;
-      case 'm': return value * 60;
-      case 'h': return value * 3600;
-      case 'd': return value * 86400;
-      default: return 3600;
+    case 's': return value;
+    case 'm': return value * 60;
+    case 'h': return value * 3600;
+    case 'd': return value * 86400;
+    default: return 3600;
     }
   }
 }

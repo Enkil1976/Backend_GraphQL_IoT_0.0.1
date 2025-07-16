@@ -8,18 +8,18 @@ const notifications = require('./notifications');
 const Subscription = {
   // Placeholder for development
   _empty: () => 'GraphQL Subscription placeholder',
-  
+
   // Weather subscriptions
   ...weather,
-  
+
   // Sensor subscriptions
   ...sensors,
-  
+
   // Device subscriptions
   ...devices,
-  
+
   // Notification subscriptions
-  ...notifications,
+  ...notifications
 };
 
 module.exports = Subscription;

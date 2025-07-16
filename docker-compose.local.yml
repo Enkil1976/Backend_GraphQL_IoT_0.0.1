@@ -48,10 +48,15 @@ services:
       PG_DATABASE: invernadero_iot
       PG_USER: postgres
       PG_PASSWORD: postgres123
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: redis123
     depends_on:
       postgres:
         condition: service_healthy
-    command: ["node", "init-database.js"]
+      redis:
+        condition: service_healthy
+    command: ["init-db"]
     restart: "no"
 
   # Main Application

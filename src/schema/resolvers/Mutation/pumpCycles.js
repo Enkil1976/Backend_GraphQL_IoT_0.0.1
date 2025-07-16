@@ -6,14 +6,14 @@ const { AuthenticationError, ForbiddenError } = require('apollo-server-express')
  * Provides GraphQL API for managing water pump cycling patterns
  */
 const pumpCycleMutations = {
-  
+
   /**
    * Create custom pump cycling pattern
    */
-  createPumpCycle: async (parent, { input }, context) => {
+  createPumpCycle: async(parent, { input }, context) => {
     try {
       console.log('[PumpCycle] Creating custom cycle', { input, user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to manage pump cycles');
@@ -25,30 +25,30 @@ const pumpCycleMutations = {
       }
 
       const { onMinutes, offMinutes, description = '', enabled = true } = input;
-      
+
       // Validation
       if (onMinutes <= 0 || offMinutes <= 0) {
         throw new Error('ON and OFF minutes must be positive numbers');
       }
-      
+
       if (onMinutes > 120 || offMinutes > 120) {
         throw new Error('Cycle periods cannot exceed 120 minutes');
       }
-      
+
       const totalCycle = onMinutes + offMinutes;
       console.log(`[PumpCycle] Creating cycle: ${onMinutes}min ON, ${offMinutes}min OFF (${totalCycle}min total)`);
-      
+
       // Remove existing pump cycles
       await query(`
         DELETE FROM rules 
         WHERE name LIKE '%CICLO%' 
         AND name LIKE '%Bomba%'
       `);
-      
+
       // Generate cycle rules
       const rules = generatePumpCycleRules(onMinutes, offMinutes, description);
       const createdRules = [];
-      
+
       for (const rule of rules) {
         const result = await query(`
           INSERT INTO rules (
@@ -66,12 +66,12 @@ const pumpCycleMutations = {
           JSON.stringify(rule.actions),
           context.user.id
         ]);
-        
+
         createdRules.push(result.rows[0]);
       }
-      
+
       console.log(`[PumpCycle] Created ${createdRules.length} rules for pump cycle`);
-      
+
       return {
         success: true,
         message: `Custom pump cycle created: ${onMinutes}min ON, ${offMinutes}min OFF`,
@@ -81,20 +81,20 @@ const pumpCycleMutations = {
         rulesCreated: createdRules.length,
         rules: createdRules
       };
-      
+
     } catch (error) {
       console.error('[PumpCycle] Error creating cycle:', error);
       throw error;
     }
   },
-  
+
   /**
    * Remove all pump cycling rules
    */
-  removePumpCycles: async (parent, args, context) => {
+  removePumpCycles: async(parent, args, context) => {
     try {
       console.log('[PumpCycle] Removing all pump cycles', { user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to manage pump cycles');
@@ -104,35 +104,35 @@ const pumpCycleMutations = {
       if (!context.user.role || context.user.role !== 'admin') {
         throw new ForbiddenError('Only administrators can delete pump cycles');
       }
-      
+
       const result = await query(`
         DELETE FROM rules 
         WHERE name LIKE '%CICLO%' 
         AND name LIKE '%Bomba%'
         RETURNING id, name
       `);
-      
+
       console.log(`[PumpCycle] Removed ${result.rows.length} pump cycle rules`);
-      
+
       return {
         success: true,
         message: `Removed ${result.rows.length} pump cycle rules`,
         rulesRemoved: result.rows.length
       };
-      
+
     } catch (error) {
       console.error('[PumpCycle] Error removing cycles:', error);
       throw error;
     }
   },
-  
+
   /**
    * Enable/disable pump cycling
    */
-  togglePumpCycles: async (parent, { enabled }, context) => {
+  togglePumpCycles: async(parent, { enabled }, context) => {
     try {
       console.log('[PumpCycle] Toggling pump cycles', { enabled, user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to manage pump cycles');
@@ -142,7 +142,7 @@ const pumpCycleMutations = {
       if (!context.user.role || !['admin', 'editor'].includes(context.user.role)) {
         throw new ForbiddenError('Insufficient permissions to control pump cycles');
       }
-      
+
       const result = await query(`
         UPDATE rules 
         SET enabled = $1, updated_at = NOW()
@@ -150,10 +150,10 @@ const pumpCycleMutations = {
         AND name LIKE '%Bomba%'
         RETURNING id, name, enabled
       `, [enabled]);
-      
+
       const action = enabled ? 'enabled' : 'disabled';
       console.log(`[PumpCycle] ${action} ${result.rows.length} pump cycle rules`);
-      
+
       return {
         success: true,
         message: `${result.rows.length} pump cycle rules ${action}`,
@@ -161,20 +161,20 @@ const pumpCycleMutations = {
         rulesAffected: result.rows.length,
         rules: result.rows
       };
-      
+
     } catch (error) {
       console.error('[PumpCycle] Error toggling cycles:', error);
       throw error;
     }
   },
-  
+
   /**
    * Get current pump cycle status
    */
-  getPumpCycleStatus: async (parent, args, context) => {
+  getPumpCycleStatus: async(parent, args, context) => {
     try {
       console.log('[PumpCycle] Getting pump cycle status');
-      
+
       const result = await query(`
         SELECT 
           id, name, enabled, priority, cooldown_minutes,
@@ -185,22 +185,22 @@ const pumpCycleMutations = {
         AND name LIKE '%Bomba%'
         ORDER BY name
       `);
-      
+
       const enabledCount = result.rows.filter(rule => rule.enabled).length;
       const totalCount = result.rows.length;
-      
+
       // Try to determine cycle pattern from rules
       let cyclePattern = null;
       if (result.rows.length >= 2) {
         // Look for ON/OFF pattern in rule names
         const onRule = result.rows.find(r => r.name.includes('ON'));
         const offRule = result.rows.find(r => r.name.includes('OFF'));
-        
+
         if (onRule && offRule) {
           // Extract minutes from rule names (basic pattern matching)
           const onMatch = onRule.name.match(/(\d+)min/);
           const offMatch = offRule.name.match(/(\d+)min/);
-          
+
           if (onMatch && offMatch) {
             cyclePattern = {
               onMinutes: parseInt(onMatch[1]),
@@ -210,7 +210,7 @@ const pumpCycleMutations = {
           }
         }
       }
-      
+
       return {
         isActive: enabledCount > 0,
         totalRules: totalCount,
@@ -219,7 +219,7 @@ const pumpCycleMutations = {
         rules: result.rows,
         lastUpdated: result.rows.length > 0 ? result.rows[0].updated_at : null
       };
-      
+
     } catch (error) {
       console.error('[PumpCycle] Error getting status:', error);
       throw error;
@@ -233,10 +233,10 @@ const pumpCycleMutations = {
 function generatePumpCycleRules(onMinutes, offMinutes, description) {
   const totalCycle = onMinutes + offMinutes;
   const rules = [];
-  
+
   // Create descriptive rule names
   const cycleDesc = description || `Ciclo automático ${onMinutes}/${offMinutes}min`;
-  
+
   if (totalCycle <= 60) {
     // Cycle fits within an hour - create repeating pattern
     rules.push({
@@ -256,7 +256,7 @@ function generatePumpCycleRules(onMinutes, offMinutes, description) {
         action: 'TURN_ON'
       }]
     });
-    
+
     rules.push({
       name: `CICLO: Bomba OFF (${offMinutes}min cada ${totalCycle}min)`,
       description: `${cycleDesc} - Apaga bomba por ${offMinutes} minutos cada ${totalCycle} minutos`,
@@ -274,7 +274,7 @@ function generatePumpCycleRules(onMinutes, offMinutes, description) {
         action: 'TURN_OFF'
       }]
     });
-    
+
   } else {
     // Cycle spans multiple hours - create hourly rules
     rules.push({
@@ -294,7 +294,7 @@ function generatePumpCycleRules(onMinutes, offMinutes, description) {
         action: 'TURN_ON'
       }]
     });
-    
+
     rules.push({
       name: `CICLO: Bomba OFF (${offMinutes}min de ${totalCycle}min)`,
       description: `${cycleDesc} - Apaga bomba por ${offMinutes} minutos en ciclo de ${totalCycle} minutos`,
@@ -313,7 +313,7 @@ function generatePumpCycleRules(onMinutes, offMinutes, description) {
       }]
     });
   }
-  
+
   return rules;
 }
 

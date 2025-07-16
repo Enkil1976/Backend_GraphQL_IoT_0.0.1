@@ -172,7 +172,7 @@ const sensorSubscriptions = {
       console.log('[SensorSubscription] Resolving sensor status change', {
         user: context.user?.username
       });
-      
+
       return payload.sensorStatusChanged;
     }
   }

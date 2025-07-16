@@ -13,10 +13,10 @@ const userMutations = {
   /**
    * Update user profile
    */
-  updateProfile: async (parent, { input }, context) => {
+  updateProfile: async(parent, { input }, context) => {
     try {
       console.log('[UserMutation] Updating profile', { input, user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to update your profile');
@@ -53,11 +53,11 @@ const userMutations = {
           'SELECT id FROM users WHERE email = $1 AND id != $2',
           [email, context.user.id]
         );
-        
+
         if (existingUser.rows.length > 0) {
           throw new Error('Email is already in use');
         }
-        
+
         updateFields.push(`email = $${paramIndex}`);
         params.push(email);
         paramIndex++;
@@ -85,7 +85,7 @@ const userMutations = {
         throw new Error('No fields to update');
       }
 
-      updateFields.push(`updated_at = NOW()`);
+      updateFields.push('updated_at = NOW()');
       params.push(context.user.id);
 
       const result = await query(
@@ -102,9 +102,9 @@ const userMutations = {
       }
 
       const updatedUser = result.rows[0];
-      
+
       console.log(`[UserMutation] Updated profile for user: ${updatedUser.username}`);
-      
+
       return {
         ...updatedUser,
         firstName: updatedUser.first_name,
@@ -113,18 +113,18 @@ const userMutations = {
         lastLogin: updatedUser.last_login,
         createdAt: updatedUser.created_at,
         updatedAt: updatedUser.updated_at,
-        notifications: updatedUser.notification_preferences 
+        notifications: updatedUser.notification_preferences
           ? JSON.parse(updatedUser.notification_preferences)
           : {
-              email: true,
-              sms: false,
-              push: true,
-              webhook: false,
-              deviceAlerts: true,
-              systemAlerts: true,
-              maintenanceReminders: true,
-              ruleExecutions: false
-            }
+            email: true,
+            sms: false,
+            push: true,
+            webhook: false,
+            deviceAlerts: true,
+            systemAlerts: true,
+            maintenanceReminders: true,
+            ruleExecutions: false
+          }
       };
     } catch (error) {
       console.error('[UserMutation] Error updating profile:', error);
@@ -135,10 +135,10 @@ const userMutations = {
   /**
    * Change password
    */
-  changePassword: async (parent, { currentPassword, newPassword }, context) => {
+  changePassword: async(parent, { currentPassword, newPassword }, context) => {
     try {
       console.log('[UserMutation] Changing password', { user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to change your password');
@@ -160,7 +160,7 @@ const userMutations = {
       }
 
       const user = result.rows[0];
-      
+
       // Verify current password
       const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
       if (!isCurrentPasswordValid) {
@@ -177,7 +177,7 @@ const userMutations = {
       );
 
       console.log(`[UserMutation] Changed password for user: ${context.user.username}`);
-      
+
       return true;
     } catch (error) {
       console.error('[UserMutation] Error changing password:', error);
@@ -188,13 +188,13 @@ const userMutations = {
   /**
    * Save user configuration
    */
-  saveUserConfiguration: async (parent, { config, configName }, context) => {
+  saveUserConfiguration: async(parent, { config, configName }, context) => {
     try {
-      console.log('[UserMutation] Saving user configuration', { 
-        configName, 
-        user: context.user?.username 
+      console.log('[UserMutation] Saving user configuration', {
+        configName,
+        user: context.user?.username
       });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to save configuration');
@@ -208,9 +208,9 @@ const userMutations = {
       );
 
       const configuration = result.rows[0];
-      
+
       console.log(`[UserMutation] Saved configuration: ${configuration.config_name}`);
-      
+
       return {
         ...configuration,
         configName: configuration.config_name,
@@ -228,13 +228,13 @@ const userMutations = {
   /**
    * Update user configuration
    */
-  updateUserConfiguration: async (parent, { id, config, configName }, context) => {
+  updateUserConfiguration: async(parent, { id, config, configName }, context) => {
     try {
-      console.log(`[UserMutation] Updating user configuration ${id}`, { 
-        configName, 
-        user: context.user?.username 
+      console.log(`[UserMutation] Updating user configuration ${id}`, {
+        configName,
+        user: context.user?.username
       });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to update configuration');
@@ -274,7 +274,7 @@ const userMutations = {
         throw new Error('No fields to update');
       }
 
-      updateFields.push(`updated_at = NOW()`);
+      updateFields.push('updated_at = NOW()');
       params.push(id);
 
       const result = await query(
@@ -290,9 +290,9 @@ const userMutations = {
       }
 
       const configuration = result.rows[0];
-      
+
       console.log(`[UserMutation] Updated configuration: ${configuration.config_name}`);
-      
+
       return {
         ...configuration,
         configName: configuration.config_name,
@@ -310,12 +310,12 @@ const userMutations = {
   /**
    * Delete user configuration
    */
-  deleteUserConfiguration: async (parent, { id }, context) => {
+  deleteUserConfiguration: async(parent, { id }, context) => {
     try {
-      console.log(`[UserMutation] Deleting user configuration ${id}`, { 
-        user: context.user?.username 
+      console.log(`[UserMutation] Deleting user configuration ${id}`, {
+        user: context.user?.username
       });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to delete configuration');
@@ -345,7 +345,7 @@ const userMutations = {
       }
 
       console.log(`[UserMutation] Deleted configuration ${id}`);
-      
+
       return true;
     } catch (error) {
       console.error(`[UserMutation] Error deleting user configuration ${id}:`, error);
@@ -356,12 +356,12 @@ const userMutations = {
   /**
    * Activate user configuration
    */
-  activateUserConfiguration: async (parent, { id }, context) => {
+  activateUserConfiguration: async(parent, { id }, context) => {
     try {
-      console.log(`[UserMutation] Activating user configuration ${id}`, { 
-        user: context.user?.username 
+      console.log(`[UserMutation] Activating user configuration ${id}`, {
+        user: context.user?.username
       });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to activate configuration');
@@ -401,9 +401,9 @@ const userMutations = {
       }
 
       const configuration = result.rows[0];
-      
+
       console.log(`[UserMutation] Activated configuration: ${configuration.config_name}`);
-      
+
       return {
         ...configuration,
         configName: configuration.config_name,
@@ -421,14 +421,14 @@ const userMutations = {
   /**
    * Update user role (Admin only)
    */
-  updateUserRole: async (parent, { userId, role }, context) => {
+  updateUserRole: async(parent, { userId, role }, context) => {
     try {
-      console.log(`[UserMutation] Updating user role`, { 
-        userId, 
-        role, 
-        requestedBy: context.user?.username 
+      console.log('[UserMutation] Updating user role', {
+        userId,
+        role,
+        requestedBy: context.user?.username
       });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to update user roles');
@@ -458,9 +458,9 @@ const userMutations = {
       }
 
       const updatedUser = result.rows[0];
-      
+
       console.log(`[UserMutation] Updated role for user: ${updatedUser.username} to ${role}`);
-      
+
       return {
         ...updatedUser,
         firstName: updatedUser.first_name,
@@ -469,21 +469,21 @@ const userMutations = {
         lastLogin: updatedUser.last_login,
         createdAt: updatedUser.created_at,
         updatedAt: updatedUser.updated_at,
-        notifications: updatedUser.notification_preferences 
+        notifications: updatedUser.notification_preferences
           ? JSON.parse(updatedUser.notification_preferences)
           : {
-              email: true,
-              sms: false,
-              push: true,
-              webhook: false,
-              deviceAlerts: true,
-              systemAlerts: true,
-              maintenanceReminders: true,
-              ruleExecutions: false
-            }
+            email: true,
+            sms: false,
+            push: true,
+            webhook: false,
+            deviceAlerts: true,
+            systemAlerts: true,
+            maintenanceReminders: true,
+            ruleExecutions: false
+          }
       };
     } catch (error) {
-      console.error(`[UserMutation] Error updating user role:`, error);
+      console.error('[UserMutation] Error updating user role:', error);
       throw error;
     }
   },
@@ -491,12 +491,12 @@ const userMutations = {
   /**
    * Delete user (Admin only)
    */
-  deleteUser: async (parent, { id }, context) => {
+  deleteUser: async(parent, { id }, context) => {
     try {
-      console.log(`[UserMutation] Deleting user ${id}`, { 
-        requestedBy: context.user?.username 
+      console.log(`[UserMutation] Deleting user ${id}`, {
+        requestedBy: context.user?.username
       });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to delete users');
@@ -535,7 +535,7 @@ const userMutations = {
       }
 
       console.log(`[UserMutation] Deleted user ${id}`);
-      
+
       return true;
     } catch (error) {
       console.error(`[UserMutation] Error deleting user ${id}:`, error);

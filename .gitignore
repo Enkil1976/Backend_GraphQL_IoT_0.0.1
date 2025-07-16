@@ -10,3 +10,7 @@ node_modules/
 test*.js
 .gitignore
 secrets/
+*sensor*.js
+losg/
+arduino*.*
+debug*.+

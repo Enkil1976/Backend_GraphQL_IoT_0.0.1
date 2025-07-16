@@ -20,35 +20,35 @@ async function sendDeviceNotification(device, action, user, previousStatus = nul
     // Determine action type and emoji
     let actionText, emoji, severity;
     switch (action.toUpperCase()) {
-      case 'ON':
-        actionText = 'encendido';
-        emoji = '🟢';
-        severity = 'MEDIUM';
-        break;
-      case 'OFF':
-        actionText = 'apagado';
-        emoji = '🔴';
-        severity = 'MEDIUM';
-        break;
-      case 'TOGGLE':
-        actionText = device.status === 'ON' ? 'encendido' : 'apagado';
-        emoji = device.status === 'ON' ? '🟢' : '🔴';
-        severity = 'MEDIUM';
-        break;
-      case 'RESET':
-        actionText = 'reiniciado';
-        emoji = '🔄';
-        severity = 'HIGH';
-        break;
-      case 'VALUE_CHANGE':
-        actionText = `ajustado a ${device.value || 'valor personalizado'}`;
-        emoji = '⚙️';
-        severity = 'LOW';
-        break;
-      default:
-        actionText = 'modificado';
-        emoji = '🔧';
-        severity = 'MEDIUM';
+    case 'ON':
+      actionText = 'encendido';
+      emoji = '🟢';
+      severity = 'MEDIUM';
+      break;
+    case 'OFF':
+      actionText = 'apagado';
+      emoji = '🔴';
+      severity = 'MEDIUM';
+      break;
+    case 'TOGGLE':
+      actionText = device.status === 'ON' ? 'encendido' : 'apagado';
+      emoji = device.status === 'ON' ? '🟢' : '🔴';
+      severity = 'MEDIUM';
+      break;
+    case 'RESET':
+      actionText = 'reiniciado';
+      emoji = '🔄';
+      severity = 'HIGH';
+      break;
+    case 'VALUE_CHANGE':
+      actionText = `ajustado a ${device.value || 'valor personalizado'}`;
+      emoji = '⚙️';
+      severity = 'LOW';
+      break;
+    default:
+      actionText = 'modificado';
+      emoji = '🔧';
+      severity = 'MEDIUM';
     }
 
     // Create notification message with current timestamp
@@ -61,7 +61,7 @@ async function sendDeviceNotification(device, action, user, previousStatus = nul
       minute: '2-digit',
       second: '2-digit'
     });
-    
+
     const title = `${emoji} Dispositivo ${actionText}`;
     const message = `El dispositivo "${device.name}" ha sido ${actionText} por ${user.username}.
     
@@ -106,10 +106,10 @@ const deviceMutations = {
   /**
    * Create a new device
    */
-  createDevice: async (parent, { input }, context) => {
+  createDevice: async(parent, { input }, context) => {
     try {
       console.log('[DeviceMutation] Creating device', { input, user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to create devices');
@@ -126,14 +126,14 @@ const deviceMutations = {
         device_id: input.deviceId, // Map GraphQL field to database field
         created_by: context.user.id
       };
-      
+
       // Remove deviceId to avoid conflicts
       delete deviceData.deviceId;
 
       const device = await deviceService.createDevice(deviceData);
-      
+
       console.log(`[DeviceMutation] Created device: ${device.name} (ID: ${device.id})`);
-      
+
       // Publish device creation event
       await pubsub.publish(SENSOR_EVENTS.DEVICE_CREATED, {
         deviceCreated: device
@@ -149,10 +149,10 @@ const deviceMutations = {
   /**
    * Update device properties
    */
-  updateDevice: async (parent, { id, input }, context) => {
+  updateDevice: async(parent, { id, input }, context) => {
     try {
       console.log(`[DeviceMutation] Updating device ${id}`, { input, user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to update devices');
@@ -164,9 +164,9 @@ const deviceMutations = {
       }
 
       const device = await deviceService.updateDevice(id, input);
-      
+
       console.log(`[DeviceMutation] Updated device: ${device.name}`);
-      
+
       // Publish device update event
       await pubsub.publish(SENSOR_EVENTS.DEVICE_UPDATED, {
         deviceUpdated: device
@@ -182,10 +182,10 @@ const deviceMutations = {
   /**
    * Delete a device
    */
-  deleteDevice: async (parent, { id }, context) => {
+  deleteDevice: async(parent, { id }, context) => {
     try {
       console.log(`[DeviceMutation] Deleting device ${id}`, { user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to delete devices');
@@ -197,9 +197,9 @@ const deviceMutations = {
       }
 
       const result = await deviceService.deleteDevice(id);
-      
+
       console.log(`[DeviceMutation] Deleted device ${id}: ${result}`);
-      
+
       // Publish device deletion event
       await pubsub.publish(SENSOR_EVENTS.DEVICE_DELETED, {
         deviceDeleted: { id, deletedAt: new Date().toISOString() }
@@ -215,10 +215,10 @@ const deviceMutations = {
   /**
    * Toggle device on/off
    */
-  toggleDevice: async (parent, { id }, context) => {
+  toggleDevice: async(parent, { id }, context) => {
     try {
       console.log(`[DeviceMutation] Toggling device ${id}`, { user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to control devices');
@@ -230,12 +230,12 @@ const deviceMutations = {
       }
 
       const device = await deviceService.toggleDevice(id);
-      
+
       console.log(`[DeviceMutation] Toggled device ${id} to status: ${device.status}`);
-      
+
       // Send device control notification
       await sendDeviceNotification(device, 'TOGGLE', context.user);
-      
+
       // Publish status change event
       await pubsub.publish(SENSOR_EVENTS.DEVICE_STATUS_CHANGED, {
         deviceStatusChanged: device
@@ -251,10 +251,10 @@ const deviceMutations = {
   /**
    * Set device value (for dimmers, valves, etc.)
    */
-  setDeviceValue: async (parent, { id, value }, context) => {
+  setDeviceValue: async(parent, { id, value }, context) => {
     try {
       console.log(`[DeviceMutation] Setting device ${id} value to ${value}`, { user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to control devices');
@@ -266,12 +266,12 @@ const deviceMutations = {
       }
 
       const device = await deviceService.setDeviceValue(id, value);
-      
+
       console.log(`[DeviceMutation] Set device ${id} value to: ${value}`);
-      
+
       // Send device control notification
       await sendDeviceNotification(device, 'VALUE_CHANGE', context.user);
-      
+
       // Publish status change event
       await pubsub.publish(SENSOR_EVENTS.DEVICE_STATUS_CHANGED, {
         deviceStatusChanged: device
@@ -287,10 +287,10 @@ const deviceMutations = {
   /**
    * Reset device to default state
    */
-  resetDevice: async (parent, { id }, context) => {
+  resetDevice: async(parent, { id }, context) => {
     try {
       console.log(`[DeviceMutation] Resetting device ${id}`, { user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to reset devices');
@@ -302,12 +302,12 @@ const deviceMutations = {
       }
 
       const device = await deviceService.resetDevice(id);
-      
+
       console.log(`[DeviceMutation] Reset device ${id}`);
-      
+
       // Send device control notification
       await sendDeviceNotification(device, 'RESET', context.user);
-      
+
       // Publish status change event
       await pubsub.publish(SENSOR_EVENTS.DEVICE_STATUS_CHANGED, {
         deviceStatusChanged: device
@@ -323,10 +323,10 @@ const deviceMutations = {
   /**
    * Toggle multiple devices at once
    */
-  toggleMultipleDevices: async (parent, { ids }, context) => {
+  toggleMultipleDevices: async(parent, { ids }, context) => {
     try {
-      console.log(`[DeviceMutation] Toggling multiple devices`, { ids, user: context.user?.username });
-      
+      console.log('[DeviceMutation] Toggling multiple devices', { ids, user: context.user?.username });
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to control devices');
@@ -338,16 +338,16 @@ const deviceMutations = {
       }
 
       const devices = [];
-      
+
       // Process each device
       for (const id of ids) {
         try {
           const device = await deviceService.toggleDevice(id);
           devices.push(device);
-          
+
           // Send device control notification
           await sendDeviceNotification(device, 'TOGGLE', context.user);
-          
+
           // Publish individual status change events
           await pubsub.publish(SENSOR_EVENTS.DEVICE_STATUS_CHANGED, {
             deviceStatusChanged: device
@@ -357,7 +357,7 @@ const deviceMutations = {
           // Continue with other devices
         }
       }
-      
+
       console.log(`[DeviceMutation] Toggled ${devices.length}/${ids.length} devices`);
       return devices;
     } catch (error) {
@@ -369,10 +369,10 @@ const deviceMutations = {
   /**
    * Turn ON a device (explicit control)
    */
-  turnOnDevice: async (parent, { id }, context) => {
+  turnOnDevice: async(parent, { id }, context) => {
     try {
       console.log(`[DeviceMutation] Turning ON device ${id}`, { user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to control devices');
@@ -384,12 +384,12 @@ const deviceMutations = {
       }
 
       const device = await deviceService.updateDeviceStatus(id, 'on');
-      
+
       console.log(`[DeviceMutation] Turned ON device ${id}: ${device.name}`);
-      
+
       // Send device control notification
       await sendDeviceNotification(device, 'ON', context.user);
-      
+
       // Publish status change event
       await pubsub.publish(SENSOR_EVENTS.DEVICE_STATUS_CHANGED, {
         deviceStatusChanged: device
@@ -405,10 +405,10 @@ const deviceMutations = {
   /**
    * Turn OFF a device (explicit control)
    */
-  turnOffDevice: async (parent, { id }, context) => {
+  turnOffDevice: async(parent, { id }, context) => {
     try {
       console.log(`[DeviceMutation] Turning OFF device ${id}`, { user: context.user?.username });
-      
+
       // Authentication required
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to control devices');
@@ -420,12 +420,12 @@ const deviceMutations = {
       }
 
       const device = await deviceService.updateDeviceStatus(id, 'off');
-      
+
       console.log(`[DeviceMutation] Turned OFF device ${id}: ${device.name}`);
-      
+
       // Send device control notification
       await sendDeviceNotification(device, 'OFF', context.user);
-      
+
       // Publish status change event
       await pubsub.publish(SENSOR_EVENTS.DEVICE_STATUS_CHANGED, {
         deviceStatusChanged: device

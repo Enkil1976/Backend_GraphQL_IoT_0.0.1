@@ -3,7 +3,7 @@ const { healthCheck: redisHealthCheck } = require('../../../config/redis');
 const { healthCheck: pubsubHealthCheck } = require('../../../utils/pubsub');
 
 module.exports = {
-  health: async () => {
+  health: async() => {
     try {
       // Check all services
       const [dbStatus, redisStatus, pubsubStatus] = await Promise.allSettled([
@@ -13,14 +13,14 @@ module.exports = {
       ]);
 
       // Extract results
-      const database = dbStatus.status === 'fulfilled' 
-        ? dbStatus.value.status 
+      const database = dbStatus.status === 'fulfilled'
+        ? dbStatus.value.status
         : 'ERROR';
-        
-      const redis = redisStatus.status === 'fulfilled' 
-        ? redisStatus.value.status 
+
+      const redis = redisStatus.status === 'fulfilled'
+        ? redisStatus.value.status
         : 'ERROR';
-        
+
       const mqtt = 'OK'; // MQTT health check will be implemented later
 
       return {
