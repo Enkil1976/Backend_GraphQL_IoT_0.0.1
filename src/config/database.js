@@ -2,7 +2,11 @@ const { Pool } = require('pg');
 require('dotenv').config();
 
 // Database connection configuration
-const dbConfig = process.env.PG_URI ? {
+const dbConfig = process.env.DATABASE_URL ? {
+  connectionString: process.env.DATABASE_URL,
+  // Usar SSL siempre para Supabase
+  ssl: { rejectUnauthorized: false }
+} : process.env.PG_URI ? {
   connectionString: process.env.PG_URI,
   // Solo usar SSL en producción
   ssl: process.env.NODE_ENV === 'production'

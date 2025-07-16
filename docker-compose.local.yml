@@ -56,7 +56,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: ["node", "init-database.js"]
+    command: ["init-db"]
     restart: "no"
 
   # Main Application
