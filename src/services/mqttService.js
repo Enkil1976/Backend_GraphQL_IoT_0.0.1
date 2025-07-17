@@ -154,9 +154,28 @@ class MqttService extends EventEmitter {
       }
       
     } catch (error) {
-      console.log(`⚠️ Dynamic sensor processing failed, trying auto-discovery and legacy: ${error.message}`);
+      console.log(`⚠️ Dynamic sensor processing failed, trying boolean payload then auto-discovery: ${error.message}`);
 
-      // Try auto-discovery for unknown topics
+      // Try to handle simple boolean payloads (true/false)
+      if (rawPayload.toLowerCase() === 'true' || rawPayload.toLowerCase() === 'false') {
+        console.log(`🔵 Detected simple boolean payload: ${rawPayload}`);
+        const booleanPayload = rawPayload.toLowerCase() === 'true';
+        
+        try {
+          const autoCreated = await mqttAutoDiscoveryService.processUnknownMessage(topic, booleanPayload);
+          
+          if (autoCreated) {
+            console.log(`🤖 Auto-discovery initiated for boolean topic: ${topic}`);
+            return; // Exit early if auto-discovery handled it
+          } else {
+            console.log(`⚠️ Auto-discovery skipped for boolean topic: ${topic}`);
+          }
+        } catch (autoDiscoveryError) {
+          console.error(`❌ Auto-discovery failed for boolean payload: ${autoDiscoveryError.message}`);
+        }
+      }
+
+      // Try auto-discovery for JSON payloads
       try {
         const parsedPayload = JSON.parse(rawPayload);
         const autoCreated = await mqttAutoDiscoveryService.processUnknownMessage(topic, parsedPayload);
@@ -167,6 +186,7 @@ class MqttService extends EventEmitter {
         }
       } catch (parseError) {
         console.error(`❌ JSON parsing failed: ${parseError.message}`);
+        // Try legacy processing for non-JSON payloads
         await this.processLegacyMessage(topic, rawPayload, receivedAt);
       }
     }

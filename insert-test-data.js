@@ -6,15 +6,25 @@
  */
 
 const { Pool } = require('pg');
+require('dotenv').config();
 
-// Configuración de base de datos
-const pool = new Pool({
-  host: 'localhost',
-  port: 5432,
-  database: 'invernadero_iot',
-  user: 'postgres',
-  password: 'postgres123'
-});
+// Usar la misma configuración que el resto de la aplicación
+const dbConfig = process.env.DATABASE_URL ? {
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+} : process.env.PG_URI ? {
+  connectionString: process.env.PG_URI,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+} : {
+  host: process.env.PG_HOST || 'postgres',
+  port: parseInt(process.env.PG_PORT, 10) || 5432,
+  database: process.env.PG_DATABASE || 'invernadero_iot',
+  user: process.env.PG_USER || 'postgres',
+  password: process.env.PG_PASSWORD || 'postgres',
+  ssl: false
+};
+
+const pool = new Pool(dbConfig);
 
 // Datos de sensores que vimos en los logs MQTT
 const sensorData = [

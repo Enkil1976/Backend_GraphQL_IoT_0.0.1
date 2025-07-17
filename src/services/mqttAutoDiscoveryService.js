@@ -139,49 +139,84 @@ class MQTTAutoDiscoveryService {
   initializeDeviceRules() {
     return {
       topicPatterns: [
-        { pattern: /\/sw$/, score: 25, description: 'Ends with /sw' },
+        { pattern: /\/sw$/, score: 30, description: 'Ends with /sw' },
         { pattern: /\/control$/, score: 25, description: 'Ends with /control' },
         { pattern: /\/command$/, score: 20, description: 'Ends with /command' },
         { pattern: /\/set$/, score: 20, description: 'Ends with /set' },
-        { pattern: /bomba|ventilador|calefactor|light|pump|fan|heater|led/i, score: 15, description: 'Device keywords' }
+        { pattern: /switch|relay|actuator/i, score: 25, description: 'Switch/relay keywords' },
+        { pattern: /bomba|ventilador|calefactor|light|pump|fan|heater|led/i, score: 15, description: 'Device keywords' },
+        { pattern: /\/switch\d+$/, score: 30, description: 'Switch with number (e.g. /switch1)' },
+        { pattern: /\/relay\d+$/, score: 30, description: 'Relay with number (e.g. /relay1)' }
       ],
       
       payloadRules: [
         {
           name: 'hasBooleanValues',
           test: (payload) => {
-            const booleans = Object.values(payload).filter(v => typeof v === 'boolean');
-            return booleans.length >= 1;
+            // Handle simple boolean payload (true/false)
+            if (typeof payload === 'boolean') {
+              return true;
+            }
+            // Handle object with boolean values
+            if (typeof payload === 'object' && payload !== null) {
+              const booleans = Object.values(payload).filter(v => typeof v === 'boolean');
+              return booleans.length >= 1;
+            }
+            return false;
           },
           score: 30,
-          description: 'Has boolean control values'
+          description: 'Has boolean control values or is a boolean'
         },
         {
           name: 'hasControlFields',
           test: (payload) => {
-            const controlFields = ['sw', 'switch', 'estado', 'command', 'action', 'control'];
-            return controlFields.some(field => 
-              Object.keys(payload).some(key => key.toLowerCase().includes(field.toLowerCase()))
-            );
+            // Simple boolean payloads don't need control fields
+            if (typeof payload === 'boolean') {
+              return true;
+            }
+            // Check for control fields in object payloads
+            if (typeof payload === 'object' && payload !== null) {
+              const controlFields = ['sw', 'switch', 'estado', 'command', 'action', 'control'];
+              return controlFields.some(field => 
+                Object.keys(payload).some(key => key.toLowerCase().includes(field.toLowerCase()))
+              );
+            }
+            return false;
           },
           score: 20,
-          description: 'Contains control field names'
+          description: 'Contains control field names or is a boolean'
         },
         {
           name: 'hasStateValues',
           test: (payload) => {
-            const stateValues = ['ON', 'OFF', 'true', 'false', 'ACTIVE', 'INACTIVE'];
-            return Object.values(payload).some(v => 
-              stateValues.includes(String(v).toUpperCase())
-            );
+            // Simple boolean is a state value
+            if (typeof payload === 'boolean') {
+              return true;
+            }
+            // Check for state values in object payloads
+            if (typeof payload === 'object' && payload !== null) {
+              const stateValues = ['ON', 'OFF', 'true', 'false', 'ACTIVE', 'INACTIVE'];
+              return Object.values(payload).some(v => 
+                stateValues.includes(String(v).toUpperCase())
+              );
+            }
+            return false;
           },
           score: 10,
-          description: 'Has state values (ON/OFF)'
+          description: 'Has state values (ON/OFF) or is a boolean'
         },
         {
           name: 'hasDeviceId',
           test: (payload) => {
-            return payload.hasOwnProperty('device_id') && typeof payload.device_id === 'string';
+            // Simple boolean payloads don't have device_id
+            if (typeof payload === 'boolean') {
+              return false;
+            }
+            // Check for device_id in object payloads
+            if (typeof payload === 'object' && payload !== null) {
+              return payload.hasOwnProperty('device_id') && typeof payload.device_id === 'string';
+            }
+            return false;
           },
           score: 25,
           description: 'Has device_id field'
@@ -189,10 +224,26 @@ class MQTTAutoDiscoveryService {
         {
           name: 'hasDeviceType',
           test: (payload) => {
-            return payload.hasOwnProperty('device_type') && typeof payload.device_type === 'string';
+            // Simple boolean payloads don't have device_type
+            if (typeof payload === 'boolean') {
+              return false;
+            }
+            // Check for device_type in object payloads
+            if (typeof payload === 'object' && payload !== null) {
+              return payload.hasOwnProperty('device_type') && typeof payload.device_type === 'string';
+            }
+            return false;
           },
           score: 15,
           description: 'Has device_type field'
+        },
+        {
+          name: 'isSimpleBooleanPayload',
+          test: (payload) => {
+            return typeof payload === 'boolean';
+          },
+          score: 35,
+          description: 'Is a simple boolean payload (true/false)'
         }
       ],
       
@@ -238,6 +289,18 @@ class MQTTAutoDiscoveryService {
           patterns: [/actuator|actuador/i],
           controlFields: ['sw', 'switch', 'estado', 'command', 'action'],
           deviceTypeValues: ['actuator', 'actuador']
+        },
+        {
+          type: 'switch',
+          patterns: [/switch|relay|sw\d+/i],
+          controlFields: ['sw', 'switch', 'estado', 'state', 'relay'],
+          deviceTypeValues: ['switch', 'relay']
+        },
+        {
+          type: 'generic_switch',
+          patterns: [/\/sw$|\/switch|\/relay/i],
+          controlFields: ['sw', 'switch', 'estado', 'state', 'relay'],
+          deviceTypeValues: ['generic_switch', 'switch', 'relay']
         }
       ]
     };
@@ -677,7 +740,9 @@ class MQTTAutoDiscoveryService {
       'motor': 'MOTOR',
       'relay': 'RELAY',
       'dimmer': 'DIMMER',
-      'cooler': 'COOLER'
+      'cooler': 'COOLER',
+      'switch': 'RELAY',
+      'generic_switch': 'RELAY'
     };
     
     const mappedType = typeMapping[detectedType] || 'SENSOR_ACTUATOR';
@@ -693,16 +758,26 @@ class MQTTAutoDiscoveryService {
     const keyTypes = {};
     
     payloads.forEach(payload => {
-      Object.keys(payload).forEach(key => {
-        allKeys.add(key);
-        const value = payload[key];
-        const type = typeof value;
-        
-        if (!keyTypes[key]) {
-          keyTypes[key] = new Set();
+      // Handle simple boolean payloads
+      if (typeof payload === 'boolean') {
+        allKeys.add('state');
+        if (!keyTypes['state']) {
+          keyTypes['state'] = new Set();
         }
-        keyTypes[key].add(type);
-      });
+        keyTypes['state'].add('boolean');
+      } else if (typeof payload === 'object' && payload !== null) {
+        // Handle object payloads
+        Object.keys(payload).forEach(key => {
+          allKeys.add(key);
+          const value = payload[key];
+          const type = typeof value;
+          
+          if (!keyTypes[key]) {
+            keyTypes[key] = new Set();
+          }
+          keyTypes[key].add(type);
+        });
+      }
     });
     
     return {
@@ -710,7 +785,8 @@ class MQTTAutoDiscoveryService {
       fieldTypes: Object.fromEntries(
         Object.entries(keyTypes).map(([key, types]) => [key, Array.from(types)])
       ),
-      samplePayload: payloads[0]
+      samplePayload: payloads[0],
+      isSimpleBooleanPayload: typeof payloads[0] === 'boolean'
     };
   }
 
@@ -782,7 +858,48 @@ class MQTTAutoDiscoveryService {
       const topicParts = topic.split('/');
       const samplePayload = analysis.payloadAnalysis.samplePayload;
       
-      // Extraer IDs del payload si están disponibles
+      // Handle simple boolean payloads
+      if (analysis.payloadAnalysis.isSimpleBooleanPayload) {
+        const deviceId = this.generateDeviceId(topicParts);
+        const detectedType = analysis.deviceSubtype;
+        const deviceType = this.mapToGraphQLDeviceType(detectedType);
+        const deviceName = this.generateDeviceNameWithIds(deviceId, deviceType, topicParts);
+        
+        console.log(`🤖 Creating auto-device from boolean payload: ${deviceName}`);
+        console.log(`   📋 Device ID: ${deviceId}`);
+        console.log(`   🔍 Detected Type: ${detectedType}`);
+        console.log(`   🏷️  Mapped Type: ${deviceType}`);
+        
+        // For simple boolean payloads, use 'state' as the main key
+        const payloadKey = 'state';
+        const variableMapping = { 'state': 'estado' };
+        
+        // Create device configuration for boolean payload
+        const deviceData = {
+          device_id: deviceId,
+          name: deviceName,
+          type: deviceType,
+          description: `Auto-created from MQTT topic: ${topic} (boolean payload)`,
+          configuration: {
+            mqtt_topic: topic,
+            mqtt_payload_key: payloadKey,
+            variable_mapping: variableMapping,
+            auto_created: true,
+            created_from_analysis: analysis,
+            payload_type: 'simple_boolean',
+            supports_simple_boolean: true,
+            detected_type: detectedType,
+            mapped_type: deviceType
+          }
+        };
+        
+        const device = await this.createDeviceInternal(deviceData);
+        console.log(`✅ Auto-created device from boolean payload: ${device.name} (ID: ${device.id})`);
+        await this.logAutoCreation('device', device.id, topic, analysis);
+        return device;
+      }
+      
+      // Handle object payloads (existing logic)
       const deviceIdFromPayload = samplePayload.device_id || null;
       const deviceTypeFromPayload = samplePayload.device_type || null;
       
