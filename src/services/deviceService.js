@@ -728,48 +728,60 @@ class DeviceService {
 
       let topic, payload;
 
-      // Map device types to MQTT topics and payloads
-      switch (device.type?.toLowerCase()) {
-      case 'fan':
-      case 'ventilator':
-        topic = 'Invernadero/Ventilador/sw';
-        payload = { ventiladorSw: action === 'on' || action === 'toggle' };
-        break;
+      // Check if device supports simple boolean payloads
+      const deviceConfig = device.configuration || {};
+      const usesSimpleBooleanPayload = deviceConfig.supports_simple_boolean === true || 
+                                       deviceConfig.payload_type === 'simple_boolean';
 
-      case 'water_pump':
-      case 'pump':
-        topic = 'Invernadero/Bomba/sw';
-        payload = { bombaSw: action === 'on' || action === 'toggle' };
-        break;
+      // If device was auto-created with boolean payload support, use the configured topic
+      if (usesSimpleBooleanPayload && deviceConfig.mqtt_topic) {
+        topic = deviceConfig.mqtt_topic;
+        payload = action === 'on' || action === 'toggle';
+        console.log(`📡 Using simple boolean payload for device ${device.name}`);
+      } else {
+        // Map device types to MQTT topics and payloads (existing logic)
+        switch (device.type?.toLowerCase()) {
+        case 'fan':
+        case 'ventilator':
+          topic = 'Invernadero/Ventilador/sw';
+          payload = { ventiladorSw: action === 'on' || action === 'toggle' };
+          break;
 
-      case 'heater':
-        topic = 'Invernadero/Calefactor/sw';
-        payload = { calefactorSw: action === 'on' || action === 'toggle' };
-        break;
+        case 'water_pump':
+        case 'pump':
+          topic = 'Invernadero/Bomba/sw';
+          payload = { bombaSw: action === 'on' || action === 'toggle' };
+          break;
 
-      case 'water_heater':
-        topic = 'Invernadero/CalefactorAgua/sw';
-        payload = { calefactorAguaSw: action === 'on' || action === 'toggle' };
-        break;
+        case 'heater':
+          topic = 'Invernadero/Calefactor/sw';
+          payload = { calefactorSw: action === 'on' || action === 'toggle' };
+          break;
 
-      case 'lights':
-      case 'led':
-        topic = `Invernadero/${deviceIdentifier}/sw`;
-        if (value !== null) {
-          payload = { brightness: value, power: action === 'on' };
-        } else {
-          payload = { power: action === 'on' || action === 'toggle' };
+        case 'water_heater':
+          topic = 'Invernadero/CalefactorAgua/sw';
+          payload = { calefactorAguaSw: action === 'on' || action === 'toggle' };
+          break;
+
+        case 'lights':
+        case 'led':
+          topic = `Invernadero/${deviceIdentifier}/sw`;
+          if (value !== null) {
+            payload = { brightness: value, power: action === 'on' };
+          } else {
+            payload = { power: action === 'on' || action === 'toggle' };
+          }
+          break;
+
+        default:
+          // Generic device control
+          topic = `Invernadero/${deviceIdentifier}/sw`;
+          payload = { state: action === 'on' || action === 'toggle' };
+          break;
         }
-        break;
-
-      default:
-        // Generic device control
-        topic = `Invernadero/${deviceIdentifier}/sw`;
-        payload = { state: action === 'on' || action === 'toggle' };
-        break;
       }
 
-      if (topic && payload) {
+      if (topic && payload !== undefined) {
         console.log(`📡 Sending MQTT command to ${topic}:`, payload);
         await mqttService.publish(topic, payload);
         console.log(`✅ MQTT command sent successfully for device ${device.name}`);
