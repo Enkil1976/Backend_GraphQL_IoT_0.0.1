@@ -5,12 +5,13 @@
  */
 
 const axios = require('axios');
+require('dotenv').config();
 
-const GRAPHQL_URL = 'https://postgres-bakend.2h4eh9.easypanel.host/graphql';
+const GRAPHQL_URL = process.env.GRAPHQL_ENDPOINT || 'https://postgres-bakend.2h4eh9.easypanel.host/graphql';
 
 const CREDENTIALS = {
-  username: 'admin',
-  password: 'admin123'
+  username: process.env.ADMIN_USERNAME || 'admin',
+  password: process.env.ADMIN_PASSWORD || 'admin123'
 };
 
 async function authenticate() {
