@@ -45,7 +45,7 @@ const Rule = {
   lastExecution: async(rule, args, context) => {
     try {
       const result = await query(
-        'SELECT * FROM rule_executions WHERE rule_id = $1 ORDER BY executed_at DESC LIMIT 1',
+        'SELECT * FROM rule_executions WHERE rule_id = $1 ORDER BY triggered_at DESC LIMIT 1',
         [rule.id]
       );
 
@@ -62,7 +62,7 @@ const Rule = {
   executions: async(rule, { limit = 10 }, context) => {
     try {
       const result = await query(
-        'SELECT * FROM rule_executions WHERE rule_id = $1 ORDER BY executed_at DESC LIMIT $2',
+        'SELECT * FROM rule_executions WHERE rule_id = $1 ORDER BY triggered_at DESC LIMIT $2',
         [rule.id, limit]
       );
 
@@ -173,7 +173,7 @@ const RuleExecution = {
    * Map database field to GraphQL field
    */
   triggeredAt: (execution) => {
-    return execution.executed_at;
+    return execution.triggered_at;
   },
 
   /**

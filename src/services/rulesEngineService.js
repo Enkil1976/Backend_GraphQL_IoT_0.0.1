@@ -917,11 +917,11 @@ class RulesEngineService {
         COUNT(*) as total_executions,
         COUNT(CASE WHEN success = true THEN 1 END) as successful_executions,
         COUNT(CASE WHEN success = false THEN 1 END) as failed_executions,
-        MAX(executed_at) as last_execution
+        MAX(triggered_at) as last_execution
        FROM rule_executions
        WHERE rule_id = $1 
-         AND executed_at >= $2 
-         AND executed_at <= $3`,
+         AND triggered_at >= $2 
+         AND triggered_at <= $3`,
       [ruleId, startDate, endDate]
     );
 
