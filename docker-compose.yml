@@ -14,7 +14,7 @@ services:
       - PG_PORT=5432
       - PG_DATABASE=invernadero_iot
       - PG_USER=iot_user
-      - PG_PASSWORD=postgres_password
+      - PG_PASSWORD=P9gSqL7K5nM8bF3gW9hY2wE6nC4sX1vL0mP5qR8tY7uE4nG6pL9bF2vN5wK8qM3hG
     depends_on:
       postgres:
         condition: service_healthy
@@ -48,15 +48,17 @@ services:
       - PG_PORT=5432
       - PG_DATABASE=invernadero_iot
       - PG_USER=iot_user
-      - PG_PASSWORD=postgres_password
+      - PG_PASSWORD=P9gSqL7K5nM8bF3gW9hY2wE6nC4sX1vL0mP5qR8tY7uE4nG6pL9bF2vN5wK8qM3hG
       # Configuración de Redis
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - REDIS_PASSWORD=redis_password
-      # Configuración de MQTT (usando broker externo por defecto)
-      - MQTT_BROKER_URL=${MQTT_BROKER_URL:-mqtt://broker.emqx.io}
-      - MQTT_USERNAME=${MQTT_USERNAME:-}
-      - MQTT_PASSWORD=${MQTT_PASSWORD:-}
+      - REDIS_PASSWORD=R3d1sK8mN6L4qW7bF9gT5hY3wE2nC1sX0vP8mK7qN5bF4gW2hY6wE9nC3sX7vL1mP
+      # Configuración de MQTT (usando broker externo)
+      - MQTT_HOST=sdb201a6.ala.us-east-1.emqxsl.com
+      - MQTT_PORT=8883
+      - MQTT_USE_SSL=true
+      - MQTT_USERNAME=Backend
+      - MQTT_PASSWORD=Mq7TtK9nP4vL8bF2gW6hX5wE3nC0sR9mK5wL8qN3bF7vY2pR6tE9xJ4hG1nC8sV5q
       # Seguridad
       - JWT_SECRET=${JWT_SECRET:-your_jwt_secret_super_secure_minimum_32_characters_long}
       - ACCESS_TOKEN_SECRET=${ACCESS_TOKEN_SECRET:-your_access_token_secret_different_from_jwt}
@@ -95,7 +97,7 @@ services:
     environment:
       - POSTGRES_DB=invernadero_iot
       - POSTGRES_USER=iot_user
-      - POSTGRES_PASSWORD=postgres_password
+      - POSTGRES_PASSWORD=P9gSqL7K5nM8bF3gW9hY2wE6nC4sX1vL0mP5qR8tY7uE4nG6pL9bF2vN5wK8qM3hG
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -114,7 +116,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: iot-redis
-    command: redis-server --requirepass redis_password --appendonly yes --bind 0.0.0.0
+    command: redis-server --requirepass R3d1sK8mN6L4qW7bF9gT5hY3wE2nC1sX0vP8mK7qN5bF4gW2hY6wE9nC3sX7vL1mP --appendonly yes --bind 0.0.0.0
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
@@ -122,7 +124,7 @@ services:
     networks:
       - iot-network
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "redis_password", "ping"]
+      test: ["CMD", "redis-cli", "-a", "R3d1sK8mN6L4qW7bF9gT5hY3wE2nC1sX0vP8mK7qN5bF4gW2hY6wE9nC3sX7vL1mP", "ping"]
       interval: 20s
       timeout: 10s
       retries: 3

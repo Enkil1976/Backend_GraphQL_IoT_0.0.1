@@ -22,7 +22,12 @@ class MqttService extends EventEmitter {
     this.sensorHistoryMaxLength = parseInt(process.env.SENSOR_HISTORY_MAX_LENGTH, 10) || 100;
 
     // MQTT Configuration
-    this.brokerUrl = process.env.MQTT_BROKER_URL || 'mqtt://broker.emqx.io';
+    this.mqttHost = process.env.MQTT_HOST || 'broker.emqx.io';
+    this.mqttPort = process.env.MQTT_PORT || 1883;
+    this.mqttUseSSL = process.env.MQTT_USE_SSL === 'true';
+    this.brokerUrl = this.mqttUseSSL 
+      ? `mqtts://${this.mqttHost}:${this.mqttPort}`
+      : `mqtt://${this.mqttHost}:${this.mqttPort}`;
     this.clientId = `mqtt_client_graphql_${Math.random().toString(16).slice(3)}`;
     this.topicToSubscribe = 'Invernadero/#';
   }
