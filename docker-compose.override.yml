@@ -1,0 +1,100 @@
+version: '3.8'
+
+# Override para easypanel/producción
+# Este archivo se aplicará automáticamente sobre docker-compose.yml
+
+services:
+  # Configuración específica para Redis en producción
+  redis:
+    image: redis:7-alpine
+    container_name: iot-redis
+    # Configuración simplificada y más robusta para Redis
+    command: redis-server --requirepass redis_password --appendonly yes --bind 0.0.0.0
+    environment:
+      - REDIS_PASSWORD=redis_password
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - iot-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis_password", "ping"]
+      interval: 20s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: always
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+
+  # Configuración específica para PostgreSQL en producción
+  postgres:
+    image: postgres:14-alpine
+    container_name: iot-postgres
+    environment:
+      - POSTGRES_DB=invernadero_iot
+      - POSTGRES_USER=iot_user
+      - POSTGRES_PASSWORD=postgres_password
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - iot-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iot_user -d invernadero_iot"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: always
+
+  # Aplicación principal con configuración robusta
+  app:
+    environment:
+      # Configuración de Redis con password fijo
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=redis_password
+      # Configuración de PostgreSQL
+      - PG_HOST=postgres
+      - PG_PORT=5432
+      - PG_DATABASE=invernadero_iot
+      - PG_USER=iot_user
+      - PG_PASSWORD=postgres_password
+      # Configuración de producción
+      - NODE_ENV=production
+      - LOG_LEVEL=info
+    restart: always
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 15s
+        max_attempts: 5
+        window: 300s
+
+  # DB Init con configuración robusta
+  db-init:
+    environment:
+      - PG_HOST=postgres
+      - PG_PORT=5432
+      - PG_DATABASE=invernadero_iot
+      - PG_USER=iot_user
+      - PG_PASSWORD=postgres_password
+      - NODE_ENV=production
+    restart: "no"
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  iot-network:
+    driver: bridge
