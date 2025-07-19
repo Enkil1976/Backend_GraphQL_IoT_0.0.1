@@ -57,7 +57,7 @@ class SensorTypeService {
       tableName: 'temp_pressure_data',
       payloadTemplate: {
         temperatura: { type: 'float', required: true, min: -50, max: 80 },
-        presion: { type: 'float', required: true, min: 30000, max: 110000 },
+        presion: { type: 'float', required: true, min: 300, max: 1200 },
         altitude: { type: 'float', required: false },
         rssi: { type: 'integer', required: false },
         boot: { type: 'integer', required: false, default: 0 },
