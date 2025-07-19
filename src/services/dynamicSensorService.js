@@ -613,7 +613,7 @@ class DynamicSensorService {
         ph: normalizedPayload.data.ph || null,
         ec: normalizedPayload.data.ec || null,
         ppm: normalizedPayload.data.ppm || null,
-        temperaturaAgua: normalizedPayload.data.temperature || null,
+        temperaturaAgua: sensor.sensor_type.includes('WATER') ? (normalizedPayload.data.temperature || null) : null,
         
         // Campos adicionales
         rssi: normalizedPayload.rssi,
