@@ -145,7 +145,7 @@ const ruleQueries = {
         values.push(success);
       }
 
-      queryStr += ` ORDER BY executed_at DESC LIMIT $${paramCount++} OFFSET $${paramCount++}`;
+      queryStr += ` ORDER BY triggered_at DESC LIMIT $${paramCount++} OFFSET $${paramCount++}`;
       values.push(limit, offset);
 
       const result = await query(queryStr, values);
