@@ -248,35 +248,60 @@ class MQTTAutoDiscoveryService {
       ],
       
       deviceTypes: [
-        {
-          type: 'water_pump',
-          patterns: [/bomba|pump|water/i],
-          controlFields: ['bombaSw', 'pumpSw', 'sw', 'switch', 'estado'],
-          deviceTypeValues: ['water_pump', 'pump']
-        },
-        {
-          type: 'fan',
-          patterns: [/ventilador|fan|air/i],
-          controlFields: ['ventiladorSw', 'fanSw', 'sw', 'switch', 'estado'],
-          deviceTypeValues: ['fan', 'ventilador']
-        },
-        {
-          type: 'heater',
-          patterns: [/calefactor|heater|heat/i],
-          controlFields: ['calefactorSw', 'heaterSw', 'sw', 'switch', 'estado'],
-          deviceTypeValues: ['heater', 'calefactor']
-        },
+        // Más específicos primero - orden de prioridad
         {
           type: 'water_heater',
-          patterns: [/calefactor.*agua|water.*heater/i],
+          patterns: [/calefactor.*agua|water.*heater|calefactoragua/i],
           controlFields: ['calefactorAguaSw', 'waterHeaterSw', 'sw', 'switch', 'estado'],
           deviceTypeValues: ['water_heater', 'calefactor_agua']
         },
         {
+          type: 'water_pump',
+          patterns: [/bomba.*agua|pump.*water|bombaagua/i],
+          controlFields: ['bombaSw', 'pumpSw', 'sw', 'switch', 'estado'],
+          deviceTypeValues: ['water_pump', 'pump']
+        },
+        {
+          type: 'air_pump',
+          patterns: [/bomba.*aire|pump.*air|bombaaire/i],
+          controlFields: ['bombaSw', 'pumpSw', 'sw', 'switch', 'estado'],
+          deviceTypeValues: ['air_pump', 'bomba_aire']
+        },
+        {
+          type: 'heater',
+          patterns: [/^.*calefactor(?!.*agua)|heater(?!.*water)|heat(?!.*water)/i],
+          controlFields: ['calefactorSw', 'heaterSw', 'sw', 'switch', 'estado'],
+          deviceTypeValues: ['heater', 'calefactor']
+        },
+        {
+          type: 'fan',
+          patterns: [/ventilador|fan(?!.*light)|extractor/i],
+          controlFields: ['ventiladorSw', 'fanSw', 'extractorSw', 'sw', 'switch', 'estado'],
+          deviceTypeValues: ['fan', 'ventilador', 'extractor']
+        },
+        {
           type: 'led_light',
-          patterns: [/luz|light|led|lamp/i],
-          controlFields: ['lightSw', 'ledSw', 'lampSw', 'sw', 'switch', 'estado'],
-          deviceTypeValues: ['led_light', 'light', 'led']
+          patterns: [/luz|light|led|lamp|foco.*crecimiento|fococrecimiento/i],
+          controlFields: ['lightSw', 'ledSw', 'lampSw', 'focoSw', 'sw', 'switch', 'estado'],
+          deviceTypeValues: ['led_light', 'light', 'led', 'foco']
+        },
+        {
+          type: 'irrigation',
+          patterns: [/goteo|riego|irrigation|sprinkler/i],
+          controlFields: ['goteosw', 'riegoSw', 'irrigationSw', 'sw', 'switch', 'estado'],
+          deviceTypeValues: ['irrigation', 'goteo', 'riego']
+        },
+        {
+          type: 'humidifier',
+          patterns: [/humidificador|nebulizador|humidifier|mist/i],
+          controlFields: ['humidificadorSw', 'nebulizadorSw', 'mistSw', 'sw', 'switch', 'estado'],
+          deviceTypeValues: ['humidifier', 'humidificador', 'nebulizador']
+        },
+        {
+          type: 'curtain',
+          patterns: [/cortina|curtain|shade/i],
+          controlFields: ['cortinaSw', 'curtainSw', 'shadeSw', 'sw', 'switch', 'estado'],
+          deviceTypeValues: ['curtain', 'cortina']
         },
         {
           type: 'valve',
@@ -292,15 +317,21 @@ class MQTTAutoDiscoveryService {
         },
         {
           type: 'switch',
-          patterns: [/switch|relay|sw\d+/i],
+          patterns: [/switch\d+|relay\d+|sw\d+/i],
           controlFields: ['sw', 'switch', 'estado', 'state', 'relay'],
           deviceTypeValues: ['switch', 'relay']
         },
         {
           type: 'generic_switch',
-          patterns: [/\/sw$|\/switch|\/relay/i],
+          patterns: [/\/sw$|\/switch$|\/relay$/i],
           controlFields: ['sw', 'switch', 'estado', 'state', 'relay'],
           deviceTypeValues: ['generic_switch', 'switch', 'relay']
+        },
+        {
+          type: 'generic_device',
+          patterns: [/generico|generic|device/i],
+          controlFields: ['sw', 'switch', 'estado', 'state'],
+          deviceTypeValues: ['generic_device', 'generico']
         }
       ]
     };
@@ -731,10 +762,14 @@ class MQTTAutoDiscoveryService {
   mapToGraphQLDeviceType(detectedType) {
     const typeMapping = {
       'water_pump': 'WATER_PUMP',
+      'air_pump': 'WATER_PUMP', // Mapear bomba de aire como WATER_PUMP por compatibilidad
       'fan': 'VENTILATOR',
       'heater': 'HEATER',
-      'water_heater': 'HEATER', // Los calentadores de agua también son HEATER
+      'water_heater': 'HEATER',
       'led_light': 'LIGHTS',
+      'irrigation': 'SENSOR_ACTUATOR',
+      'humidifier': 'SENSOR_ACTUATOR',
+      'curtain': 'SENSOR_ACTUATOR',
       'valve': 'VALVE',
       'actuator': 'SENSOR_ACTUATOR',
       'motor': 'MOTOR',
@@ -742,7 +777,8 @@ class MQTTAutoDiscoveryService {
       'dimmer': 'DIMMER',
       'cooler': 'COOLER',
       'switch': 'RELAY',
-      'generic_switch': 'RELAY'
+      'generic_switch': 'RELAY',
+      'generic_device': 'SENSOR_ACTUATOR'
     };
     
     const mappedType = typeMapping[detectedType] || 'SENSOR_ACTUATOR';

@@ -282,11 +282,7 @@ class DeviceService {
         deviceDeleted: { id: deletedDeviceData.id, name: deletedDeviceData.name }
       });
 
-      return {
-        message: 'Device deleted successfully',
-        id: deletedDeviceData.id,
-        name: deletedDeviceData.name
-      };
+      return true;
     } catch (err) {
       console.error(`Error in deleteDevice (ID: ${id}): ${err.message}`);
       throw err;
