@@ -58,7 +58,7 @@ services:
       - MQTT_PORT=8883
       - MQTT_USE_SSL=true
       - MQTT_USERNAME=Backend
-      - MQTT_PASSWORD=MqttSecurePass2024
+      - MQTT_PASSWORD=Mq7TtK9nP4vL8bF2gW6hX5wE3nC0sR9mK5wL8qN3bF7vY2pR6tE9xJ4hG1nC8sV5q
       # Seguridad
       - JWT_SECRET=${JWT_SECRET:-your_jwt_secret_super_secure_minimum_32_characters_long}
       - ACCESS_TOKEN_SECRET=${ACCESS_TOKEN_SECRET:-your_access_token_secret_different_from_jwt}
