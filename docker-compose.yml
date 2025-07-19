@@ -113,7 +113,13 @@ services:
   redis:
     image: redis:7-alpine
     container_name: iot-redis
-    command: ["sh", "-c", "redis-server --requirepass ${REDIS_PASSWORD:-redis_password} --appendonly yes"]
+    command: >
+      sh -c "
+      echo 'requirepass redis_password' > /usr/local/etc/redis/redis.conf &&
+      echo 'appendonly yes' >> /usr/local/etc/redis/redis.conf &&
+      echo 'bind 0.0.0.0' >> /usr/local/etc/redis/redis.conf &&
+      redis-server /usr/local/etc/redis/redis.conf
+      "
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
@@ -121,11 +127,11 @@ services:
     networks:
       - iot-network
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_password}", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
+      test: ["CMD", "redis-cli", "-a", "redis_password", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
 
   # Database management via secure CLI tools only
   # pgAdmin removed for security - use psql or db-cli service for admin tasks
