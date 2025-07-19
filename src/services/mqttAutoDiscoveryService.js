@@ -118,17 +118,17 @@ class MQTTAutoDiscoveryService {
         },
         {
           type: 'WATER_EC_PPM',
-          patterns: [/ec|ppm|conductivity/i],
+          patterns: [/ec|ppm|conductivity|agua\/data|water\/data/i],
           requiredFields: ['ec', 'ppm'],
           optionalFields: ['temperatura', 'voltage', 'temp'],
-          priority: 7
+          priority: 5
         },
         {
           type: 'WATER_QUALITY_FULL',
           patterns: [/agua\/data|water\/data/i],
           requiredFields: ['ph', 'ec', 'ppm'], // Más específico
           optionalFields: ['temperatura', 'voltage', 'temp'],
-          priority: 6
+          priority: 8
         },
         {
           type: 'POWER',
