@@ -53,10 +53,12 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=redis_password
-      # Configuración de MQTT (usando broker externo por defecto)
-      - MQTT_BROKER_URL=${MQTT_BROKER_URL:-mqtt://broker.emqx.io}
-      - MQTT_USERNAME=${MQTT_USERNAME:-}
-      - MQTT_PASSWORD=${MQTT_PASSWORD:-}
+      # Configuración de MQTT (usando broker externo)
+      - MQTT_HOST=sdb201a6.ala.us-east-1.emqxsl.com
+      - MQTT_PORT=8883
+      - MQTT_USE_SSL=true
+      - MQTT_USERNAME=Backend
+      - MQTT_PASSWORD=MqttSecurePass2024
       # Seguridad
       - JWT_SECRET=${JWT_SECRET:-your_jwt_secret_super_secure_minimum_32_characters_long}
       - ACCESS_TOKEN_SECRET=${ACCESS_TOKEN_SECRET:-your_access_token_secret_different_from_jwt}
