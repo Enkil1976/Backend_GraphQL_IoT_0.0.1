@@ -82,52 +82,60 @@ class MQTTAutoDiscoveryService {
       
       sensorTypes: [
         {
-          type: 'TEMHUM',
-          patterns: [/temhum|temp.*hum/i],
-          requiredFields: ['temperatura', 'humedad'],
-          optionalFields: ['heatindex', 'dewpoint', 'temp', 'humidity']
-        },
-        {
-          type: 'WATER_QUALITY',
-          patterns: [/agua|water|quality/i],
-          requiredFields: [],
-          optionalFields: ['ph', 'ec', 'ppm', 'temperatura', 'voltage', 'temp']
-        },
-        {
-          type: 'WATER_PH',
-          patterns: [/ph|aguaph/i],
-          requiredFields: ['ph'],
-          optionalFields: ['temperatura', 'voltage', 'temp']
-        },
-        {
-          type: 'WATER_EC_PPM',
-          patterns: [/ec|ppm|conductivity/i],
-          requiredFields: ['ec', 'ppm'],
-          optionalFields: ['temperatura', 'voltage', 'temp']
-        },
-        {
-          type: 'WATER_QUALITY_FULL',
-          patterns: [/agua\/data|water\/data/i],
-          requiredFields: [],
-          optionalFields: ['ph', 'ec', 'ppm', 'temperatura', 'voltage', 'temp']
+          type: 'TEMP_PRESSURE',
+          patterns: [/pressure|presion|bmp/i],
+          requiredFields: ['presion', 'pressure'],
+          optionalFields: ['temperatura', 'temp', 'altitude'],
+          priority: 10 // Alta prioridad para sensores específicos
         },
         {
           type: 'LIGHT',
           patterns: [/luz|light|lux/i],
           requiredFields: ['light'],
-          optionalFields: ['white_light', 'raw_light', 'lux']
+          optionalFields: ['white_light', 'raw_light', 'lux'],
+          priority: 10 // Alta prioridad para sensores específicos
         },
         {
-          type: 'TEMP_PRESSURE',
-          patterns: [/pressure|presion|bmp/i],
-          requiredFields: ['pressure'],
-          optionalFields: ['temperatura', 'temp', 'altitude']
+          type: 'TEMHUM',
+          patterns: [/temhum|temp.*hum/i],
+          requiredFields: ['temperatura', 'humedad'],
+          optionalFields: ['heatindex', 'dewpoint', 'temp', 'humidity'],
+          priority: 8
+        },
+        {
+          type: 'WATER_QUALITY',
+          patterns: [/agua|water|quality|aguaquality/i],
+          requiredFields: ['ph', 'ec'], // REQUERIR al menos pH o EC
+          optionalFields: ['ppm', 'temperatura', 'voltage', 'temp'],
+          priority: 5 // Menor prioridad
+        },
+        {
+          type: 'WATER_PH',
+          patterns: [/ph|aguaph/i],
+          requiredFields: ['ph'],
+          optionalFields: ['temperatura', 'voltage', 'temp'],
+          priority: 7
+        },
+        {
+          type: 'WATER_EC_PPM',
+          patterns: [/ec|ppm|conductivity/i],
+          requiredFields: ['ec', 'ppm'],
+          optionalFields: ['temperatura', 'voltage', 'temp'],
+          priority: 7
+        },
+        {
+          type: 'WATER_QUALITY_FULL',
+          patterns: [/agua\/data|water\/data/i],
+          requiredFields: ['ph', 'ec', 'ppm'], // Más específico
+          optionalFields: ['temperatura', 'voltage', 'temp'],
+          priority: 6
         },
         {
           type: 'POWER',
           patterns: [/power|energia|watts/i],
           requiredFields: ['watts'],
-          optionalFields: ['voltage', 'current', 'frequency', 'power_factor']
+          optionalFields: ['voltage', 'current', 'frequency', 'power_factor'],
+          priority: 8
         }
       ]
     };
@@ -637,22 +645,74 @@ class MQTTAutoDiscoveryService {
    * Detecta tipo específico de sensor
    */
   detectSensorType(topic, payloads) {
+    console.log(`🔍 [detectSensorType] Analyzing topic: ${topic}`);
+    console.log(`🔍 [detectSensorType] Payloads: ${payloads.length} samples`);
+    
+    // Crear array de candidatos con scores
+    const candidates = [];
+    
     for (const sensorType of this.sensorDetectionRules.sensorTypes) {
+      let score = 0;
+      const priority = sensorType.priority || 1;
+      
       // Verificar patrón de tópico
       const matchesPattern = sensorType.patterns.some(pattern => pattern.test(topic));
+      if (matchesPattern) {
+        score += 50 * priority; // Bonus mayor para patrones + prioridad
+        console.log(`   ✅ Pattern match for ${sensorType.type}: +${50 * priority} points`);
+      }
       
       // Verificar campos requeridos en payloads
-      const hasRequiredFields = payloads.some(payload => 
-        sensorType.requiredFields.every(field => 
-          Object.keys(payload).some(key => key.toLowerCase().includes(field.toLowerCase()))
-        )
-      );
+      const hasRequiredFields = sensorType.requiredFields.length === 0 || 
+        payloads.some(payload => {
+          // Cambiar: TODOS los campos requeridos deben estar presentes
+          const matchingFields = sensorType.requiredFields.filter(field => 
+            Object.keys(payload).some(key => key.toLowerCase().includes(field.toLowerCase()))
+          );
+          return matchingFields.length === sensorType.requiredFields.length;
+        });
       
-      if (matchesPattern || hasRequiredFields) {
-        return sensorType.type;
+      if (hasRequiredFields) {
+        score += 30 * priority;
+        console.log(`   ✅ Required fields match for ${sensorType.type}: +${30 * priority} points`);
+      }
+      
+      // Verificar campos opcionales para bonus adicional
+      const optionalFieldMatches = payloads.reduce((count, payload) => {
+        return count + sensorType.optionalFields.filter(field =>
+          Object.keys(payload).some(key => key.toLowerCase().includes(field.toLowerCase()))
+        ).length;
+      }, 0);
+      
+      if (optionalFieldMatches > 0) {
+        score += optionalFieldMatches * 5;
+        console.log(`   ✅ Optional field matches for ${sensorType.type}: +${optionalFieldMatches * 5} points`);
+      }
+      
+      if (score > 0) {
+        candidates.push({ 
+          type: sensorType.type, 
+          score, 
+          priority, 
+          matchesPattern, 
+          hasRequiredFields 
+        });
       }
     }
     
+    // Ordenar por score descendente
+    candidates.sort((a, b) => b.score - a.score);
+    
+    console.log(`🏆 [detectSensorType] Candidates:`, candidates.map(c => 
+      `${c.type}(${c.score}pts, P${c.priority})`
+    ).join(', '));
+    
+    if (candidates.length > 0) {
+      console.log(`✅ [detectSensorType] Winner: ${candidates[0].type} with ${candidates[0].score} points`);
+      return candidates[0].type;
+    }
+    
+    console.log(`❓ [detectSensorType] No matches found, using CUSTOM`);
     return 'CUSTOM'; // Tipo genérico si no coincide con ninguno específico
   }
 

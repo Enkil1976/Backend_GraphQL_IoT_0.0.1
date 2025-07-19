@@ -364,10 +364,13 @@ const sensorQueries = {
               timestamp: cachedData.timestamp || new Date().toISOString(),
               temperatura: parseFloat(cachedData.temperatura) || null,
               humedad: parseFloat(cachedData.humedad) || null,
+              presion: parseFloat(cachedData.presion) || null, // ¡Agregar presión!
               ph: parseFloat(cachedData.ph) || null,
               ec: parseFloat(cachedData.ec) || null,
               ppm: parseFloat(cachedData.ppm) || null,
               light: parseFloat(cachedData.light) || null,
+              whiteLight: parseFloat(cachedData.white_light) || null,
+              rawLight: parseFloat(cachedData.raw_light) || null,
               watts: parseFloat(cachedData.watts) || null,
               rssi: parseInt(cachedData.rssi) || null,
               rawData: cachedData
